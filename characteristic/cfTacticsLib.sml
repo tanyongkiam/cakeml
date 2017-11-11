@@ -190,7 +190,7 @@ fun xcf name st =
       CONV_TAC (DEPTH_CONV (REWR_CONV (GSYM letrec_pull_params_repack))) \\
       irule app_rec_of_cf THENL [
         eval_tac,
-        reduce_tac \\ simp [cf_def] \\ reduce_tac \\
+        rpt(CHANGED_TAC(simp[Once cf_def] \\ reduce_tac))\\
         CONV_TAC (
           DEPTH_CONV (
             REWR_CONV letrec_pull_params_repack THENC
