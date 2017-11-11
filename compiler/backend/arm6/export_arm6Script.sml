@@ -8,10 +8,10 @@ val startup =
        "";
        "     .text";
        "     .p2align 3";
-       "     .globl  cdecl(main)";
+       "     .globl  cdecl(cml_main)";
        "     .globl  cdecl(argc)";
        "     .globl  cdecl(argv)";
-       "cdecl(main):";
+       "cdecl(cml_main):";
        "     ldr    r2,=cdecl(argc)";
        "     ldr    r3,=cdecl(argv)";
        "     str    r0,[r2]";
@@ -46,11 +46,11 @@ val ffi_code =
      (ffi_asm (REVERSE ffi_names))
      (List (MAP (\n. strlit(n ++ "\n"))
       ["cake_clear:";
-       "     b   cdecl(exit)";
+       "     b   cdecl(cml_exit)";
        "     .p2align 4";
        "";
        "cake_exit:";
-       "     b   cdecl(exit)";
+       "     b   cdecl(cml_exit)";
        "     .p2align 4";
        "";
        "cake_main:";
@@ -59,7 +59,7 @@ val ffi_code =
        ""])))`` |> EVAL |> concl |> rand
 
 val arm6_export_def = Define `
-  arm6_export ffi_names heap_space stack_space bytes (data:word32 list) =
+  arm6_export ext ffi_names heap_space stack_space bytes (data:word32 list) =
     SmartAppend
       (SmartAppend (List preamble)
       (SmartAppend (List (data_section ".long" heap_space stack_space))

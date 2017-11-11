@@ -8,10 +8,10 @@ val startup =
        "";
        "     .text";
        "     .p2align 3";
-       "     .globl  cdecl(main)";
+       "     .globl  cdecl(cml_main)";
        "     .globl  cdecl(argc)";
        "     .globl  cdecl(argv)";
-       "cdecl(main):";
+       "cdecl(cml_main):";
        "     leaq    cdecl(argc)(%rip), %rdx";
        "     leaq    cdecl(argv)(%rip), %rcx";
        "     movq    %rdi, 0(%rdx)  # %rdi stores argc";
@@ -48,11 +48,11 @@ val ffi_code =
      (ffi_asm (REVERSE ffi_names))
      (List (MAP (\n. strlit(n ++ "\n"))
       ["cake_clear:";
-       "     callq   cdecl(exit)";
+       "     callq   cdecl(cml_exit)";
        "     .p2align 4";
        "";
        "cake_exit:";
-       "     callq   cdecl(exit)";
+       "     callq   cdecl(cml_exit)";
        "     .p2align 4";
        "";
        "cake_main:";
