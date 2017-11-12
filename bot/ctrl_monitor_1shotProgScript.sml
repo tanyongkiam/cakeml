@@ -56,7 +56,9 @@ val get_ctrl = process_topdecs`
 
 val _ = append_prog get_ctrl;
 
-(* Pure controller monitor wrapper *)
+(* Pure controller monitor wrapper
+   The additional string literal is just there for external logging
+*)
 val ctrl_monitor_def = Define`
   ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
                         const_ls sensor_ls ctrl_ls default =
@@ -65,9 +67,9 @@ val ctrl_monitor_def = Define`
     if
       wfsem_bi_val ctrl_phi (vars_to_state names_ls st_ls)
     then
-      (strlit"T",ctrl_ls)
+      (strlit"OK",ctrl_ls)
     else
-      (strlit"F",default const_ls sensor_ls)`
+      (strlit"DEFAULT",default const_ls sensor_ls)`
 
 val res = translate ctrl_monitor_def;
 
@@ -337,17 +339,22 @@ val get_ctrl_spec = Q.store_thm("get_ctrl_spec",`
       fs[w8_to_w32_w32_to_w8,wf_world_def]>>
       metis_tac[]);
 
+val string_ID = Q.store_thm("string_ID",`
+  ∀s. MAP (CHR ∘ (w2n:word8->num)) (MAP (n2w ∘ ORD) s) = s`,
+  fs[LIST_EQ_REWRITE,EL_MAP]>>rw[]>>
+  `ORD (EL x s) MOD 256 = ORD (EL x s)` by
+    fs[MOD_LESS,ORD_BOUND]>>
+  metis_tac[CHR_ORD]);
+
 val actuate_spec = Q.store_thm("actuate_spec",`
     LIST_TYPE WORD32 ctrl_vals ctrlv ∧
-    (STRING_TYPE (strlit"T") strv ∨
-      STRING_TYPE (strlit"F") strv) ∧
+    STRING_TYPE strng strngv ∧
     LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
     ctrl_sat w.wc w.ws ctrl_vals
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strv;ctrlv]
+    app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
       (IOBOT w)
       (POSTv u. IOBOT w * SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals))`,
-    qpat_abbrev_tac `P <=> A ∨ B`>>
     rw[]>>
     xcf"actuate" bot_st>>
     xlet_auto >- xsimpl>>
@@ -355,19 +362,14 @@ val actuate_spec = Q.store_thm("actuate_spec",`
     xffi >> xsimpl>>
     simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
     qmatch_goalsub_abbrev_tac`IO s u ns` >>
-    fs[ml_translatorTheory.STRING_TYPE_def]>>
-    map_every qexists_tac [`MAP (n2w o ORD) (if strv = Litv (StrLit "T") then [#"T"] else [#"F"])`,`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
+    map_every qexists_tac [`MAP (n2w o ORD) (explode strng)`,`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
     xsimpl >>
     unabbrev_all_tac>>
     simp[mk_ffi_next_def,ffi_actuate_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
     qexists_tac`av`>>xsimpl>>
-    fs[]);
-    (* is this even true?
-    Cases_on`conf_str`>>fs[ml_translatorTheory.STRING_TYPE_def]>>
-    simp[MAP_MAP_o,o_DEF]>>
-    cheat
-    ); *)
-
+    fs[]>>
+    Cases_on`strng`>>fs[ml_translatorTheory.STRING_TYPE_def,string_ID]);
+    
 (*
 val default_actuate_spec = Q.store_thm("default_actuate_spec",`
     LIST_TYPE WORD32 ctrl_vals ctrlv ∧
@@ -460,13 +462,11 @@ val good_default_def = Define`
 val good_default_IMP = Q.prove(`
   ∀ls.
   good_default def w ∧
-  LENGTH ls = LENGTH w.wc.ctrl_names ∧
-  (q,r) = ctrl_monitor w.wc.ctrl_monitor
+  LENGTH ls = LENGTH w.wc.ctrl_names ==>
+  let r = SND (ctrl_monitor w.wc.ctrl_monitor
                w.wc.const_names w.wc.sensor_names w.wc.ctrl_names
                w.ws.const_vals w.ws.sensor_vals ls
-               def
-  ==>
-  (q = strlit"T" ∨ q= strlit"F") ∧
+               def) in
   ctrl_sat w.wc w.ws r ∧
   LENGTH r = LENGTH w.wc.ctrl_names`,
   rw[ctrl_monitor_def,ctrl_sat_def,wfsem_bi_val_def,good_default_def]>>
@@ -495,14 +495,20 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
     drule get_ctrl_spec >> rpt(disch_then drule)>> strip_tac>>
     xlet_auto>- simp[]>>
     xlet_auto>- xsimpl>>
+    drule good_default_IMP>>
+    disch_then (qspec_then`w.ws.ctrl_vals` assume_tac)>>
+    fs[]>>
     qmatch_asmsub_abbrev_tac`PAIR_TYPE _ _ fls _`>>
     Cases_on`fls`>>   fs[ml_translatorTheory.PAIR_TYPE_def,markerTheory.Abbrev_def]>>
-    drule good_default_IMP>>
-    disch_then (qspec_then`w.ws.ctrl_vals` assume_tac)>>fs[]>>
     xmatch>>
     simp[IOBOT_def]>>xpull>>
     xapp>>
-    map_every qexists_tac [`emp`,`w`,`r`]>>xsimpl>>fs[IOBOT_def]>>xsimpl>>
-    metis_tac[wf_world_def]);
+    xsimpl>>
+    rfs[wf_world_def]>>fs[]>>
+    qpat_x_assum`LENGTH r = _` assume_tac>>
+    asm_exists_tac>>simp[]>>
+    asm_exists_tac>>simp[]>>
+    qexists_tac`emp`>>xsimpl>>fs[IOBOT_def,wf_world_def]>>
+    xsimpl);
 
 val _ = export_theory();
