@@ -395,6 +395,11 @@ val w8_to_w32_w32_to_w8 = Q.store_thm("w8_to_w32_w32_to_w8",`
   pop_assum mp_tac>>EVAL_TAC>>rw[]>>
   blastLib.FULL_BBLAST_TAC);
 
+val w32_to_w8_APPEND = Q.store_thm("w32_to_w8_APPEND",`
+  ∀a b. w32_to_w8 (a ++ b) = w32_to_w8 a ++ w32_to_w8 b`,
+  EVAL_TAC>>
+  Induct_on`a`>>fs[FLAT_TUP_def,w32_to_le_bytes_def]);
+
 val pack_w32_list_spec = Q.store_thm("pack_w32_list_spec",`
     ∀l lv.
     LIST_TYPE (WORD:word32 -> v -> bool) l lv
