@@ -56,40 +56,28 @@ val get_ctrl = process_topdecs`
 
 val _ = append_prog get_ctrl;
 
-(* Reads a control decision, returns it if it passes the monitor *)
-val ctrl_monitor = process_topdecs`
-  fun ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                            const_ls sensor_ls =
-  let
-    val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls
-    val st_ls = List.concat [const_ls,sensor_ls,ctrl_ls]
-    val names_ls = List.concat [const_names,sensor_names,ctrl_names]
-  in
+(* Pure controller monitor wrapper *)
+val ctrl_monitor_def = Define`
+  ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                        const_ls sensor_ls ctrl_ls default =
+  let st_ls = FLAT [const_ls; sensor_ls; ctrl_ls] in
+  let names_ls = FLAT [const_names; sensor_names; ctrl_names] in
     if
       wfsem_bi_val ctrl_phi (vars_to_state names_ls st_ls)
     then
-      SOME ctrl_ls
+      (strlit"T",ctrl_ls)
     else
-      NONE
-  end;`
+      (strlit"F",default const_ls sensor_ls)`
 
-val _ = append_prog ctrl_monitor;
+val res = translate ctrl_monitor_def;
 
 val actuate = process_topdecs`
-  fun actuate ctrl_ls =
+  fun actuate str ctrl_ls =
     let val ctrl_vals = pack_w32_list ctrl_ls in
-      #(actuate) "" ctrl_vals
+      #(actuate) str ctrl_vals
     end`
 
 val _ = append_prog actuate;
-
-val default_actuate = process_topdecs`
-  fun default_actuate ctrl_ls =
-    let val ctrl_vals = pack_w32_list ctrl_ls in
-      #(default_actuate) "" ctrl_vals
-    end`
-
-val _ = append_prog default_actuate;
 
 val ctrl_monitor_1shot = process_topdecs`
   fun ctrl_monitor_1shot ctrl_phi const_names sensor_names ctrl_names default =
@@ -97,17 +85,12 @@ val ctrl_monitor_1shot = process_topdecs`
     (* First read the constants and state *)
     val const_ls = get_const const_names
     val sensor_ls = get_sensor sensor_names
-    (* Run the controller monitor *)
-    val ctrl_ls_opt = ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                            const_ls sensor_ls
+    val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls
   in
-    case ctrl_ls_opt of
-      NONE =>
-      let val ls = default const_ls sensor_ls
-      in
-        (default_actuate ls)
-      end
-    | SOME ls => (actuate ls)
+    case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                        const_ls sensor_ls ctrl_ls default
+    of
+      (flg,ls) => actuate flg ls
   end`
 
 val _ = append_prog ctrl_monitor_1shot;
@@ -227,8 +210,7 @@ val bot_ffi_part_def = Define`
       [("get_const",ffi_get_const);
        ("get_sensor",ffi_get_sensor);
        ("get_ctrl",ffi_get_control);
-       ("actuate",ffi_actuate);
-       ("default_actuate",ffi_actuate)])`;
+       ("actuate",ffi_actuate);])`;
 
 (* Well-formed worlds follow their config *)
 val wf_world_def = Define`
@@ -357,12 +339,15 @@ val get_ctrl_spec = Q.store_thm("get_ctrl_spec",`
 
 val actuate_spec = Q.store_thm("actuate_spec",`
     LIST_TYPE WORD32 ctrl_vals ctrlv ∧
+    (STRING_TYPE (strlit"T") strv ∨
+      STRING_TYPE (strlit"F") strv) ∧
     LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
     ctrl_sat w.wc w.ws ctrl_vals
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [ctrlv]
+    app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strv;ctrlv]
       (IOBOT w)
       (POSTv u. IOBOT w * SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals))`,
+    qpat_abbrev_tac `P <=> A ∨ B`>>
     rw[]>>
     xcf"actuate" bot_st>>
     xlet_auto >- xsimpl>>
@@ -370,12 +355,20 @@ val actuate_spec = Q.store_thm("actuate_spec",`
     xffi >> xsimpl>>
     simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
     qmatch_goalsub_abbrev_tac`IO s u ns` >>
-    map_every qexists_tac [`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
+    fs[ml_translatorTheory.STRING_TYPE_def]>>
+    map_every qexists_tac [`MAP (n2w o ORD) (if strv = Litv (StrLit "T") then [#"T"] else [#"F"])`,`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
     xsimpl >>
     unabbrev_all_tac>>
     simp[mk_ffi_next_def,ffi_actuate_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
-    qexists_tac`av`>>xsimpl);
+    qexists_tac`av`>>xsimpl>>
+    fs[]);
+    (* is this even true?
+    Cases_on`conf_str`>>fs[ml_translatorTheory.STRING_TYPE_def]>>
+    simp[MAP_MAP_o,o_DEF]>>
+    cheat
+    ); *)
 
+(*
 val default_actuate_spec = Q.store_thm("default_actuate_spec",`
     LIST_TYPE WORD32 ctrl_vals ctrlv ∧
     LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
@@ -451,6 +444,7 @@ val ctrl_monitor_spec = Q.store_thm("ctrl_monitor_spec",`
     pop_assum mp_tac>> TOP_CASE_TAC>>fs[]>>
     strip_tac>>qexists_tac`SOME w.ws.ctrl_vals`>>
     simp[ml_translatorTheory.OPTION_TYPE_def]);
+*)
 
 (* We assume that the default function always works in the current world
    This is a really strong assumption, it really ought to work in all
@@ -463,15 +457,30 @@ val good_default_def = Define`
   LENGTH def_ctrl = LENGTH w.wc.ctrl_names ∧
   ctrl_sat w.wc w.ws def_ctrl`
 
+val good_default_IMP = Q.prove(`
+  ∀ls.
+  good_default def w ∧
+  LENGTH ls = LENGTH w.wc.ctrl_names ∧
+  (q,r) = ctrl_monitor w.wc.ctrl_monitor
+               w.wc.const_names w.wc.sensor_names w.wc.ctrl_names
+               w.ws.const_vals w.ws.sensor_vals ls
+               def
+  ==>
+  (q = strlit"T" ∨ q= strlit"F") ∧
+  ctrl_sat w.wc w.ws r ∧
+  LENGTH r = LENGTH w.wc.ctrl_names`,
+  rw[ctrl_monitor_def,ctrl_sat_def,wfsem_bi_val_def,good_default_def]>>
+  EVERY_CASE_TAC>>fs[]);
+
 val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
     (* These specify what the inputs should be *)
     MONITORPROG_FML_TYPE w.wc.ctrl_monitor fv ∧
     LIST_TYPE STRING_TYPE w.wc.const_names const_namesv ∧
     LIST_TYPE STRING_TYPE w.wc.sensor_names sensor_namesv ∧
     LIST_TYPE STRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
-    (LIST_TYPE (WORD:word32 -> v -> bool) -->
-    LIST_TYPE (WORD:word32 -> v -> bool) -->
-    LIST_TYPE (WORD:word32 -> v -> bool)) def defv ∧
+    (LIST_TYPE WORD32 -->
+    LIST_TYPE WORD32 -->
+    LIST_TYPE WORD32) def defv ∧
     good_default def w ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_1shot" bot_st)
       [fv;const_namesv;sensor_namesv;ctrl_namesv;defv]
@@ -483,36 +492,17 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
     xlet_auto>- xsimpl>>
     drule get_sensor_spec >> strip_tac>>
     xlet_auto>- xsimpl>>
-    xlet_auto>-
-      (xsimpl>>
-      metis_tac[])>>
-    pop_assum mp_tac>> TOP_CASE_TAC>>
-    fs[ml_translatorTheory.OPTION_TYPE_def]>>rw[]>>
-    xmatch
-    >-
-      (xlet`POSTv ls.
-       IOBOT w *
-       SEP_EXISTS vv.
-       &(ctrl_sat w.wc w.ws vv /\ LENGTH vv = LENGTH w.wc.ctrl_names ∧
-       LIST_TYPE (WORD:word32 -> v -> bool) (vv) ls)`
-      >-
-        (xapp>>xsimpl>>
-        asm_exists_tac>> simp[]>>
-        asm_exists_tac>> simp[]>>
-        asm_exists_tac>> simp[]>>
-        fs[good_default_def]>>
-        metis_tac[])
-      >>
-        xapp>>xsimpl>>
-        simp[IOBOT_def]>>
-        map_every qexists_tac [`emp`,`w`,`vv`]>>
-        simp[]>>xsimpl)
-    >>
-      simp[IOBOT_def]>>xpull>>
-      xapp >>xsimpl>>
-      simp[IOBOT_def]>>
-      map_every qexists_tac [`emp`,`w`,`w.ws.ctrl_vals`]>>
-      simp[]>>xsimpl>>
-      fs[wf_world_def]);
+    drule get_ctrl_spec >> rpt(disch_then drule)>> strip_tac>>
+    xlet_auto>- simp[]>>
+    xlet_auto>- xsimpl>>
+    qmatch_asmsub_abbrev_tac`PAIR_TYPE _ _ fls _`>>
+    Cases_on`fls`>>   fs[ml_translatorTheory.PAIR_TYPE_def,markerTheory.Abbrev_def]>>
+    drule good_default_IMP>>
+    disch_then (qspec_then`w.ws.ctrl_vals` assume_tac)>>fs[]>>
+    xmatch>>
+    simp[IOBOT_def]>>xpull>>
+    xapp>>
+    map_every qexists_tac [`emp`,`w`,`r`]>>xsimpl>>fs[IOBOT_def]>>xsimpl>>
+    metis_tac[wf_world_def]);
 
 val _ = export_theory();
