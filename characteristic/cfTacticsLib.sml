@@ -349,7 +349,7 @@ fun xfun_core (g as (_, w)) =
   else
     err_tac "xfun" "goal is not a cf_fun or cf_fun_rec" g
 
-val simp_spec = (CONV_RULE reduce_conv) o (simp_rule [cf_def])
+val simp_spec = CONV_RULE (REPEATC (reduce_conv THENC PURE_ONCE_REWRITE_CONV[cf_def]))
 
 fun xfun qname =
   xpull_check_not_needed \\

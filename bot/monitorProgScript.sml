@@ -498,27 +498,28 @@ val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
 (* -- Helper functions for encoding/decoding from the FFI type *)
 
 (* Turn a word32 list into a list of strings invertibly *)
+val w2sCHR_11 = Q.prove(`
+  w2s 2 CHR c = w2s 2 CHR c' ⇒ c = c'`,
+  rw[]>>
+  qsuff_tac `∀h. s2w 2 ORD (w2s 2 CHR h) = h` >>fs[]
+  >-
+    metis_tac[]
+  >>
+    rw[]>>match_mp_tac s2w_w2s>>simp[]);
+
 val encode_word32_list_def = Define`
-  encode_word32_list ws =
-  List (MAP (Str o w2s 2 CHR) ws)`
+  encode_word32_list = encode_list (Str o w2s 2 CHR)`
 
-val decode_string_def = Define`
-  (decode_string (Str w) = SOME (s2w 2 ORD w)) ∧
-  (decode_string _ = NONE)`
+val encode_word32_list_11 = Q.store_thm("encode_word32_list_11",`
+  !x y. encode_word32_list x = encode_word32_list y <=> x = y`,
+  Induct \\ Cases_on `y`
+  \\ fs [encode_word32_list_def,encode_list_def]
+  \\ metis_tac[w2sCHR_11]);
 
-val decode_word32_list_def = Define`
-  (decode_word32_list (List ls) =
-  let dec = MAP decode_string ls in
-  if EVERY IS_SOME dec then SOME (MAP THE dec)
-  else
-    NONE) ∧
-  (decode_word32_list _ = NONE)`
-
-val decode_encode_word32_list = Q.store_thm("decode_encode_word32_list",`
-  ∀ls. decode_word32_list (encode_word32_list ls) = SOME ls`,
-  Induct>>fs[encode_word32_list_def,decode_word32_list_def,decode_string_def]>>
-  rw[]>> match_mp_tac s2w_w2s>>
-  fs[]);
+val decode_encode_word32_list = new_specification("decode_encode_word32_list",["decode_word32_list"],
+  prove(``?decode_word32_list. !cls. decode_word32_list (encode_word32_list cls) = SOME cls``,
+        qexists_tac `\f. some c. encode_word32_list c = f` \\ fs [encode_word32_list_11]));
+val _ = export_rewrites ["decode_encode_word32_list"];
 
 val encode_trm_def = Define`
   (encode_trm (Const w) = Cons (Num 0) (Str (w2s 2 CHR w))) ∧
@@ -529,32 +530,16 @@ val encode_trm_def = Define`
   (encode_trm (Min t1 t2) = Cons (Num 5) (Cons (encode_trm t1) (encode_trm t2))) ∧
   (encode_trm (Neg t) = Cons (Num 6) (encode_trm t))`
 
-val decode_trm_def = Define`
-  (decode_trm (Cons (Num i) e) =
-  if i = 0n then
-    (case decode_string e of SOME w => SOME (Const w) | _ => NONE)
-  else if i = 1n then
-    (case e of Str s => SOME (Var (implode s)) | _ => NONE)
-  else if i = 6n then
-    (case decode_trm e of SOME e => SOME (Neg e) | _ => NONE)
-  else
-    (case e of
-      Cons e1 e2 =>
-        (case (decode_trm e1,decode_trm e2) of
-          (SOME t1,SOME t2) =>
-            if i = 2n then SOME (Plus t1 t2)
-            else if i = 3n then SOME (Times t1 t2)
-            else if i = 4n then SOME (Max t1 t2)
-            else if i = 5n then SOME (Min t1 t2)
-            else NONE
-      | _ => NONE))) ∧
-  (decode_trm _ = NONE)`
+val encode_trm_11 = Q.store_thm("encode_trm_11",`
+  ∀x y. encode_trm x = encode_trm y <=> x = y`,
+  Induct>>Cases_on`y`>>rw[encode_trm_def]>>
+  fs[mlstringTheory.explode_11]>>
+  metis_tac[w2sCHR_11]);
 
-val decode_encode_trm = Q.store_thm("decode_encode_trm",`
-  ∀e. decode_trm (encode_trm e) = SOME(e:trm)`,
-  Induct>>rw[encode_trm_def,decode_trm_def]>>
-  fs[decode_string_def]>>
-  match_mp_tac s2w_w2s>>fs[]);
+val decode_encode_trm = new_specification("decode_encode_trm",["decode_trm"],
+  prove(``?decode_trm. !cls. decode_trm (encode_trm cls) = SOME cls``,
+        qexists_tac `\f. some c. encode_trm c = f` \\ fs [encode_trm_11]));
+val _ = export_rewrites ["decode_encode_trm"];
 
 val encode_fml_def = Define`
   (encode_fml (Le t1 t2) = Cons (Num 0) (Cons (encode_trm t1) (encode_trm t2))) ∧
@@ -564,30 +549,14 @@ val encode_fml_def = Define`
   (encode_fml (Or f1 f2) = Cons (Num 4) (Cons (encode_fml f1) (encode_fml f2))) ∧
   (encode_fml (Not f) = Cons (Num 5) (encode_fml f))`
 
-val decode_fml_def = Define`
-  (decode_fml (Cons (Num i) e) =
-  if i = 5 then
-     (case decode_fml e of SOME f => SOME (Not f) | _ => NONE)
-  else
-  (case e of Cons e1 e2 =>
-    if i = 0 ∨ i = 1 ∨ i = 2 then
-      (case (decode_trm e1,decode_trm e2) of
-        (SOME t1,SOME t2) =>
-          if i = 0 then SOME (Le t1 t2)
-          else if i = 1 then SOME (Leq t1 t2)
-          else SOME (Equals t1 t2)
-        | _ => NONE)
-    else if i = 3 ∨ i = 4 then
-      (case (decode_fml e1,decode_fml e2) of
-        (SOME f1,SOME f2) =>
-          if i = 3 then SOME (And f1 f2)
-          else SOME (Or f1 f2))
-    else NONE)) ∧
-  (decode_fml e = NONE)`
+val encode_fml_11 = Q.store_thm("encode_fml_11",`
+  ∀x y. encode_fml x = encode_fml y <=> x = y`,
+  Induct>>Cases_on`y`>>rw[encode_fml_def]>>
+  metis_tac[encode_trm_11]);
 
-val decode_encode_fml = Q.store_thm("decode_encode_fml",`
-  ∀e. decode_fml (encode_fml e) = SOME(e:fml)`,
-  Induct>>rw[encode_fml_def,decode_fml_def]>>
-  simp[decode_encode_trm]);
+val decode_encode_fml = new_specification("decode_encode_fml",["decode_fml"],
+  prove(``?decode_fml. !cls. decode_fml (encode_fml cls) = SOME cls``,
+        qexists_tac `\f. some c. encode_fml c = f` \\ fs [encode_fml_11]));
+val _ = export_rewrites ["decode_encode_fml"];
 
 val _ = export_theory();

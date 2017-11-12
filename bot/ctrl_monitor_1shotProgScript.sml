@@ -5,9 +5,9 @@ open preamble ml_progLib ml_translatorLib
 open cfHeapsBaseTheory
 
 (*
-  Defines and verifies a controller monitor + wrapper
+  Defines and verifies a 1-shot controller monitor + wrapper
 
-  Many of the functions will get new specifications later,
+  Many of the functions will get new specifications later
   when we model the world more carefully
 *)
 
@@ -98,10 +98,11 @@ val ctrl_monitor_1shot = process_topdecs`
 val _ = append_prog ctrl_monitor_1shot;
 
 (*
-  The world model here is simple.
+  The world model here is simplified.
   It has two parts:
    - The world_config is immutable, and visible to our program
    - The world_state is unknown, and gets seen by the FFI
+   - The world_oracle gives the oracle transitions
 *)
 
 val _ = Datatype`
@@ -115,11 +116,18 @@ val _ = Datatype`
   world_state = <|
     const_vals   : word32 list; (* Fixed constants *)
     sensor_vals  : word32 list;
-    ctrl_vals    : word32 list; (* TODO: this should really be word32 list -> word32 list*)
     |>`
 
 val _ = Datatype`
-  world = <| wc : world_config; ws : world_state |>`
+  world_oracle = <|
+    ctrl_oracle   : num -> word32 list -> word32 list; (* A sequence of non-deterministic oracles *)
+  |>`
+
+val get_oracle_def = Define`
+  get_oracle f = (f 0n,λn. f (n+1))`
+
+val _ = Datatype`
+  world = <| wc : world_config; ws : world_state ; wo : world_oracle|>`
 
 val ffi_get_const_def = Define`
   ffi_get_const (conf:word8 list) (bytes:word8 list) (st:world) =
@@ -143,8 +151,11 @@ val ffi_get_control_def = Define`
      LENGTH bytes = 4 * LENGTH st.wc.ctrl_names
   then
     let w32s = w8_to_w32 bytes in
-    let w8s = w32_to_w8 st.ws.ctrl_vals in
-    SOME (w8s,st)
+    let wo = st.wo in
+    let (cur_oracle,next_oracle) = get_oracle wo.ctrl_oracle in
+    let w8s = w32_to_w8 (cur_oracle w32s) in
+    let new_wo = wo with ctrl_oracle := next_oracle in
+    SOME (w8s,st with wo := new_wo)
   else NONE`
 
 val ctrl_sat_def = Define`
@@ -166,6 +177,24 @@ val ffi_actuate_def = Define`
       else NONE
   else NONE`
 
+val get_num_def = Define`
+  (get_num (iNum n) = n) ∧
+  (get_num _ = 0)`
+
+val get_word32_def = Define`
+  (get_word32 (iStr s) = (s2w 2 ORD s)) ∧
+  (get_word32 _ = 0w:word32)`
+
+val get_word32_list_def = Define`
+  (get_word32_list (iList ls) = MAP get_word32 ls) /\
+  (get_word32_list _ = [])`
+
+val encode_ctrl_oracle_def = Define`
+  encode_ctrl_oracle ctrl_oracle =
+    Fun (λnum:ffi_inner.
+    Fun (λw32ls:ffi_inner.
+      encode_word32_list (ctrl_oracle (get_num num) (get_word32_list w32ls))))`
+
 (* Encode world into the FFI type *)
 val encode_def = Define`
   encode (w:world) =
@@ -174,37 +203,51 @@ val encode_def = Define`
    (Cons (List (MAP (Str o explode) w.wc.ctrl_names))
    (Cons (encode_word32_list w.ws.const_vals)
    (Cons (encode_word32_list w.ws.sensor_vals)
-   (Cons (encode_word32_list w.ws.ctrl_vals)
+   (Cons (encode_ctrl_oracle w.wo.ctrl_oracle)
    (encode_fml w.wc.ctrl_monitor))))))`
-
-(* Invert the encoding *)
-val decode_def = Define`
-  decode foo = some w. encode w = foo`
 
 val comp_eq = map theorem ["world_component_equality",
                            "world_config_component_equality",
-                           "world_state_component_equality"];
+                           "world_state_component_equality",
+                           "world_oracle_component_equality"];
 
-val INJ_Str_explode = Q.prove(`
-  INJ (Str o explode) UNIV UNIV`,
-  rw[INJ_DEF]>>metis_tac[mlstringTheory.explode_11]);
+val encode_word32_list_inner_def = Define`
+  encode_word32_list = encode_list (Str o w2s 2 CHR)`
 
-val encode_11 = Q.prove(`
-  ∀w w'.
-  encode w' = encode w ⇒
-  w' = w`,
-  fs[encode_def] >> fs comp_eq>> rw[]>>
-  TRY(
-    match_mp_tac (INJ_MAP_EQ |> Q.ISPEC`Str o explode`)>>
-    rw[INJ_DEF]>>metis_tac[mlstringTheory.explode_11])>>
-  TRY(metis_tac[decode_encode_fml,decode_encode_word32_list,SOME_11]));
-
-val decode_encode = Q.store_thm("decode_encode[simp]",
-  `decode (encode (w:world)) = SOME w`,
-  simp[decode_def,some_def]>>rw[]>- metis_tac[]>>
-  match_mp_tac SELECT_UNIQUE>>
+val encode_ctrl_oracle_11 = Q.prove(`
+  encode_ctrl_oracle f = encode_ctrl_oracle f' ⇒
+  f = f'`,
+  rw[encode_ctrl_oracle_def]>>
+  fs[FUN_EQ_THM]>>
   rw[]>>
-  metis_tac[encode_11]);
+  pop_assum (qspecl_then[`iNum x`,`iList (MAP (iStr o w2s 2 CHR) x')`] assume_tac)>>
+  fs[get_num_def,get_word32_list_def,get_word32_def,MAP_MAP_o,o_DEF]>>
+  `∀x:word32. s2w 2 ORD (w2s 2 CHR x)= x` by
+     (rw[]>>match_mp_tac s2w_w2s>>fs[])>>
+  fs[]>>
+  metis_tac[encode_word32_list_11]);
+
+val MAP_Str_explode_11 = Q.store_thm("MAP_Str_explode_11",`
+  MAP (Str o explode) ls =
+  MAP (Str o explode) ls' ==>
+  ls = ls'`,
+  fs[LIST_EQ_REWRITE]>>
+  rw[]>>
+  rfs[EL_MAP]>>
+  metis_tac[mlstringTheory.explode_11]);
+
+val encode_11 = Q.store_thm("encode_11",`
+  ∀w w'.
+  encode w' = encode w <=> w' = w`,
+  fs[encode_def]>>
+  rw[EQ_IMP_THM]>>fs comp_eq>>
+  fs[encode_word32_list_11]>>
+  rw[EQ_IMP_THM]>>fs[MAP_Str_explode_11,encode_ctrl_oracle_11,encode_fml_11])
+
+val decode_encode = new_specification("decode_encode",["decode"],
+  prove(``?decode. !cls. decode (encode cls) = SOME cls``,
+        qexists_tac `\f. some c. encode c = f` \\ fs [encode_11]));
+val _ = export_rewrites ["decode_encode"];
 
 val bot_ffi_part_def = Define`
   bot_ffi_part =
@@ -219,7 +262,9 @@ val wf_world_def = Define`
   wf_world w ⇔
   LENGTH w.ws.const_vals = LENGTH w.wc.const_names ∧
   LENGTH w.ws.sensor_vals = LENGTH w.wc.sensor_names ∧
-  LENGTH w.ws.ctrl_vals = LENGTH w.wc.ctrl_names`
+  (∀n inp.
+    (*LENGTH inp = clen + slen ⇒ -- we could restrict it more... *)
+    LENGTH (w.wo.ctrl_oracle n inp) = LENGTH w.wc.ctrl_names)`
 
 val bot_st = get_ml_prog_state();
 
@@ -241,103 +286,113 @@ val to_string_spec = Q.store_thm("to_string_spec",`
   simp[]);
 
 val get_const_spec = Q.store_thm("get_const_spec",`
-    ∀w vs.
-    LIST_TYPE STRING_TYPE w.wc.const_names vs
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "get_const" bot_st) [vs]
-      (IOBOT w)
-      (POSTv lv.
-      IOBOT w *
-      &LIST_TYPE WORD32 w.ws.const_vals lv)`,
-    rw[IOBOT_def]>>
-    xpull>>
-    xcf "get_const" bot_st>>
-    rpt(xlet_auto>- xsimpl)>>
-    xlet `POSTv u.
-           IOx bot_ffi_part w *
-           W8ARRAY v' (w32_to_w8 w.ws.const_vals)`
-    >-
-      (xffi>>xsimpl>>
-      simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
-      xsimpl >>
-      qmatch_goalsub_abbrev_tac`IO s u ns` >>
-      map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
-      unabbrev_all_tac>>
-      xsimpl >>
-      simp[mk_ffi_next_def,ffi_get_const_def])
-    >>
-    xapp>>xsimpl>>
-    simp[w8_to_w32_w32_to_w8]);
+  ∀w vs.
+  LIST_TYPE STRING_TYPE w.wc.const_names vs
+  ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "get_const" bot_st) [vs]
+    (IOBOT w)
+    (POSTv lv.
+    IOBOT w *
+    &LIST_TYPE WORD32 w.ws.const_vals lv)`,
+  rw[IOBOT_def]>>
+  xpull>>
+  xcf "get_const" bot_st>>
+  rpt(xlet_auto>- xsimpl)>>
+  xlet `POSTv u.
+         IOx bot_ffi_part w *
+         W8ARRAY v' (w32_to_w8 w.ws.const_vals)`
+  >-
+    (xffi>>xsimpl>>
+    simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
+    xsimpl >>
+    qmatch_goalsub_abbrev_tac`IO s u ns` >>
+    map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
+    unabbrev_all_tac>>
+    xsimpl >>
+    simp[mk_ffi_next_def,ffi_get_const_def])
+  >>
+  xapp>>xsimpl>>
+  simp[w8_to_w32_w32_to_w8]);
 
 val get_sensor_spec = Q.store_thm("get_sensor_spec",`
-    ∀w vs.
-    LIST_TYPE STRING_TYPE w.wc.sensor_names vs
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "get_sensor" bot_st) [vs]
-      (IOBOT w)
-      (POSTv lv.
-      IOBOT w *
-      &LIST_TYPE WORD32 w.ws.sensor_vals lv)`,
-    rw[IOBOT_def]>>
-    xpull>>
-    xcf "get_sensor" bot_st>>
-    rpt(xlet_auto>- xsimpl)>>
-    xlet `POSTv u.
-           IOx bot_ffi_part w *
-           W8ARRAY v' (w32_to_w8 w.ws.sensor_vals)`
-    >-
-      (xffi>>xsimpl>>
-      simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
-      xsimpl >>
-      qmatch_goalsub_abbrev_tac`IO s u ns` >>
-      map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
-      unabbrev_all_tac>>
-      xsimpl >>
-      simp[mk_ffi_next_def,ffi_get_sensor_def])
-    >>
-    xapp>>xsimpl>>
-    simp[w8_to_w32_w32_to_w8]);
+  ∀w vs.
+  LIST_TYPE STRING_TYPE w.wc.sensor_names vs
+  ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "get_sensor" bot_st) [vs]
+    (IOBOT w)
+    (POSTv lv.
+    IOBOT w *
+    &LIST_TYPE WORD32 w.ws.sensor_vals lv)`,
+  rw[IOBOT_def]>>
+  xpull>>
+  xcf "get_sensor" bot_st>>
+  rpt(xlet_auto>- xsimpl)>>
+  xlet `POSTv u.
+         IOx bot_ffi_part w *
+         W8ARRAY v' (w32_to_w8 w.ws.sensor_vals)`
+  >-
+    (xffi>>xsimpl>>
+    simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
+    xsimpl >>
+    qmatch_goalsub_abbrev_tac`IO s u ns` >>
+    map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
+    unabbrev_all_tac>>
+    xsimpl >>
+    simp[mk_ffi_next_def,ffi_get_sensor_def])
+  >>
+  xapp>>xsimpl>>
+  simp[w8_to_w32_w32_to_w8]);
 
 val get_ctrl_spec = Q.store_thm("get_ctrl_spec",`
-    ∀w vs constv sensorv.
-    LIST_TYPE STRING_TYPE w.wc.ctrl_names vs ∧
-    LIST_TYPE WORD32 w.ws.const_vals constv ∧
-    LIST_TYPE WORD32 w.ws.sensor_vals sensorv
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "get_ctrl" bot_st) [vs;constv;sensorv]
-      (IOBOT w)
-      (POSTv lv.
-      (IOBOT w) *
-      &(LIST_TYPE WORD32 w.ws.ctrl_vals lv))`,
-    rw[IOBOT_def]>>
-    xpull>>
-    xcf "get_ctrl" bot_st>>
-    rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
-    qmatch_asmsub_abbrev_tac`STRING_TYPE confstr sv`>>
-    xlet`
-    (POSTv u.
-     IOx bot_ffi_part w *
-     W8ARRAY av (w32_to_w8 (w.ws.const_vals ⧺ w.ws.sensor_vals)) *
-     W8ARRAY v'' (w32_to_w8 w.ws.ctrl_vals))`
-    >- (
-      xffi>>xsimpl>>
-      simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
-      qmatch_goalsub_abbrev_tac`IO s u ns` >>
-      qabbrev_tac`ls = w32_to_w8 w.ws.const_vals ++ w32_to_w8 w.ws.sensor_vals`>>
-      qexists_tac`ls` >>
-      qexists_tac`W8ARRAY av (w32_to_w8 (w.ws.const_vals ⧺ w.ws.sensor_vals))`>> xsimpl>>
-      map_every qexists_tac[`s`,`s`,`u`,`ns`]>>
-      xsimpl>>
-      unabbrev_all_tac>>
-      simp[mk_ffi_next_def,ffi_get_control_def]>>
-      unabbrev_all_tac>>
-      fs[mlstringTheory.concat_def,ml_translatorTheory.STRING_TYPE_def,
-        LENGTH_w32_to_w8,wf_world_def,w32_to_w8_APPEND])
-    >>
-      xapp>>xsimpl>>
-      rw[]>>
-      fs[w8_to_w32_w32_to_w8,wf_world_def]>>
-      metis_tac[]);
+  ∀w vs constv sensorv.
+  LIST_TYPE STRING_TYPE w.wc.ctrl_names vs ∧
+  LIST_TYPE WORD32 w.ws.const_vals constv ∧
+  LIST_TYPE WORD32 w.ws.sensor_vals sensorv
+  ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "get_ctrl" bot_st) [vs;constv;sensorv]
+    (IOBOT w)
+    (POSTv lv.
+    IOBOT (w with
+      wo := w.wo with ctrl_oracle := (λn. w.wo.ctrl_oracle (n + 1)))*
+    SEP_EXISTS vv.
+    & (LENGTH vv = LENGTH w.wc.ctrl_names ∧
+      LIST_TYPE WORD32 vv lv))`,
+  rw[IOBOT_def]>>
+  xpull>>
+  xcf "get_ctrl" bot_st>>
+  rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
+  qmatch_asmsub_abbrev_tac`STRING_TYPE confstr sv`>>
+  xlet`
+  (POSTv u.
+   IOx bot_ffi_part (w with
+      wo := w.wo with ctrl_oracle := (λn. w.wo.ctrl_oracle (n + 1))) *
+   W8ARRAY av (w32_to_w8 (w.ws.const_vals ⧺ w.ws.sensor_vals)) *
+   SEP_EXISTS vv.
+    &(LENGTH vv = LENGTH w.wc.ctrl_names) *
+    W8ARRAY v'' (w32_to_w8 vv))`
+  >-
+    (
+    xffi>>xsimpl>>
+    simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
+    qmatch_goalsub_abbrev_tac`IO s u ns` >>
+    qabbrev_tac`ls = w32_to_w8 w.ws.const_vals ++ w32_to_w8 w.ws.sensor_vals`>>
+    qexists_tac`ls` >>
+    qexists_tac`W8ARRAY av (w32_to_w8 (w.ws.const_vals ⧺ w.ws.sensor_vals))`>> xsimpl>>
+    qmatch_goalsub_abbrev_tac`IO (encode s') u ns` >>
+    map_every qexists_tac[`s`,`encode s'`,`u`,`ns`]>>
+    xsimpl>>
+    unabbrev_all_tac>>
+    simp[mk_ffi_next_def,ffi_get_control_def,get_oracle_def]>>
+    qmatch_goalsub_abbrev_tac`w32_to_w8 ls = w32_to_w8 _`>>
+    qexists_tac`ls`>>simp[]>>
+    unabbrev_all_tac>>
+    fs[mlstringTheory.concat_def,ml_translatorTheory.STRING_TYPE_def,
+      LENGTH_w32_to_w8,wf_world_def,w32_to_w8_APPEND])
+  >>
+    xapp>>xsimpl>>
+    rw[]>>
+    fs[w8_to_w32_w32_to_w8,wf_world_def]>>
+    metis_tac[]);
 
 val string_ID = Q.store_thm("string_ID",`
   ∀s. MAP (CHR ∘ (w2n:word8->num)) (MAP (n2w ∘ ORD) s) = s`,
@@ -347,106 +402,28 @@ val string_ID = Q.store_thm("string_ID",`
   metis_tac[CHR_ORD]);
 
 val actuate_spec = Q.store_thm("actuate_spec",`
-    LIST_TYPE WORD32 ctrl_vals ctrlv ∧
-    STRING_TYPE strng strngv ∧
-    LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
-    ctrl_sat w.wc w.ws ctrl_vals
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
-      (IOBOT w)
-      (POSTv u. IOBOT w * SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals))`,
-    rw[]>>
-    xcf"actuate" bot_st>>
-    xlet_auto >- xsimpl>>
-    simp[IOBOT_def]>>xpull>>
-    xffi >> xsimpl>>
-    simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
-    qmatch_goalsub_abbrev_tac`IO s u ns` >>
-    map_every qexists_tac [`MAP (n2w o ORD) (explode strng)`,`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
-    xsimpl >>
-    unabbrev_all_tac>>
-    simp[mk_ffi_next_def,ffi_actuate_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
-    qexists_tac`av`>>xsimpl>>
-    fs[]>>
-    Cases_on`strng`>>fs[ml_translatorTheory.STRING_TYPE_def,string_ID]);
-    
-(*
-val default_actuate_spec = Q.store_thm("default_actuate_spec",`
-    LIST_TYPE WORD32 ctrl_vals ctrlv ∧
-    LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
-    ctrl_sat w.wc w.ws ctrl_vals
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "default_actuate" bot_st) [ctrlv]
-      (IOBOT w)
-      (POSTv u. IOBOT w * SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals))`,
-    rw[]>>
-    xcf"default_actuate" bot_st>>
-    xlet_auto >- xsimpl>>
-    simp[IOBOT_def]>>xpull>>
-    xffi >> xsimpl>>
-    simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
-    qmatch_goalsub_abbrev_tac`IO s u ns` >>
-    map_every qexists_tac [`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
-    xsimpl >>
-    unabbrev_all_tac>>
-    simp[mk_ffi_next_def,ffi_actuate_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
-    qexists_tac`av`>>xsimpl);
-
-val ctrl_monitor_spec = Q.store_thm("ctrl_monitor_spec",`
-    (* These specify what the inputs should be *)
-    MONITORPROG_FML_TYPE w.wc.ctrl_monitor fv ∧
-    LIST_TYPE STRING_TYPE w.wc.const_names const_namesv ∧
-    LIST_TYPE STRING_TYPE w.wc.sensor_names sensor_namesv ∧
-    LIST_TYPE STRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
-    LIST_TYPE WORD32 w.ws.const_vals const_valsv ∧
-    LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv
-    ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor" bot_st)
-      [fv;const_namesv;sensor_namesv;ctrl_namesv;const_valsv;sensor_valsv]
+  LIST_TYPE WORD32 ctrl_vals ctrlv ∧
+  STRING_TYPE strng strngv ∧
+  LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
+  ctrl_sat w.wc w.ws ctrl_vals
+  ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
     (IOBOT w)
-    (POSTv optv.
-      IOBOT w *
-      SEP_EXISTS opt.
-        &(OPTION_TYPE (LIST_TYPE WORD32) opt optv ∧
-         case opt of NONE => T
-         | SOME ctrl =>
-            ctrl = w.ws.ctrl_vals ∧
-            ctrl_sat w.wc w.ws ctrl))`,
-    rw[]>>
-    xcf "ctrl_monitor" bot_st>>
-    drule get_ctrl_spec>>
-    rpt (disch_then drule)>>
-    strip_tac>> xlet_auto>- xsimpl>>
-    rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
-    qabbrev_tac`x0 = [w.ws.const_vals;w.ws.sensor_vals;w.ws.ctrl_vals]`>>
-    xlet`POSTv v. IOBOT w * &LIST_TYPE WORD32 (FLAT x0) v`
-    >-
-      (xapp_spec (ListProgTheory.flat_v_thm |> INST_TYPE [alpha |-> ``:word32``])>>
-      xsimpl>>
-      qexists_tac`x0`>>simp[]>>
-      qexists_tac`WORD32`>>simp[ml_translatorTheory.LIST_TYPE_def,Abbr`x0`])
-    >>
-    rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
-    qabbrev_tac`x1 = [w.wc.const_names;w.wc.sensor_names;w.wc.ctrl_names]`>>
-    xlet`POSTv v. IOBOT w * &LIST_TYPE STRING_TYPE (FLAT x1) v`
-    >-
-      (xapp_spec (ListProgTheory.flat_v_thm |> INST_TYPE [alpha |-> ``:mlstring``])>>
-      xsimpl>>
-      qexists_tac`x1`>>simp[]>>
-      qexists_tac`STRING_TYPE`>>simp[ml_translatorTheory.LIST_TYPE_def,Abbr`x1`])
-    >>
-    rpt(xlet_auto >- xsimpl)>>
-    reverse xif
-    >-
-      (xcon>>xsimpl>>
-      qexists_tac`NONE`>>
-      simp[ml_translatorTheory.OPTION_TYPE_def])>>
-    xcon>>xsimpl>>
-    fs[ctrl_sat_def,wfsem_bi_val_def]>>
-    pop_assum mp_tac>> TOP_CASE_TAC>>fs[]>>
-    strip_tac>>qexists_tac`SOME w.ws.ctrl_vals`>>
-    simp[ml_translatorTheory.OPTION_TYPE_def]);
-*)
+    (POSTv u. IOBOT w * SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals))`,
+  rw[]>>
+  xcf"actuate" bot_st>>
+  xlet_auto >- xsimpl>>
+  simp[IOBOT_def]>>xpull>>
+  xffi >> xsimpl>>
+  simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
+  qmatch_goalsub_abbrev_tac`IO s u ns` >>
+  map_every qexists_tac [`MAP (n2w o ORD) (explode strng)`,`emp`,`w32_to_w8 ctrl_vals`,`s`, `s`, `u`, `ns`] >>
+  xsimpl >>
+  unabbrev_all_tac>>
+  simp[mk_ffi_next_def,ffi_actuate_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
+  qexists_tac`av`>>xsimpl>>
+  fs[]>>
+  Cases_on`strng`>>fs[ml_translatorTheory.STRING_TYPE_def,string_ID]);
 
 (* We assume that the default function always works in the current world
    This is a really strong assumption, it really ought to work in all
@@ -460,7 +437,7 @@ val good_default_def = Define`
   ctrl_sat w.wc w.ws def_ctrl`
 
 val good_default_IMP = Q.prove(`
-  ∀ls.
+  ∀ls w.
   good_default def w ∧
   LENGTH ls = LENGTH w.wc.ctrl_names ==>
   let r = SND (ctrl_monitor w.wc.ctrl_monitor
@@ -473,42 +450,45 @@ val good_default_IMP = Q.prove(`
   EVERY_CASE_TAC>>fs[]);
 
 val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
-    (* These specify what the inputs should be *)
-    MONITORPROG_FML_TYPE w.wc.ctrl_monitor fv ∧
-    LIST_TYPE STRING_TYPE w.wc.const_names const_namesv ∧
-    LIST_TYPE STRING_TYPE w.wc.sensor_names sensor_namesv ∧
-    LIST_TYPE STRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
-    (LIST_TYPE WORD32 -->
-    LIST_TYPE WORD32 -->
-    LIST_TYPE WORD32) def defv ∧
-    good_default def w ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_1shot" bot_st)
-      [fv;const_namesv;sensor_namesv;ctrl_namesv;defv]
-    (IOBOT w)
-    (POSTv u. IOBOT w)`,
-    rw[]>>
-    xcf "ctrl_monitor_1shot" bot_st>>
-    drule get_const_spec >> strip_tac>>
-    xlet_auto>- xsimpl>>
-    drule get_sensor_spec >> strip_tac>>
-    xlet_auto>- xsimpl>>
-    drule get_ctrl_spec >> rpt(disch_then drule)>> strip_tac>>
-    xlet_auto>- simp[]>>
-    xlet_auto>- xsimpl>>
-    drule good_default_IMP>>
-    disch_then (qspec_then`w.ws.ctrl_vals` assume_tac)>>
-    fs[]>>
-    qmatch_asmsub_abbrev_tac`PAIR_TYPE _ _ fls _`>>
-    Cases_on`fls`>>   fs[ml_translatorTheory.PAIR_TYPE_def,markerTheory.Abbrev_def]>>
-    xmatch>>
-    simp[IOBOT_def]>>xpull>>
-    xapp>>
-    xsimpl>>
-    rfs[wf_world_def]>>fs[]>>
-    qpat_x_assum`LENGTH r = _` assume_tac>>
-    asm_exists_tac>>simp[]>>
-    asm_exists_tac>>simp[]>>
-    qexists_tac`emp`>>xsimpl>>fs[IOBOT_def,wf_world_def]>>
-    xsimpl);
+  (* These specify what the inputs should be *)
+  MONITORPROG_FML_TYPE w.wc.ctrl_monitor fv ∧
+  LIST_TYPE STRING_TYPE w.wc.const_names const_namesv ∧
+  LIST_TYPE STRING_TYPE w.wc.sensor_names sensor_namesv ∧
+  LIST_TYPE STRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
+  (LIST_TYPE WORD32 -->
+  LIST_TYPE WORD32 -->
+  LIST_TYPE WORD32) def defv ∧
+  good_default def w ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_1shot" bot_st)
+    [fv;const_namesv;sensor_namesv;ctrl_namesv;defv]
+  (IOBOT w)
+  (POSTv u. IOBOT (w with
+      wo := w.wo with ctrl_oracle := (λn. w.wo.ctrl_oracle (n + 1))))`,
+  rw[]>>
+  xcf "ctrl_monitor_1shot" bot_st>>
+  drule get_const_spec >> strip_tac>>
+  xlet_auto>- xsimpl>>
+  drule get_sensor_spec >> strip_tac>>
+  xlet_auto>- xsimpl>>
+  drule get_ctrl_spec >> rpt(disch_then drule)>> strip_tac>>
+  xlet_auto>- (xsimpl>>metis_tac[])>>
+  qmatch_goalsub_abbrev_tac`IOBOT w'`>>
+  fs[]>>
+  xlet_auto>- xsimpl>>
+  drule good_default_IMP>>
+  disch_then (qspec_then`vv` assume_tac)>>
+  rfs[]>>
+  qmatch_asmsub_abbrev_tac`PAIR_TYPE _ _ fls _`>>
+  Cases_on`fls`>>   fs[ml_translatorTheory.PAIR_TYPE_def,markerTheory.Abbrev_def]>>
+  xmatch>>
+  simp[IOBOT_def]>>xpull>>
+  xapp>> xsimpl>>
+  rfs[wf_world_def]>>fs[]>>
+  qpat_x_assum`LENGTH r = _` assume_tac>>
+  qexists_tac`emp`>>qexists_tac`w'`>>simp[]>>
+  asm_exists_tac>>simp[]>>
+  asm_exists_tac>>simp[]>>
+  fs[IOBOT_def]>>xsimpl>>
+  fs[wf_world_def]);
 
 val _ = export_theory();
