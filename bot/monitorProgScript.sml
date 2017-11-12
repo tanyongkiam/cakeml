@@ -498,7 +498,7 @@ val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
 (* -- Helper functions for encoding/decoding from the FFI type *)
 
 (* Turn a word32 list into a list of strings invertibly *)
-val w2sCHR_11 = Q.prove(`
+val w2sCHR_11 = Q.store_thm("w2sCHR_11",`
   w2s 2 CHR c = w2s 2 CHR c' ⇒ c = c'`,
   rw[]>>
   qsuff_tac `∀h. s2w 2 ORD (w2s 2 CHR h) = h` >>fs[]

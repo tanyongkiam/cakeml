@@ -99,7 +99,7 @@ val _ = append_prog ctrl_monitor_1shot;
 
 (*
   The world model here is simplified.
-  It has two parts:
+  It has three parts:
    - The world_config is immutable, and visible to our program
    - The world_state is unknown, and gets seen by the FFI
    - The world_oracle gives the oracle transitions
@@ -211,10 +211,7 @@ val comp_eq = map theorem ["world_component_equality",
                            "world_state_component_equality",
                            "world_oracle_component_equality"];
 
-val encode_word32_list_inner_def = Define`
-  encode_word32_list = encode_list (Str o w2s 2 CHR)`
-
-val encode_ctrl_oracle_11 = Q.prove(`
+val encode_ctrl_oracle_11 = Q.store_thm("encode_ctrl_oracle_11",`
   encode_ctrl_oracle f = encode_ctrl_oracle f' ⇒
   f = f'`,
   rw[encode_ctrl_oracle_def]>>
