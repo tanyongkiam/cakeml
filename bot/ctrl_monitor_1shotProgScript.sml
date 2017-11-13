@@ -69,7 +69,7 @@ val ctrl_monitor_def = Define`
     then
       (strlit"OK",ctrl_ls)
     else
-      (strlit"DEFAULT",default const_ls sensor_ls)`
+      (strlit"Control Violation",default const_ls sensor_ls)`
 
 val res = translate ctrl_monitor_def;
 

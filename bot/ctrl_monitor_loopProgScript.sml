@@ -49,14 +49,14 @@ val ctrl_monitor_loop_body = process_topdecs`
 
 val _ = append_prog ctrl_monitor_loop_body;
 
-val init_violation = process_topdecs`
-  fun init_violation () =
+val violation = process_topdecs`
+  fun violation str =
   let val arr = (Word8Array.array 0 (Word8.fromInt 0))
   in
-    (#(init_violation) "" arr ; ())
+    (#(violation) str arr ; ())
   end`
 
-val _ = append_prog init_violation;
+val _ = append_prog violation;
 
 val ctrl_monitor_loop = process_topdecs`
   fun ctrl_monitor_loop init_phi ctrl_phi
@@ -74,7 +74,7 @@ val ctrl_monitor_loop = process_topdecs`
               const_names sensor_names ctrl_names default
               const_ls sensor_ls
     else
-      init_violation()
+      violation "Init Violation"
   end`
 
 val _ = append_prog ctrl_monitor_loop;
@@ -339,7 +339,7 @@ val bot_ffi_part_def = Define`
        ("get_ctrl",ffi_get_control);
        ("actuate",ffi_actuate);
        ("has_next",ffi_has_next);
-       ("init_violation",ffi_violation);
+       ("violation",ffi_violation);
        ])`;
 
 (* The control choice is good w.r.t. to a world state *)
@@ -616,10 +616,12 @@ val actuate_spec = Q.store_thm("actuate_spec",`
     ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
      (IOBOT w )
-     (* Could be more precise, but we don't need that .. *)
+     (* We could be more precise and also talk about the oracles
+        but this characterization is all we need here *)
      (POSTv u. (SEP_EXISTS av. W8ARRAY av (w32_to_w8 ctrl_vals)) *
      SEP_EXISTS w'. IOBOT w'  *
      &(good_trace w'.wc w'.tr ∧
+      w'.tr = SNOC (w.ws,ctrl_vals) w.tr ∧
       w.wc = w'.wc ∧
       w.ws.const_vals = w'.ws.const_vals ∧
       ¬w'.wo.step_oracle (n-1)))`,
@@ -670,7 +672,7 @@ val good_world_def = Define`
   good_trace w.wc w.tr ∧
   const_ok w`
 
-val good_default_IMP = Q.prove(`
+val good_default_IMP = Q.store_thm("good_defualt_IMP",`
   ∀ls.
   good_world def w ∧
   wf_world w ∧
@@ -765,16 +767,14 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
      w.ws with sensor_vals := sv` by fs comp_eq>>
   metis_tac comp_eq);
 
-val init_violation_spec = Q.store_thm("init_violation_spec",`
-  UNIT_TYPE u uv
+val violation_spec = Q.store_thm("violation_spec",`
+  STRING_TYPE strng strngv
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "init_violation" bot_st) [uv]
+  app (p:'ffi ffi_proj) ^(fetch_v "violation" bot_st) [strngv]
     (IOBOT w)
     (POSTv u. IOBOT w)`,
   rw[]>>
-  xcf"init_violation"bot_st>>
-  fs[ml_translatorTheory.UNIT_TYPE_def]>>
-  xmatch>>
+  xcf"violation"bot_st>>
   rpt(xlet_auto >- xsimpl)>>
   xlet`POSTv u. IOBOT w * SEP_EXISTS v'. W8ARRAY v' []`
   >-
@@ -782,12 +782,15 @@ val init_violation_spec = Q.store_thm("init_violation_spec",`
     xffi>>xsimpl>>
     simp[IOx_def,bot_ffi_part_def,mk_ffi_next_def]>>
     qmatch_goalsub_abbrev_tac`IO s u ns` >>
+    qexists_tac `MAP (n2w o ORD) (explode strng)`>>
     map_every qexists_tac [`emp`,`[]`,`s`, `s`, `u`, `ns`] >>
     unabbrev_all_tac>>
     xsimpl >>
     simp[mk_ffi_next_def,ffi_violation_def]>>
     qexists_tac`v'`>>
-    xsimpl)
+    xsimpl>>
+    simp[string_ID]>>
+    Cases_on`strng`>>fs[ml_translatorTheory.STRING_TYPE_def])
   >>
   xcon>>xsimpl);
 
