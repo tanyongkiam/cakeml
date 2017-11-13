@@ -1,9 +1,9 @@
 open preamble ml_translatorLib ml_progLib cfLib basisFunctionsLib
-     CommandlineProofTheory TextIOProofTheory
+     CommandlineProofTheory TextIOProofTheory MonitorProgTheory
 
 val _ = new_theory "basisProg"
 
-val _ = translation_extends"TextIOProg";
+val _ = translation_extends"MonitorProg";
 
 val res = register_type``:'a app_list``;
 val MISC_APP_LIST_TYPE_def = theorem"MISC_APP_LIST_TYPE_def";
@@ -54,4 +54,4 @@ val basis_prog = basis_st |> remove_snocs
 
 val basis_def = Define `basis = ^basis_prog`;
 
-val _ = export_theory ()
+val _ = export_theory ();

@@ -1,17 +1,18 @@
 open preamble ml_progLib ml_translatorLib
-     basisFunctionsLib basis_ffiLib
+     basisFunctionsLib
      cfTacticsLib cfLetAutoLib
      MonitorProgTheory botFFITheory
+     Word8ArrayProofTheory
 open cfHeapsBaseTheory blastLib ml_translatorTheory
+(*
+val _ = new_theory"MonitorProof";
 
-(*val _ = new_theory"MonitorProof";*)
-
-(*val _ = translation_extends "MonitorProg";*)
+val _ = translation_extends "MonitorProg";
 (* We now prove specs for each function in the Monitor module *)
 
 val bot_st = get_ml_prog_state();
-(*val _ = overload_on ("WORD32",``WORD:word32 -> v -> bool``);*)
-
+val _ = overload_on ("WORD32",``WORD:word32 -> v -> bool``);
+*)
 (* Helper lemmas *)
 val MAP4_empty = Q.prove(`
   LENGTH ls < 4 ⇒
@@ -20,10 +21,6 @@ val MAP4_empty = Q.prove(`
   Cases_on`t`>>fs[MAP4_def]>>
   Cases_on`t'`>>fs[MAP4_def]>>
   Cases_on`t`>>fs[MAP4_def]);
-
-val LENGTH_w32_to_w8 = Q.store_thm("LENGTH_w32_to_w8",`
-  ∀ls. LENGTH (w32_to_w8 ls) = 4* LENGTH ls`,
-  Induct>>fs[w32_to_w8_def,FLAT_TUP_def,w32_to_le_bytes_def]);
 
 val w8_to_w32_w32_to_w8 = Q.store_thm("w8_to_w32_w32_to_w8",`
   ∀l. w8_to_w32 (w32_to_w8 l) = l`,
@@ -49,7 +46,7 @@ val pack_w32_list_spec = Q.store_thm("pack_w32_list_spec",`
      NUM i iv /\
      LENGTH l_pre = i ∧
      LENGTH rest = 4 * LENGTH ls ∧
-     LIST_TYPE (WORD:word32 -> v -> bool) ls lsv
+     LIST_TYPE WORD32 ls lsv
      ==>
      app p f [ar; lsv; iv]
       (W8ARRAY ar (l_pre ++ rest))
@@ -175,7 +172,7 @@ val get_const_spec = Q.store_thm("get_const_spec",`
     map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
     unabbrev_all_tac>>
     xsimpl >>
-    simp[mk_ffi_next_def,ffi_get_const_def])
+    fs[mk_ffi_next_def,ffi_get_const_def,wf_world_def])
   >>
   xapp>>xsimpl>>
   simp[w8_to_w32_w32_to_w8]);
@@ -204,7 +201,7 @@ val get_sensor_spec = Q.store_thm("get_sensor_spec",`
     map_every qexists_tac [`&wf_world w`, `s`, `s`, `u`, `ns`] >>
     unabbrev_all_tac>>
     xsimpl >>
-    simp[mk_ffi_next_def,ffi_get_sensor_def])
+    fs[mk_ffi_next_def,ffi_get_sensor_def,wf_world_def])
   >>
   xapp>>xsimpl>>
   simp[w8_to_w32_w32_to_w8]);

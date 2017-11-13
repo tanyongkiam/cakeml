@@ -16,6 +16,7 @@ Word8ArrayProofTheory
 ArrayProofTheory
 CommandlineProofTheory
 TextIOProgTheory TextIOProofTheory
+MonitorProgTheory MonitorProofTheory
 
 basisProgTheory basisFunctionsLib basis_ffiLib
 

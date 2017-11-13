@@ -70,7 +70,9 @@ val get_oracle_def = Define`
 
 val ffi_get_const_def = Define`
   ffi_get_const (conf:word8 list) (bytes:word8 list) (st:world) =
-  if LENGTH bytes = 4 * LENGTH st.wc.const_names
+  if LENGTH bytes = 4 * LENGTH st.wc.const_names ∧
+     (* This second check is added for parts_ok *)
+     LENGTH st.wc.const_names = LENGTH st.ws.const_vals
   then
     SOME (w32_to_w8 st.ws.const_vals,st)
   else
@@ -78,7 +80,8 @@ val ffi_get_const_def = Define`
 
 val ffi_get_sensor_def = Define`
   ffi_get_sensor (conf:word8 list) (bytes:word8 list) (st:world) =
-  if LENGTH bytes = 4 * LENGTH st.wc.sensor_names
+  if LENGTH bytes = 4 * LENGTH st.wc.sensor_names ∧
+     LENGTH st.wc.sensor_names = LENGTH st.ws.sensor_vals
   then
     SOME (w32_to_w8 st.ws.sensor_vals,st)
   else
@@ -94,7 +97,11 @@ val ffi_get_control_def = Define`
     let (cur_oracle,next_oracle) = get_oracle wo.ctrl_oracle in
     let w8s = w32_to_w8 (cur_oracle w32s) in
     let new_wo = wo with ctrl_oracle := next_oracle in
-    SOME (w8s,st with wo := new_wo)
+    if LENGTH w8s = LENGTH bytes
+    then
+      SOME (w8s,st with wo := new_wo)
+    else
+      NONE
   else NONE`
 
 val ffi_actuate_def = Define`
@@ -391,5 +398,21 @@ val bot_ffi_part_def = Define`
        ("has_next",ffi_has_next);
        ("violation",ffi_violation);
        ])`;
+
+val LENGTH_w32_to_w8 = Q.store_thm("LENGTH_w32_to_w8",`
+  ∀ls. LENGTH (w32_to_w8 ls) = 4* LENGTH ls`,
+  Induct>>fs[w32_to_w8_def,FLAT_TUP_def,w32_to_le_bytes_def]);
+
+(* Needed for parts_ok *)
+val bot_ffi_LENGTH = Q.store_thm("bot_ffi_LENGTH",`
+  (ffi_get_const conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes) ∧
+  (ffi_get_sensor conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes) ∧
+  (ffi_get_control conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes) ∧
+  (ffi_actuate conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes) ∧
+  (ffi_has_next conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes) ∧
+  (ffi_violation conf bytes w = SOME (bytes',w') ⇒ LENGTH bytes' = LENGTH bytes)`,
+  rw[ffi_get_const_def,ffi_get_sensor_def,ffi_get_control_def,ffi_actuate_def,ffi_has_next_def,ffi_violation_def]>>
+  rpt(pairarg_tac>>fs[])>>rw[]>>
+  fs[LENGTH_w32_to_w8]);
 
 val _ = export_theory();
