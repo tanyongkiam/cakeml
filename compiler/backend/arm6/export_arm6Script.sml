@@ -59,7 +59,7 @@ val ffi_code =
        ""])))`` |> EVAL |> concl |> rand
 
 val arm6_export_def = Define `
-  arm6_export ext ffi_names heap_space stack_space bytes (data:word32 list) =
+  arm6_export ffi_names heap_space stack_space bytes (data:word32 list) =
     SmartAppend
       (SmartAppend (List preamble)
       (SmartAppend (List (data_section ".long" heap_space stack_space))
