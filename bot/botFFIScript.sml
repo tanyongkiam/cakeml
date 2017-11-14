@@ -20,6 +20,7 @@ val _ = Datatype`
     sensor_pre_names   : string list;
     sensor_names       : string list;
     ctrl_names         : string list;
+    bounds             : fml;
     init               : fml;
     ctrl_monitor       : fml;
     plant_monitor      : fml;
@@ -218,9 +219,10 @@ val encode_world_config_def = Define`
    (Cons (List (MAP (Str) wc.sensor_pre_names))
    (Cons (List (MAP (Str) wc.sensor_names))
    (Cons (List (MAP (Str) wc.ctrl_names))
+   (Cons (encode_fml wc.bounds)
    (Cons (encode_fml wc.init)
    (Cons (encode_fml wc.ctrl_monitor)
-   (encode_fml wc.plant_monitor))))))`
+   (encode_fml wc.plant_monitor)))))))`
 
 val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
   MAP (Str) ls =

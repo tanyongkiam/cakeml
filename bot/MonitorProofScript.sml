@@ -8,7 +8,8 @@ open cfHeapsBaseTheory blastLib ml_translatorTheory
 val _ = new_theory"MonitorProof";
 
 val _ = translation_extends "MonitorProg";
-(* We now prove specs for each function in the Monitor module *)
+
+(* We now prove specs for each function added in Monitor *)
 
 val bot_st = get_ml_prog_state();
 val _ = overload_on ("WORD32",``WORD:word32 -> v -> bool``);
@@ -421,27 +422,19 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
 
 (* Now we specify the looping control monitor *)
 
-(* The init state is good *)
-val init_sat_def = Define`
-  init_sat wc ws ⇔
-  wfsem wc.init
+(* The bounds are checked *)
+val bounds_sat_def = Define`
+  bounds_sat wc ws ⇔
+  wfsem wc.bounds
       (vars_to_state
-      (wc.const_names ++ wc.sensor_names)
-      (ws.const_vals ++ ws.sensor_vals)) = SOME T`
+      (wc.const_names)
+      (ws.const_vals)) = SOME T`
 
 (* First, we need assumptions about the world state *)
-val const_ok_def = Define`
-  const_ok w ⇔
-  ∃svals.
-    init_sat w.wc (w.ws with sensor_vals := svals)`
 
 val good_default_def = Define`
   good_default default w ⇔
-  (* If we know that the init monitor is satisfied for some state,
-     Then the default must produce good states throughout
-     This is awkward... it really just needs to know that the consts are ok...
-   *)
-  const_ok w ⇒
+  bounds_sat w.wc w.ws ⇒
   ∀svals.
   LENGTH svals = LENGTH w.wc.sensor_names ⇒
   let def_ctrl = default w.ws.const_vals svals in
@@ -461,12 +454,12 @@ val good_ctrl_trace_SNOC = Q.store_thm("good_ctrl_trace_SNOC",`
   good_ctrl_trace wc ( tr++[(ws,vals)])`,
   Induct>>fs[good_ctrl_trace_def]>>rw[]>>Cases_on`h`>>fs[good_ctrl_trace_def]);
 
-(* The controller monitor's good world propositions *)
+(* The controller monitor loop body's good world propositions *)
 val good_world_def = Define`
   good_world def w ⇔
   good_default def w ∧
   good_ctrl_trace w.wc w.tr ∧
-  const_ok w`
+  bounds_sat w.wc w.ws`
 
 val good_default_IMP = Q.store_thm("good_defualt_IMP",`
   ∀ls.
@@ -613,7 +606,7 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
   Cases_on`n`>>rfs[ADD1]>>
   strip_tac>>
   xapp>> xsimpl>>
-  fs[good_world_def,good_default_def,const_ok_def]>>
+  fs[good_world_def,good_default_def,bounds_sat_def]>>
   `∀sv. w''.ws with sensor_vals := sv =
      w.ws with sensor_vals := sv` by fs comp_eq>>
   rw[]>>TRY(metis_tac comp_eq)>>
@@ -650,7 +643,7 @@ val violation_spec = Q.store_thm("violation_spec",`
 (* Finally, we can specify the full control monitor loop *)
 val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   (* These specify what the inputs should be *)
-  MONITORPROG_FML_TYPE w.wc.init iv ∧
+  MONITORPROG_FML_TYPE w.wc.bounds iv ∧
   MONITORPROG_FML_TYPE w.wc.ctrl_monitor fv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
@@ -668,8 +661,8 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   (POSTv uv.  &(UNIT_TYPE () uv) *
     SEP_EXISTS w'. IOBOT w' *
     &(
-      (* Either the initial world violates init immediately *)
-      (w = w' ∧ ¬init_sat w.wc w.ws) ∨
+      (* Either the initial world violates bounds immediately *)
+      (w = w' ∧ ¬bounds_sat w.wc w.ws) ∨
       (* Or we transition to a final world,
          and good_world guarantees that the actuation trace all
          satisfy the control monitor *)
@@ -684,12 +677,13 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   rpt (xlet_auto >- xsimpl)>>
   xif
   >-
-    (xapp>>xsimpl>>
+    (xlet_auto>- xsimpl>>
+    xapp>>xsimpl>>
     asm_exists_tac>>simp[]>>
     asm_exists_tac>>simp[]>>
     xsimpl>>fs[good_world_def]>>rw[]
     >-
-      (fs[const_ok_def,init_sat_def,wfsem_bi_val_def]>>
+      (fs[bounds_sat_def,init_sat_def,wfsem_bi_val_def]>>
       EVERY_CASE_TAC>>fs[]>>
       metis_tac[])>>
     qexists_tac`x`>>simp[]>>xsimpl)
@@ -700,7 +694,7 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   xapp >> xsimpl>>
   qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
   rw[]>>
-  qexists_tac`w`>>fs[init_sat_def]>>
+  qexists_tac`w`>>fs[bounds_sat_def]>>
   fs[wfsem_bi_val_def]>>
   xsimpl>>every_case_tac>>fs[]);
 
@@ -821,7 +815,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
     (xapp>>xsimpl>>
     qexists_tac`GC`>>qexists_tac`w''`>>xsimpl>>
     rw[]>>qexists_tac`w''`>>xsimpl>>
-    fs[good_world_def,good_default_def,const_ok_def]>>
+    fs[good_world_def,good_default_def,bounds_sat_def]>>
     `∀sv. w''.ws with sensor_vals := sv =
        w.ws with sensor_vals := sv` by fs comp_eq>>
     rw[]>> TRY(metis_tac comp_eq)
@@ -844,7 +838,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
   xlet_auto>- xsimpl>>
   xapp>>
   xsimpl>>
-  fs[good_world_def,good_default_def,const_ok_def]>>
+  fs[good_world_def,good_default_def,bounds_sat_def]>>
   `∀sv. w''.ws with sensor_vals := sv =
      w.ws with sensor_vals := sv` by fs comp_eq>>
   rw[]>>TRY(metis_tac comp_eq)
@@ -858,9 +852,18 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
   EVERY_CASE_TAC>>fs[]>>
   metis_tac comp_eq);
 
+(* The init state is good *)
+val init_sat_def = Define`
+  init_sat wc ws ⇔
+  wfsem wc.init
+      (vars_to_state
+      (wc.const_names ++ wc.sensor_names)
+      (ws.const_vals ++ ws.sensor_vals)) = SOME T`
+
 (* specify the full monitor *)
 val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   (* These specify what the inputs should be *)
+  MONITORPROG_FML_TYPE w.wc.bounds bv ∧
   MONITORPROG_FML_TYPE w.wc.init iv ∧
   MONITORPROG_FML_TYPE w.wc.plant_monitor plantfv ∧
   MONITORPROG_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
@@ -878,12 +881,12 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   good_plant_trace T w.wc w.tr w.ws
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
-    [iv;plantfv;ctrlfv;const_namesv;sensor_pre_namesv;sensor_namesv;ctrl_namesv;defv]
+    [bv;iv;plantfv;ctrlfv;const_namesv;sensor_pre_namesv;sensor_namesv;ctrl_namesv;defv]
   (IOBOT w)
   (POSTv uv. &(UNIT_TYPE () uv) * SEP_EXISTS w'. IOBOT w' *
     &(
-      (* Either the initial world violates init immediately *)
-      (w = w' ∧ ¬init_sat w.wc w.ws) ∨
+      (* Either the initial world violates init or bounds immediately *)
+      (w = w' ∧ (¬init_sat w.wc w.ws ∨ ¬bounds_sat w.wc w.ws) ) ∨
       (* Or we transition to a final world,
          and good_world guarantees that the actuation trace all
          satisfy the control monitor *)
@@ -894,31 +897,46 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   xcf"monitor_loop" bot_st>>
   drule get_const_spec>> strip_tac>>
   xlet_auto >- xsimpl>>
-  drule get_sensor_spec>> strip_tac>>
-  xlet_auto >- xsimpl>>
-  rpt (xlet_auto >- xsimpl)>>
-  xif
+  rpt(xlet_auto >- xsimpl)>>
+  reverse xif
   >-
-    (xapp>>xsimpl>>
+    (* bounds violated *)
+    (reverse (Cases_on`wf_world w`)
+    >-
+      (simp[IOBOT_def]>>xpull)>>
+    rpt (xlet_auto >- (TRY(xcon)>>xsimpl))>>
+    xapp >> xsimpl>>
+    qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
+    rw[]>>xsimpl>>
+    qexists_tac`w`>>fs[bounds_sat_def]>>
+    fs[wfsem_bi_val_def]>>
+    xsimpl>>every_case_tac>>fs[])
+  >>
+  rpt(xlet_auto >- xsimpl)>>
+  reverse xif
+  >-
+    (* init violated *)
+    (reverse (Cases_on`wf_world w`)
+    >-
+      (simp[IOBOT_def]>>xpull)>>
+    rpt (xlet_auto >- (TRY(xcon)>>xsimpl))>>
+    xapp >> xsimpl>>
+    qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
+    rw[]>>xsimpl>>
+    qexists_tac`w`>>fs[init_sat_def]>>
+    fs[wfsem_bi_val_def]>>
+    xsimpl>>every_case_tac>>fs[])
+  >>
+    xapp>>xsimpl>>
     asm_exists_tac>>simp[]>>
     asm_exists_tac>>simp[]>>
     xsimpl>>fs[good_world_def]>>
     simp[good_ctrl_trace_def,good_plant_trace_def]>>
     rw[]
     >-
-      (fs[const_ok_def,init_sat_def,wfsem_bi_val_def]>>
+      (fs[bounds_sat_def,init_sat_def,wfsem_bi_val_def]>>
       EVERY_CASE_TAC>>fs[]>>
       metis_tac[])>>
-    qexists_tac`x`>>simp[]>>xsimpl)
-  >>
-  reverse (Cases_on`wf_world w`)
-  >-
-    (simp[IOBOT_def]>>xpull)>>
-  rpt (xlet_auto >- (TRY(xcon)>>xsimpl))>>
-  xapp >> xsimpl>>
-  qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
-  qexists_tac`w`>>fs[init_sat_def]>>
-  fs[wfsem_bi_val_def]>>
-  xsimpl>>every_case_tac>>fs[]);
+    qexists_tac`x`>>simp[]>>xsimpl);
 
 val _ = export_theory();

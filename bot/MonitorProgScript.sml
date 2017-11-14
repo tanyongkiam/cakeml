@@ -1,7 +1,7 @@
 open preamble ml_progLib ml_translatorLib
 open blastLib
 open cfTacticsLib
-open TextIOProgTheory ml_translatorTheory basisFunctionsLib
+open Word8ArrayProgTheory ml_translatorTheory basisFunctionsLib
 
 val _ = new_theory "MonitorProg";
 
@@ -479,22 +479,22 @@ val violation = process_topdecs`
 val _ = append_prog violation;
 
 val ctrl_monitor_loop = process_topdecs`
-  fun ctrl_monitor_loop init_phi ctrl_phi
+  fun ctrl_monitor_loop bounds_phi ctrl_phi
               const_names sensor_names ctrl_names default =
   (* First read the constants and initial state *)
   let val const_ls = get_const const_names
-      val sensor_ls = get_sensor sensor_names
-      val names_ls = List.append const_names sensor_names
-      val st_ls = List.append const_ls sensor_ls
   in
     if
-      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+      wfsem_bi_val bounds_phi (vars_to_state const_names const_ls)
     then
-      ctrl_monitor_loop_body ctrl_phi
-              const_names sensor_names ctrl_names default
-              const_ls sensor_ls
+      let val sensor_ls = get_sensor sensor_names
+      in
+        ctrl_monitor_loop_body ctrl_phi
+                const_names sensor_names ctrl_names default
+                const_ls sensor_ls
+      end
     else
-      violation "Init Violation"
+      violation "Bounds Violation"
   end`
 
 val _ = append_prog ctrl_monitor_loop;
@@ -544,22 +544,30 @@ val monitor_loop_body = process_topdecs`
 val _ = append_prog monitor_loop_body;
 
 val monitor_loop = process_topdecs`
-  fun monitor_loop init_phi plant_phi ctrl_phi
+  fun monitor_loop bounds_phi init_phi plant_phi ctrl_phi
               const_names sensor_pre_names sensor_names ctrl_names default =
   (* First read the constants and initial state *)
   let val const_ls = get_const const_names
+  in
+    if
+      wfsem_bi_val bounds_phi (vars_to_state const_names const_ls)
+    then
+    let
       val sensor_ls = get_sensor sensor_names
       val names_ls = List.append const_names sensor_names
       val st_ls = List.append const_ls sensor_ls
-  in
-    if
-      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
-    then
-      monitor_loop_body plant_phi ctrl_phi
-              const_names sensor_pre_names sensor_names ctrl_names default
-              const_ls sensor_ls
+    in
+      if
+        wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+      then
+        monitor_loop_body plant_phi ctrl_phi
+                const_names sensor_pre_names sensor_names ctrl_names default
+                const_ls sensor_ls
+      else
+        violation "Init Violation"
+    end
     else
-      violation "Init Violation"
+      violation "Bounds Violation"
   end`
 
 val _ = append_prog monitor_loop;
