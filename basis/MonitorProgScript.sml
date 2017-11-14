@@ -240,7 +240,7 @@ val wfsem_bi_val_def = Define`
 
 val _ = translation_extends"TextIOProg";
 
-val _ = ml_prog_update (open_module "Monitor");
+(* val _ = ml_prog_update (open_module "Monitor"); *)
 
 val spec32 = INST_TYPE[alpha|->``:32``]
 val spec64= INST_TYPE[alpha|->``:64``]
@@ -564,6 +564,6 @@ val monitor_loop = process_topdecs`
 
 val _ = append_prog monitor_loop;
 
-val _ = ml_prog_update (close_module NONE);
+(* val _ = ml_prog_update (close_module NONE); *)
 
 val _ = export_theory();

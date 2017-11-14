@@ -4,7 +4,7 @@ open preamble ml_progLib ml_translatorLib
      MonitorProgTheory botFFITheory
      Word8ArrayProofTheory
 open cfHeapsBaseTheory blastLib ml_translatorTheory
-(*
+
 val _ = new_theory"MonitorProof";
 
 val _ = translation_extends "MonitorProg";
@@ -12,7 +12,7 @@ val _ = translation_extends "MonitorProg";
 
 val bot_st = get_ml_prog_state();
 val _ = overload_on ("WORD32",``WORD:word32 -> v -> bool``);
-*)
+
 (* Helper lemmas *)
 val MAP4_empty = Q.prove(`
   LENGTH ls < 4 ⇒
@@ -37,10 +37,10 @@ val pack_w32_list_spec = Q.store_thm("pack_w32_list_spec",`
     ∀l lv.
     LIST_TYPE WORD32 l lv
     ==>
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.pack_w32_list" bot_st) [lv]
+    app (p:'ffi ffi_proj) ^(fetch_v "pack_w32_list" bot_st) [lv]
       emp (POSTv av.
       W8ARRAY av (w32_to_w8 l))`,
-  xcf "Monitor.pack_w32_list" bot_st>>
+  xcf "pack_w32_list" bot_st>>
   xfun_spec `f`
    `∀ls lsv i iv l_pre rest ar.
      NUM i iv /\
@@ -84,12 +84,12 @@ val pack_w32_list_spec = Q.store_thm("pack_w32_list_spec",`
 
 val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
     ∀l lv.
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.unpack_w32_list" bot_st) [av]
+    app (p:'ffi ffi_proj) ^(fetch_v "unpack_w32_list" bot_st) [av]
       (W8ARRAY av a)
       (POSTv lv.
       W8ARRAY av a *
       &LIST_TYPE WORD32 (w8_to_w32 a) lv)`,
-  xcf "Monitor.unpack_w32_list" bot_st>>
+  xcf "unpack_w32_list" bot_st>>
   xfun_spec `f`
    `∀i iv l lv a av.
      NUM i iv /\
@@ -152,14 +152,14 @@ val get_const_spec = Q.store_thm("get_const_spec",`
   ∀w vs.
   LIST_TYPE STRING_TYPE w.wc.const_names vs
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.get_const" bot_st) [vs]
+  app (p:'ffi ffi_proj) ^(fetch_v "get_const" bot_st) [vs]
     (IOBOT w)
     (POSTv lv.
     IOBOT w *
     &LIST_TYPE WORD32 w.ws.const_vals lv)`,
   rw[IOBOT_def]>>
   xpull>>
-  xcf "Monitor.get_const" bot_st>>
+  xcf "get_const" bot_st>>
   rpt(xlet_auto>- xsimpl)>>
   xlet `POSTv u.
          IOx bot_ffi_part w *
@@ -181,14 +181,14 @@ val get_sensor_spec = Q.store_thm("get_sensor_spec",`
   ∀w vs.
   LIST_TYPE STRING_TYPE w.wc.sensor_names vs
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.get_sensor" bot_st) [vs]
+  app (p:'ffi ffi_proj) ^(fetch_v "get_sensor" bot_st) [vs]
     (IOBOT w)
     (POSTv lv.
     IOBOT w *
     &LIST_TYPE WORD32 w.ws.sensor_vals lv)`,
   rw[IOBOT_def]>>
   xpull>>
-  xcf "Monitor.get_sensor" bot_st>>
+  xcf "get_sensor" bot_st>>
   rpt(xlet_auto>- xsimpl)>>
   xlet `POSTv u.
          IOx bot_ffi_part w *
@@ -207,11 +207,11 @@ val get_sensor_spec = Q.store_thm("get_sensor_spec",`
   simp[w8_to_w32_w32_to_w8]);
 
 val to_string_spec = Q.store_thm("to_string_spec",`
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.to_string" bot_st) [ar]
+  app (p:'ffi ffi_proj) ^(fetch_v "to_string" bot_st) [ar]
     (W8ARRAY ar av)
     (POSTv v.
     &(STRING_TYPE (strlit (MAP (CHR o w2n) av)) v) * W8ARRAY ar av)`,
-  xcf "Monitor.to_string" bot_st>>
+  xcf "to_string" bot_st>>
   xlet_auto >- xsimpl>>
   xapp>>
   xsimpl>>
@@ -224,7 +224,7 @@ val get_ctrl_spec = Q.store_thm("get_ctrl_spec",`
   LIST_TYPE WORD32 w.ws.const_vals constv ∧
   LIST_TYPE WORD32 w.ws.sensor_vals sensorv
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.get_ctrl" bot_st) [vs;constv;sensorv]
+  app (p:'ffi ffi_proj) ^(fetch_v "get_ctrl" bot_st) [vs;constv;sensorv]
     (IOBOT w)
     (POSTv lv.
     IOBOT (w with
@@ -234,7 +234,7 @@ val get_ctrl_spec = Q.store_thm("get_ctrl_spec",`
       LIST_TYPE WORD32 vv lv))`,
   rw[IOBOT_def]>>
   xpull>>
-  xcf "Monitor.get_ctrl" bot_st>>
+  xcf "get_ctrl" bot_st>>
   rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
   qmatch_asmsub_abbrev_tac`STRING_TYPE confstr sv`>>
   xlet`
@@ -294,7 +294,7 @@ val actuate_spec = Q.store_thm("actuate_spec",`
   ¬w.wo.step_oracle n ∧
   good_ctrl_trace w.wc w.tr*)
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.actuate" bot_st) [strngv;ctrlv]
+  app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
    (IOBOT w )
    (* We could be more precise and also talk about the oracles
       but this characterization is all we need here *)
@@ -307,7 +307,7 @@ val actuate_spec = Q.store_thm("actuate_spec",`
     w.ws.const_vals = w'.ws.const_vals ∧
     w'.wo.step_oracle = λn. w.wo.step_oracle (n+1)))`,
   rw[]>>
-  xcf"Monitor.actuate" bot_st>>
+  xcf"actuate" bot_st>>
   xlet_auto >- xsimpl>>
   simp[IOBOT_def]>>xpull>>
   xffi >> xsimpl>>
@@ -370,7 +370,7 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
     good_default_1shot def w ∧
     w.wo.step_oracle 0
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.ctrl_monitor_1shot" bot_st)
+    app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_1shot" bot_st)
       [fv;const_namesv;sensor_namesv;ctrl_namesv;defv]
     (IOBOT w)
     (POSTv u.
@@ -383,7 +383,7 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
         w'.tr = SNOC (w.ws,ctrl_vals) w.tr ∧
         ctrl_sat w.wc w.ws ctrl_vals))`,
   rw[]>>
-  xcf "Monitor.ctrl_monitor_1shot" bot_st>>
+  xcf "ctrl_monitor_1shot" bot_st>>
   drule get_const_spec >> strip_tac>>
   xlet_auto>- xsimpl>>
   drule get_sensor_spec >> strip_tac>>
@@ -479,13 +479,13 @@ val good_default_IMP = Q.store_thm("good_defualt_IMP",`
 val has_next_spec = Q.store_thm("has_next_spec",`
     UNIT_TYPE u uv
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.has_next" bot_st) [uv]
+    app (p:'ffi ffi_proj) ^(fetch_v "has_next" bot_st) [uv]
       (IOBOT w)
       (POSTv bv.
       IOBOT w *
       &BOOL (w.wo.step_oracle 0) bv)`,
   rw[]>>
-  xcf "Monitor.has_next" bot_st>>
+  xcf "has_next" bot_st>>
   fs[ml_translatorTheory.UNIT_TYPE_def]>>
   xmatch>>
   rpt(xlet_auto >- xsimpl)>>
@@ -535,7 +535,7 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
     LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv ∧
     eventually ($~) w.wo.step_oracle
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.ctrl_monitor_loop_body" bot_st)
+    app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_loop_body" bot_st)
       [fv;const_namesv;sensor_namesv;ctrl_namesv;defv;const_valsv;sensor_valsv]
     (IOBOT w * &good_world def w )
     (POSTv u. SEP_EXISTS w'. IOBOT w' *
@@ -545,7 +545,7 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
         w.wc = w'.wc))`,
   fs[eventually_def,PULL_EXISTS]>>
   completeInduct_on`n`>>rw[]>>
-  xcf"Monitor.ctrl_monitor_loop_body" bot_st>>
+  xcf"ctrl_monitor_loop_body" bot_st>>
   xpull>>
   rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
   drule has_next_spec>> strip_tac>>
@@ -604,11 +604,11 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
 val violation_spec = Q.store_thm("violation_spec",`
   STRING_TYPE strng strngv
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.violation" bot_st) [strngv]
+  app (p:'ffi ffi_proj) ^(fetch_v "violation" bot_st) [strngv]
     (IOBOT w)
     (POSTv u. IOBOT w)`,
   rw[]>>
-  xcf"Monitor.violation"bot_st>>
+  xcf"violation"bot_st>>
   rpt(xlet_auto >- xsimpl)>>
   xlet`POSTv u. IOBOT w * SEP_EXISTS v'. W8ARRAY v' []`
   >-
@@ -643,7 +643,7 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   good_default def w ∧
   good_ctrl_trace w.wc w.tr
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.ctrl_monitor_loop" bot_st)
+  app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_loop" bot_st)
     [iv;fv;const_namesv;sensor_namesv;ctrl_namesv;defv]
   (IOBOT w)
   (POSTv u. SEP_EXISTS w'. IOBOT w' *
@@ -656,7 +656,7 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
       good_world def w' ∧
       ¬w'.wo.step_oracle 0))`,
   rw[]>>
-  xcf"Monitor.ctrl_monitor_loop" bot_st>>
+  xcf"ctrl_monitor_loop" bot_st>>
   drule get_const_spec>> strip_tac>>
   xlet_auto >- xsimpl>>
   drule get_sensor_spec>> strip_tac>>
@@ -732,7 +732,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
     LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv ∧
     eventually ($~) w.wo.step_oracle
     ⇒
-    app (p:'ffi ffi_proj) ^(fetch_v "Monitor.monitor_loop_body" bot_st)
+    app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop_body" bot_st)
       [plantfv;ctrlfv;
       const_namesv;sensor_pre_namesv;sensor_namesv;ctrl_namesv;defv;
       const_valsv;sensor_valsv]
@@ -745,7 +745,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
         w.wc = w'.wc))`,
   fs[eventually_def,PULL_EXISTS]>>
   completeInduct_on`n`>>rw[]>>
-  xcf"Monitor.monitor_loop_body" bot_st>>
+  xcf"monitor_loop_body" bot_st>>
   xpull>>
   rpt(xlet_auto>- ((TRY xcon)>>xsimpl))>>
   drule has_next_spec>> strip_tac>>
@@ -847,7 +847,7 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   good_ctrl_trace w.wc w.tr ∧
   good_plant_trace T w.wc w.tr w.ws
   ⇒
-  app (p:'ffi ffi_proj) ^(fetch_v "Monitor.monitor_loop" bot_st)
+  app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
     [iv;plantfv;ctrlfv;const_namesv;sensor_pre_namesv;sensor_namesv;ctrl_namesv;defv]
   (IOBOT w)
   (POSTv u. SEP_EXISTS w'. IOBOT w' *
@@ -861,7 +861,7 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
       (¬w'.wo.step_oracle 0 ∨
          good_plant_trace F w'.wc w'.tr w'.ws)))`,
   rw[]>>
-  xcf"Monitor.monitor_loop" bot_st>>
+  xcf"monitor_loop" bot_st>>
   drule get_const_spec>> strip_tac>>
   xlet_auto >- xsimpl>>
   drule get_sensor_spec>> strip_tac>>
