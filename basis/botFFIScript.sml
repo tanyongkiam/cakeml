@@ -1,4 +1,4 @@
-open preamble mlstringTheory cfHeapsBaseTheory
+open preamble cfHeapsBaseTheory
 open MonitorProgTheory
 
 val _ = new_theory"botFFI"
@@ -16,10 +16,10 @@ val _ = new_theory"botFFI"
 
 val _ = Datatype`
   world_config = <|
-    const_names        : mlstring list;
-    sensor_pre_names   : mlstring list;
-    sensor_names       : mlstring list;
-    ctrl_names         : mlstring list;
+    const_names        : string list;
+    sensor_pre_names   : string list;
+    sensor_names       : string list;
+    ctrl_names         : string list;
     init               : fml;
     ctrl_monitor       : fml;
     plant_monitor      : fml;
@@ -176,7 +176,7 @@ val _ = export_rewrites ["decode_encode_word32_list"];
 
 val encode_trm_def = Define`
   (encode_trm (Const w) = Cons (Num 0) (Str (w2s 2 CHR w))) ∧
-  (encode_trm (Var s) = Cons (Num 1) (Str (explode s))) ∧
+  (encode_trm (Var s) = Cons (Num 1) (Str s)) ∧
   (encode_trm (Plus t1 t2) = Cons (Num 2) (Cons (encode_trm t1) (encode_trm t2))) ∧
   (encode_trm (Times t1 t2) = Cons (Num 3) (Cons (encode_trm t1) (encode_trm t2))) ∧
   (encode_trm (Max t1 t2) = Cons (Num 4) (Cons (encode_trm t1) (encode_trm t2))) ∧
@@ -214,29 +214,29 @@ val _ = export_rewrites ["decode_encode_fml"];
 
 val encode_world_config_def = Define`
   encode_world_config wc =
-   Cons (List (MAP (Str o explode) wc.const_names))
-   (Cons (List (MAP (Str o explode) wc.sensor_pre_names))
-   (Cons (List (MAP (Str o explode) wc.sensor_names))
-   (Cons (List (MAP (Str o explode) wc.ctrl_names))
+   Cons (List (MAP (Str ) wc.const_names))
+   (Cons (List (MAP (Str) wc.sensor_pre_names))
+   (Cons (List (MAP (Str) wc.sensor_names))
+   (Cons (List (MAP (Str) wc.ctrl_names))
    (Cons (encode_fml wc.init)
    (Cons (encode_fml wc.ctrl_monitor)
    (encode_fml wc.plant_monitor))))))`
 
-val MAP_Str_explode_11 = Q.store_thm("MAP_Str_explode_11",`
-  MAP (Str o explode) ls =
-  MAP (Str o explode) ls' ==>
+val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
+  MAP (Str) ls =
+  MAP (Str) ls' ==>
   ls = ls'`,
   fs[LIST_EQ_REWRITE]>>
   rw[]>>
   rfs[EL_MAP]>>
-  metis_tac[mlstringTheory.explode_11]);
+  metis_tac[]);
 
 val encode_world_config_11 = Q.prove(`
   encode_world_config x = encode_world_config y ⇔
   x = y`,
   fs[encode_world_config_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
-  fs[MAP_Str_explode_11,encode_fml_11]);
+  fs[MAP_Str_11,encode_fml_11]);
 
 val encode_word32_list_inner_def = Define`
   encode_word32_list_inner = iList o (MAP (iStr o w2s 2 CHR))`

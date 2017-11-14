@@ -24,7 +24,7 @@ val POS_INF_def = Define`POS_INF:word32 = ^POS_INF`
 *)
 val _ = Datatype`
   trm = Const word32
-      | Var mlstring
+      | Var string (* TODO: should really be mlstring *)
       | Plus trm trm
       | Times trm trm
       | Max trm trm
@@ -140,7 +140,7 @@ val wneg_def = Define`
 
 (* States are represented as an association list of
   strings -> (w32,w32) *)
-val _ = type_abbrev ("wstate",``:(mlstring,word32 # word32) alist``)
+val _ = type_abbrev ("wstate",``:(string,word32 # word32) alist``)
 
 (* Differences from Isabelle formalization:
    The state is a finite map -- when Var n is not in the map, we assume that
@@ -411,7 +411,7 @@ val res = translate ctrl_monitor_def;
 val actuate = process_topdecs`
   fun actuate str ctrl_ls =
     let val ctrl_vals = pack_w32_list ctrl_ls in
-      #(actuate) str ctrl_vals
+      (#(actuate) str ctrl_vals; ())
     end`
 
 val _ = append_prog actuate;

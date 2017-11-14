@@ -8,6 +8,7 @@ ml_translatorTheory ml_progLib ml_translatorLib cfLib
 
 clFFITheory
 fsFFITheory fsFFIPropsTheory
+botFFITheory
 
 mlstringTheory
 
