@@ -7,7 +7,7 @@ struct
 
 open preamble
 open ml_progLib basis_ffiTheory semanticsLib helperLib set_sepTheory cfHeapsBaseTheory
-     CommandlineProofTheory TextIOProofTheory MonitorProofTheory
+     CommandlineProofTheory TextIOProofTheory
 
 
 val IOFS_tm = prim_mk_const{Thy="TextIOProof",Name="IOFS"};
@@ -24,7 +24,7 @@ val basis_ffi_const = prim_mk_const{Thy="basis_ffi",Name="basis_ffi"};
 val basis_ffi_tm =
   list_mk_comb(basis_ffi_const,
     map mk_var
-      (zip ["cls","fs","w"]
+      (zip ["cls","fs"]
         (#1(strip_fun(type_of basis_ffi_const)))))
 
 val hprop_heap_thms =

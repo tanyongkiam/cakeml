@@ -2,7 +2,6 @@ open preamble ml_translatorTheory ml_translatorLib ml_progLib
      cfLib basisFunctionsLib set_sepTheory
      fsFFITheory fsFFIPropsTheory
      CommandlineProofTheory TextIOProofTheory
-     MonitorProofTheory
 
 val _ = new_theory"basis_ffi";
 
@@ -11,79 +10,53 @@ val _ = new_theory"basis_ffi";
 
 val basis_ffi_oracle_def = Define `
   basis_ffi_oracle =
-    \name (cls,fs,w) conf bytes.
+    \name (cls,fs) conf bytes.
      if name = "write" then
        case ffi_write conf bytes fs of
-       | SOME (bytes,fs) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,fs) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
      if name = "read" then
        case ffi_read conf bytes fs of
-       | SOME (bytes,fs) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,fs) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
      if name = "getArgs" then
        case ffi_getArgs conf bytes cls of
-       | SOME (bytes,cls) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,cls) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
      if name = "open_in" then
        case ffi_open_in conf bytes fs of
-       | SOME (bytes,fs) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,fs) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
      if name = "open_out" then
        case ffi_open_out conf bytes fs of
-       | SOME (bytes,fs) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,fs) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
      if name = "close" then
        case ffi_close conf bytes fs of
-       | SOME (bytes,fs) => Oracle_return (cls,fs,w) bytes
+       | SOME (bytes,fs) => Oracle_return (cls,fs) bytes
        | _ => Oracle_fail else
-     if name = "get_const" then
-       case ffi_get_const conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail else
-     if name = "get_sensor" then
-       case ffi_get_sensor conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail else
-     if name = "get_ctrl" then
-       case ffi_get_control conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail else
-     if name = "actuate" then
-       case ffi_actuate conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail else
-     if name = "has_next" then
-       case ffi_has_next conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail else
-     if name = "violation" then
-       case ffi_violation conf bytes w of
-       | SOME (bytes,w) => Oracle_return (cls,fs,w) bytes
-       | _ => Oracle_fail
-     else
-       Oracle_fail`
+     Oracle_fail`
 
 (* standard streams are initialized *)
 val basis_ffi_def = Define `
-  basis_ffi (cls: string list) fs w =
+  basis_ffi (cls: string list) fs =
     <| oracle := basis_ffi_oracle
-     ; ffi_state := (cls, fs,w)
+     ; ffi_state := (cls, fs)
      ; final_event := NONE
      ; io_events := [] |>`;
 
 val basis_proj1_def = Define `
-  basis_proj1 = (\(cls, fs, w).
+  basis_proj1 = (\(cls, fs).
     FEMPTY |++ ((mk_proj1 cl_ffi_part cls)
-			++ (mk_proj1 fs_ffi_part fs) ++ (mk_proj1 bot_ffi_part w)))`;
+			++ (mk_proj1 fs_ffi_part fs)))`;
 
 val basis_proj2_def = Define `
   basis_proj2 =
     [mk_proj2 cl_ffi_part;
-     mk_proj2 fs_ffi_part;
-     mk_proj2 bot_ffi_part]`;
+     mk_proj2 fs_ffi_part]`;
 
 val basis_proj1_write = Q.store_thm("basis_proj1_write",
-  `basis_proj1 ffi ' "write" = encode(FST(SND ffi))`,
+  `basis_proj1 ffi ' "write" = encode(SND ffi)`,
   PairCases_on`ffi` \\ EVAL_TAC);
 
 (* builds the file system from a list of events *)
@@ -94,14 +67,7 @@ val extract_fs_def = Define `
     case (ALOOKUP [("open_in",ffi_open_in); ("write",ffi_write);
                            ("open_out",ffi_open_out); ("read",ffi_read);
                            ("close",ffi_close);
-                           ("getArgs", (λ c b fs. SOME (b,fs)));
-                           ("get_const", (λ c b fs. SOME (b,fs)));
-                           ("get_sensor", (λ c b fs. SOME (b,fs)));
-                           ("get_ctrl", (λ c b fs. SOME (b,fs)));
-                           ("actuate", (λ c b fs. SOME (b,fs)));
-                           ("has_next", (λ c b fs. SOME (b,fs)));
-                           ("violation", (λ c b fs. SOME (b,fs)))
-                           ] name) of
+                           ("getArgs", (λ c b fs. SOME (b,fs)))] name) of
     | SOME ffi_fun => (case ffi_fun conf (MAP FST bytes) init_fs of
                        | SOME (bytes',fs') => extract_fs fs' xs
                        | NONE => NONE)
@@ -119,8 +85,7 @@ val extract_fs_APPEND = Q.store_thm("extract_fs_APPEND",
   cases_on`s = "open_out"` >> fs[] >- rpt(CASE_TAC >> fs[]) >>
   cases_on`s = "read"` >> fs[] >- rpt(CASE_TAC >> fs[]) >>
   cases_on`s = "close"` >> fs[] >- rpt(CASE_TAC >> fs[]) >>
-  cases_on`s = "getArgs"` >> fs[]>>
-  rpt(CASE_TAC>>fs[])));
+  cases_on`s = "getArgs"` >> fs[]));
 
 (* TODO:
 
@@ -195,7 +160,7 @@ val RTC_call_FFI_rel_IMP_basis_events = Q.store_thm ("RTC_call_FFI_rel_IMP_basis
   \\ Cases_on `st.final_event = NONE` \\ fs [] \\ rw []
   \\ FULL_CASE_TAC \\ fs [] \\ rw [] \\ fs []
   \\ FULL_CASE_TAC \\ fs [] \\ rw [] \\ fs []
-  \\ PairCases_on `f` \\ fs []
+  \\ Cases_on `f` \\ fs []
   \\ fs [extract_fs_APPEND,extract_fs_def,basis_proj1_write] \\ rfs []
   \\ first_x_assum match_mp_tac
   \\ qpat_x_assum`_ = Oracle_return _ _`mp_tac
@@ -207,9 +172,10 @@ val RTC_call_FFI_rel_IMP_basis_events = Q.store_thm ("RTC_call_FFI_rel_IMP_basis
 (* the first condition for the previous theorem holds for the
   init_state ffi  *)
 val extract_fs_basis_ffi = Q.store_thm ("extract_fs_basis_ffi",
-  `!ll. extract_fs fs (basis_ffi cls fs w).io_events =
-   decode (basis_proj1 (basis_ffi cls fs w).ffi_state ' "write")`,
+  `!ll. extract_fs fs (basis_ffi cls fs).io_events =
+   decode (basis_proj1 (basis_ffi cls fs).ffi_state ' "write")`,
   rw[ml_progTheory.init_state_def,extract_fs_def,basis_ffi_def,basis_proj1_write]);
+
 
 val emp_precond = Q.store_thm("emp_precond",
   `emp {}`, EVAL_TAC);
@@ -278,20 +244,19 @@ fun mk_main_call s =
 val fname = mk_var("fname",``:string``);
 val main_call = mk_main_call fname;
 
-(* TODO: bot? *)
 val call_main_thm_basis = Q.store_thm("call_main_thm_basis",
 `!fname fv.
- ML_code env1 (init_state (basis_ffi cls fs w)) prog NONE env2 st2 ==>
+ ML_code env1 (init_state (basis_ffi cls fs)) prog NONE env2 st2 ==>
    lookup_var fname env2 = SOME fv ==>
   app (basis_proj1, basis_proj2) fv [Conv NONE []] P
     (POSTv uv. &UNIT_TYPE () uv *
                ((SEP_EXISTS ll. IOFS (fs0 with numchars := ll))) * (&R fs0 * Q)) ==>
-  no_dup_mods (SNOC ^main_call prog) (init_state (basis_ffi cls fs w)).defined_mods /\
-  no_dup_top_types (SNOC ^main_call prog) (init_state (basis_ffi cls fs w)).defined_types ==>
+  no_dup_mods (SNOC ^main_call prog) (init_state (basis_ffi cls fs)).defined_mods /\
+  no_dup_top_types (SNOC ^main_call prog) (init_state (basis_ffi cls fs)).defined_types ==>
   (?h1 h2. SPLIT (st2heap (basis_proj1, basis_proj2) st2) (h1,h2) /\ P h1)
   ==>
     ∃io_events ll. R fs0 /\
-    semantics_prog (init_state (basis_ffi cls fs w)) env1
+    semantics_prog (init_state (basis_ffi cls fs)) env1
       (SNOC ^main_call prog) (Terminate Success io_events) /\
     extract_fs fs io_events =
         SOME (fs0 with numchars := ll)`,
@@ -338,13 +303,12 @@ val call_main_thm_basis = Q.store_thm("call_main_thm_basis",
     \\ fs[basis_proj1_write,STAR_def,cond_def]
     );
 
-(* TODO: bot? *)
 val basis_ffi_length_thms = save_thm("basis_ffi_length_thms", LIST_CONJ
 [ffi_write_length,ffi_read_length,ffi_open_in_length,ffi_open_out_length,
- ffi_close_length, clFFITheory.ffi_getArgs_length, botFFITheory.bot_ffi_LENGTH]);
+ ffi_close_length, clFFITheory.ffi_getArgs_length ]);
 
 val basis_ffi_part_defs = save_thm("basis_ffi_part_defs", LIST_CONJ
-[fs_ffi_part_def,clFFITheory.cl_ffi_part_def,botFFITheory.bot_ffi_part_def]);
+[fs_ffi_part_def,clFFITheory.cl_ffi_part_def]);
 
 (* This is used to show to show one of the parts of parts_ok for the state after a spec *)
 val oracle_parts = Q.store_thm("oracle_parts",
@@ -364,7 +328,7 @@ val oracle_parts = Q.store_thm("oracle_parts",
   \\ CCONTR_TAC \\ fs[] \\ rfs[]);
 
 val parts_ok_basis_st = Q.store_thm("parts_ok_basis_st",
-  `parts_ok (auto_state_1 (basis_ffi cls fs w)).ffi (basis_proj1, basis_proj2)` ,
+  `parts_ok (auto_state_1 (basis_ffi cls fs)).ffi (basis_proj1, basis_proj2)` ,
   qmatch_goalsub_abbrev_tac`st.ffi`
   \\ `st.ffi.oracle = basis_ffi_oracle`
   by( simp[Abbr`st`] \\ EVAL_TAC \\ NO_TAC)
