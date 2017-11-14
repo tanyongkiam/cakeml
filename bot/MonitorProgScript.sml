@@ -1,16 +1,17 @@
 open preamble ml_progLib ml_translatorLib
-     basisFunctionsLib basis_ffiLib
-     cfTacticsLib cfLetAutoLib
-open blastLib cfLib ml_translatorTheory
+open blastLib
+open cfTacticsLib
+open TextIOProgTheory ml_translatorTheory basisFunctionsLib
 
-(* Defines a copy of the Isabelle/HOL formalization of
-  the monitor interpreter and translates it into CakeML *)
+val _ = new_theory "MonitorProg";
 
-val _ = new_theory "monitorProg";
+(*
+  This first section defines a copy of the interpreter for formulas
+  from the Isabelle/HOL formalization
+*)
 
-(* Defining the interpreter *)
-val NEG_INF = (rconc o eval) ``((INT_MINw: 32 word) + 1w)``
-val POS_INF = (rconc o eval) ``((INT_MAXw: 32 word) )``
+val NEG_INF = (rconc o EVAL) ``((INT_MINw: 32 word) + 1w)``
+val POS_INF = (rconc o EVAL) ``((INT_MAXw: 32 word) )``
 
 val NEG_INF_def = Define`NEG_INF:word32 = ^NEG_INF`
 val POS_INF_def = Define`POS_INF:word32 = ^POS_INF`
@@ -23,7 +24,7 @@ val POS_INF_def = Define`POS_INF:word32 = ^POS_INF`
 *)
 val _ = Datatype`
   trm = Const word32
-      | Var mlstring
+      | Var string (* TODO: should really be mlstring *)
       | Plus trm trm
       | Times trm trm
       | Max trm trm
@@ -139,7 +140,7 @@ val wneg_def = Define`
 
 (* States are represented as an association list of
   strings -> (w32,w32) *)
-val _ = type_abbrev ("wstate",``:(mlstring,word32 # word32) alist``)
+val _ = type_abbrev ("wstate",``:(string,word32 # word32) alist``)
 
 (* Differences from Isabelle formalization:
    The state is a finite map -- when Var n is not in the map, we assume that
@@ -231,13 +232,16 @@ val wfsem_bi_val_def = Define`
   | SOME F => F
   | SOME T => T`
 
-(* End of monitor stuff *)
+(* End of pure monitor stuff *)
 
-(* Translate the monitor into CML.
-   This extends Word8ArrayProg because we need to handle byte arrays
+(*
+  Translation of the monitors into CML
 *)
 
-val _ = translation_extends"Word8ArrayProg";
+val _ = translation_extends"TextIOProg";
+
+(* val _ = ml_prog_update (open_module "Monitor"); *)
+
 val spec32 = INST_TYPE[alpha|->``:32``]
 val spec64= INST_TYPE[alpha|->``:64``]
 val gconv = CONV_RULE (DEPTH_CONV wordsLib.WORD_GROUND_CONV)
@@ -279,7 +283,7 @@ val res = translate (wleq_def |> inlines);
 val res = translate (wfsem_def|>inlines);
 val res = translate (wfsem_bi_val_def|>inlines);
 
-(* The rest of these are helper functions *)
+(* The rest of these are wrappers around the monitors *)
 
 (* Converts 4 bytes in little endian order into a 32bit word *)
 val le_bytes_to_w32_def = Define`
@@ -344,219 +348,222 @@ val vars_to_state_def = Define`
 
 val res = translate vars_to_state_def;
 
-(* TODO: wrap the above into a module? *)
+(* Now we define the various monitoring wrappers *)
 
-(* Some proofs *)
-(* They invert each other -- immediate via bit blasting *)
+(* TODO: should be in Word8Array basis? *)
+val to_string = process_topdecs`
+  fun to_string arr = Word8Array.substring arr 0 (Word8Array.length arr);`
 
-val le_bytes_to_w32_w32_to_le_bytes = Q.store_thm("le_bytes_to_w32_w32_to_le_bytes",`
-  w32_to_le_bytes w = (b0,b1,b2,b3) ⇒
-  le_bytes_to_w32 b0 b1 b2 b3 = w`,
-  EVAL_TAC>>FULL_BBLAST_TAC);
+val _ = append_prog to_string;
 
-val w32_to_le_bytes_le_bytes_to_w32 = Q.store_thm("w32_to_le_bytes_le_bytes_to_w32",`
-  le_bytes_to_w32 b0 b1 b2 b3 = w ⇒
-  w32_to_le_bytes w = (b0,b1,b2,b3)`,
-  EVAL_TAC>>FULL_BBLAST_TAC);
+(* Reads the constants and returns it as a list *)
+val get_const = process_topdecs`
+  fun get_const const_names =
+  let val const_vals = Word8Array.array (4 * List.length const_names) (Word8.fromInt 0)
+      val u = #(get_const) "" const_vals
+  in
+    unpack_w32_list const_vals
+  end;`
 
-val bot_st = get_ml_prog_state();
+val _ = append_prog get_const;
 
-(* flatten 4 tuples *)
-val FLAT_TUP_def = Define`
-  (FLAT_TUP [] = []) ∧
-  (FLAT_TUP ((b0,b1,b2,b3)::bs) = [b0;b1;b2;b3]++FLAT_TUP bs)`
+(* Same but for sensors *)
+val get_sensor = process_topdecs`
+  fun get_sensor sensor_names =
+  let val sensor_vals = Word8Array.array (4 * List.length sensor_names) (Word8.fromInt 0)
+      val u = #(get_sensor) "" sensor_vals
+  in
+    unpack_w32_list sensor_vals
+  end;`
 
-(* Consume a list 4 elements at a time *)
-val MAP4_def = Define`
-  (MAP4 f (a::b::c::d::ls) = f a b c d :: MAP4 f ls) ∧
-  (MAP4 f ls = [])`
+val _ = append_prog get_sensor;
 
-val MAP4_empty = Q.prove(`
-  LENGTH ls < 4 ⇒
-  MAP4 f ls = []`,
-  Cases_on`ls`>>fs[MAP4_def]>>
-  Cases_on`t`>>fs[MAP4_def]>>
-  Cases_on`t'`>>fs[MAP4_def]>>
-  Cases_on`t`>>fs[MAP4_def]);
+(* Read the controls *)
+val get_ctrl = process_topdecs`
+  fun get_ctrl ctrl_names const_ls sensor_ls =
+  let val csarr = pack_w32_list (List.append const_ls sensor_ls)
+      val param_str = to_string csarr
+      val ctrl_vals = Word8Array.array (4 * List.length ctrl_names) (Word8.fromInt 0)
+      val u = #(get_ctrl) param_str ctrl_vals
+  in
+    unpack_w32_list ctrl_vals
+  end;`
 
-val w32_to_w8_def = Define`
-  w32_to_w8 ls = FLAT_TUP (MAP w32_to_le_bytes ls)`
+val _ = append_prog get_ctrl;
 
-val w8_to_w32_def = Define`
-  w8_to_w32 ls = MAP4 le_bytes_to_w32 ls`
+(* Pure controller monitor wrapper
+   The additional string literal is just there for external logging
+*)
+val ctrl_monitor_def = Define`
+  ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                        const_ls sensor_ls ctrl_ls default =
+  let st_ls = FLAT [const_ls; sensor_ls; ctrl_ls] in
+  let names_ls = FLAT [const_names; sensor_names; ctrl_names] in
+    if
+      wfsem_bi_val ctrl_phi (vars_to_state names_ls st_ls)
+    then
+      (strlit"OK",ctrl_ls)
+    else
+      (strlit"Control Violation",default const_ls sensor_ls)`
 
-val LENGTH_w32_to_w8 = Q.store_thm("LENGTH_w32_to_w8",`
-  ∀ls. LENGTH (w32_to_w8 ls) = 4* LENGTH ls`,
-  Induct>>fs[w32_to_w8_def,FLAT_TUP_def,w32_to_le_bytes_def]);
+val res = translate ctrl_monitor_def;
 
-val w8_to_w32_w32_to_w8 = Q.store_thm("w8_to_w32_w32_to_w8",`
-  ∀l. w8_to_w32 (w32_to_w8 l) = l`,
-  Induct>>EVAL_TAC>>
-  pop_assum mp_tac>>EVAL_TAC>>rw[]>>
-  blastLib.FULL_BBLAST_TAC);
+val actuate = process_topdecs`
+  fun actuate str ctrl_ls =
+    let val ctrl_vals = pack_w32_list ctrl_ls in
+      (#(actuate) str ctrl_vals; ())
+    end`
 
-val w32_to_w8_APPEND = Q.store_thm("w32_to_w8_APPEND",`
-  ∀a b. w32_to_w8 (a ++ b) = w32_to_w8 a ++ w32_to_w8 b`,
-  EVAL_TAC>>
-  Induct_on`a`>>fs[FLAT_TUP_def,w32_to_le_bytes_def]);
+val _ = append_prog actuate;
 
-val pack_w32_list_spec = Q.store_thm("pack_w32_list_spec",`
-    ∀l lv.
-    LIST_TYPE (WORD:word32 -> v -> bool) l lv
-    ==>
-    app (p:'ffi ffi_proj) ^(fetch_v "pack_w32_list" bot_st) [lv]
-      emp (POSTv av.
-      W8ARRAY av (w32_to_w8 l))`,
-  xcf "pack_w32_list" bot_st>>
-  xfun_spec `f`
-   `∀ls lsv i iv l_pre rest ar.
-     NUM i iv /\
-     LENGTH l_pre = i ∧
-     LENGTH rest = 4 * LENGTH ls ∧
-     LIST_TYPE (WORD:word32 -> v -> bool) ls lsv
-     ==>
-     app p f [ar; lsv; iv]
-      (W8ARRAY ar (l_pre ++ rest))
-      (POSTv ar.
-      W8ARRAY ar (l_pre ++ (FLAT_TUP (MAP w32_to_le_bytes ls))))`
-  >-
-    (Induct
-    >- (
-      rw[LIST_TYPE_def] \\
-      first_x_assum match_mp_tac \\
-      xmatch \\
-      xret \\
-      xsimpl \\ simp[FLAT_TUP_def])
-    >>
-      rw[LIST_TYPE_def] \\
-      fs[terminationTheory.v_to_list_def] \\
-      last_x_assum match_mp_tac \\
-      xmatch \\
-      xlet_auto >- xsimpl >>
-      fs[w32_to_le_bytes_def]>>
-      fs[PAIR_TYPE_def]>>
-      ntac 3 xmatch \\
-      rpt( xlet_auto >- xsimpl )>>
-      xapp >> xsimpl>>
-      simp[FLAT_TUP_def]>>
-      fs[LUPDATE_APPEND2]>>
-      `LENGTH rest = 4 + (4 * LENGTH ls)` by fs[ADD1]>>
-      fs[quantHeuristicsTheory.LIST_LENGTH_4]>>
-      simp[LUPDATE_compute])
-  >>
-    rpt(xlet_auto>- xsimpl)>>
-    xlet_auto>>
-    xapp >> xsimpl>>
-    metis_tac[w32_to_w8_def]);
+val ctrl_monitor_1shot = process_topdecs`
+  fun ctrl_monitor_1shot ctrl_phi const_names sensor_names ctrl_names default =
+  let
+    (* First read the constants and state *)
+    val const_ls = get_const const_names
+    val sensor_ls = get_sensor sensor_names
+    val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls
+  in
+    case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                        const_ls sensor_ls ctrl_ls default
+    of
+      (flg,ls) => actuate flg ls
+  end`
 
-val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
-    ∀l lv.
-    app (p:'ffi ffi_proj) ^(fetch_v "unpack_w32_list" bot_st) [av]
-      (W8ARRAY av a)
-      (POSTv lv.
-      W8ARRAY av a *
-      &LIST_TYPE (WORD:word32 -> v -> bool) (w8_to_w32 a) lv)`,
-  xcf "unpack_w32_list" bot_st>>
-  xfun_spec `f`
-   `∀i iv l lv a av.
-     NUM i iv /\
-     NUM l lv /\
-     l = LENGTH a
-     ==>
-     app p f [av; iv; lv]
-      (W8ARRAY av a)
-      (POSTv lv.
-      W8ARRAY av a *
-      &LIST_TYPE (WORD:word32 -> v -> bool) (w8_to_w32 (DROP i a)) lv)`
-  >- (
-    ntac 3 strip_tac>>
-    qid_spec_tac`iv`>>
-    completeInduct_on`l-i`>>
-    rw[]>> first_x_assum match_mp_tac>>
-    xlet_auto >- xsimpl>>
-    xlet_auto >- xsimpl>>
-    reverse xif
-    >-
-      (xcon>>xsimpl>>simp[w8_to_w32_def,MAP4_empty,LIST_TYPE_def])
-    >>
-    xlet_auto>- xsimpl>>
-    first_x_assum(qspec_then `LENGTH a - (i+4)` mp_tac)>>
-    simp[]>>
-    disch_then(qspecl_then [`LENGTH a`,`i+4`] mp_tac)>>simp[]>>
-    rpt (disch_then drule)>>
-    disch_then(qspecl_then[`a`,`av'`] assume_tac)>>fs[]>>
-    (* xlet_auto fails... *)
-    xlet `POSTv lv. W8ARRAY av' a * &LIST_TYPE WORD (w8_to_w32 (DROP (i + 4) a)) lv`
-    >- (xapp>>xsimpl)>>
-    rpt(xlet_auto >- xsimpl)>>
-    xcon>>xsimpl>>
-    fs[DROP_EL_CONS,MAP4_def,LIST_TYPE_def,w8_to_w32_def])
-  >>
-    xlet_auto >- xsimpl>>
-    xapp>> xsimpl);
+val _ = append_prog ctrl_monitor_1shot;
 
-(* -- Helper functions for encoding/decoding from the FFI type *)
+(* Checks if there is a next transition *)
+val has_next = process_topdecs`
+  fun has_next () =
+  let val arr = (Word8Array.array 1 (Word8.fromInt 0))
+      val u = #(has_next) "" arr
+  in
+    Word8Array.sub arr 0 <> Word8.fromInt 0
+  end`
 
-(* Turn a word32 list into a list of strings invertibly *)
-val w2sCHR_11 = Q.store_thm("w2sCHR_11",`
-  w2s 2 CHR c = w2s 2 CHR c' ⇒ c = c'`,
-  rw[]>>
-  qsuff_tac `∀h. s2w 2 ORD (w2s 2 CHR h) = h` >>fs[]
-  >-
-    metis_tac[]
-  >>
-    rw[]>>match_mp_tac s2w_w2s>>simp[]);
+val _ = append_prog has_next;
 
-val encode_word32_list_def = Define`
-  encode_word32_list = encode_list (Str o w2s 2 CHR)`
+val ctrl_monitor_loop_body = process_topdecs`
+  fun ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrl_names default
+                             const_ls sensor_ls =
+  (* First, we we will check if there is a next iteration *)
+  if has_next()
+  then
+  let val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls in
+  (* Run the controller monitor *)
+  case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                      const_ls sensor_ls ctrl_ls default
+  of
+    (flg,ctrl_ls) =>
+    let
+    val u = actuate flg ctrl_ls
+    val sensor_ls = get_sensor sensor_names
+    val u = Runtime.fullGC()
+    in
+      ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrl_names default
+                    const_ls sensor_ls
+    end
+  end
+  else
+    ()`
 
-val encode_word32_list_11 = Q.store_thm("encode_word32_list_11",`
-  !x y. encode_word32_list x = encode_word32_list y <=> x = y`,
-  Induct \\ Cases_on `y`
-  \\ fs [encode_word32_list_def,encode_list_def]
-  \\ metis_tac[w2sCHR_11]);
+val _ = append_prog ctrl_monitor_loop_body;
 
-val decode_encode_word32_list = new_specification("decode_encode_word32_list",["decode_word32_list"],
-  prove(``?decode_word32_list. !cls. decode_word32_list (encode_word32_list cls) = SOME cls``,
-        qexists_tac `\f. some c. encode_word32_list c = f` \\ fs [encode_word32_list_11]));
-val _ = export_rewrites ["decode_encode_word32_list"];
+val violation = process_topdecs`
+  fun violation str =
+  let val arr = (Word8Array.array 0 (Word8.fromInt 0))
+  in
+    (#(violation) str arr ; ())
+  end`
 
-val encode_trm_def = Define`
-  (encode_trm (Const w) = Cons (Num 0) (Str (w2s 2 CHR w))) ∧
-  (encode_trm (Var s) = Cons (Num 1) (Str (explode s))) ∧
-  (encode_trm (Plus t1 t2) = Cons (Num 2) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_trm (Times t1 t2) = Cons (Num 3) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_trm (Max t1 t2) = Cons (Num 4) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_trm (Min t1 t2) = Cons (Num 5) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_trm (Neg t) = Cons (Num 6) (encode_trm t))`
+val _ = append_prog violation;
 
-val encode_trm_11 = Q.store_thm("encode_trm_11",`
-  ∀x y. encode_trm x = encode_trm y <=> x = y`,
-  Induct>>Cases_on`y`>>rw[encode_trm_def]>>
-  fs[mlstringTheory.explode_11]>>
-  metis_tac[w2sCHR_11]);
+val ctrl_monitor_loop = process_topdecs`
+  fun ctrl_monitor_loop init_phi ctrl_phi
+              const_names sensor_names ctrl_names default =
+  (* First read the constants and initial state *)
+  let val const_ls = get_const const_names
+      val sensor_ls = get_sensor sensor_names
+      val names_ls = List.append const_names sensor_names
+      val st_ls = List.append const_ls sensor_ls
+  in
+    if
+      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+    then
+      ctrl_monitor_loop_body ctrl_phi
+              const_names sensor_names ctrl_names default
+              const_ls sensor_ls
+    else
+      violation "Init Violation"
+  end`
 
-val decode_encode_trm = new_specification("decode_encode_trm",["decode_trm"],
-  prove(``?decode_trm. !cls. decode_trm (encode_trm cls) = SOME cls``,
-        qexists_tac `\f. some c. encode_trm c = f` \\ fs [encode_trm_11]));
-val _ = export_rewrites ["decode_encode_trm"];
+val _ = append_prog ctrl_monitor_loop;
 
-val encode_fml_def = Define`
-  (encode_fml (Le t1 t2) = Cons (Num 0) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_fml (Leq t1 t2) = Cons (Num 1) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_fml (Equals t1 t2) = Cons (Num 2) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_fml (And f1 f2) = Cons (Num 3) (Cons (encode_fml f1) (encode_fml f2))) ∧
-  (encode_fml (Or f1 f2) = Cons (Num 4) (Cons (encode_fml f1) (encode_fml f2))) ∧
-  (encode_fml (Not f) = Cons (Num 5) (encode_fml f))`
+val plant_monitor_def = Define`
+  plant_monitor plant_phi const_names sensor_pre_names sensor_names ctrl_names
+                            const_ls sensor_pre_ls sensor_ls ctrl_ls =
+  let st_ls = FLAT [const_ls; sensor_pre_ls; sensor_ls; ctrl_ls] in
+  let names_ls = FLAT [const_names; sensor_pre_names; sensor_names; ctrl_names] in
+    wfsem_bi_val plant_phi (vars_to_state names_ls st_ls)`
 
-val encode_fml_11 = Q.store_thm("encode_fml_11",`
-  ∀x y. encode_fml x = encode_fml y <=> x = y`,
-  Induct>>Cases_on`y`>>rw[encode_fml_def]>>
-  metis_tac[encode_trm_11]);
+val res = translate plant_monitor_def;
 
-val decode_encode_fml = new_specification("decode_encode_fml",["decode_fml"],
-  prove(``?decode_fml. !cls. decode_fml (encode_fml cls) = SOME cls``,
-        qexists_tac `\f. some c. encode_fml c = f` \\ fs [encode_fml_11]));
-val _ = export_rewrites ["decode_encode_fml"];
+val monitor_loop_body = process_topdecs`
+  fun monitor_loop_body plant_phi ctrl_phi
+                        const_names sensor_pre_names sensor_names ctrl_names default
+                        const_ls sensor_ls =
+  (* First, we we will check if there is a next iteration *)
+  if has_next()
+  then
+  let val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls in
+  (* Run the controller monitor *)
+  case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
+                      const_ls sensor_ls ctrl_ls default
+  of
+    (flg,ctrl_ls) =>
+    let
+    val u = actuate flg ctrl_ls
+    val sensor_new_ls = get_sensor sensor_names
+    in
+    if plant_monitor plant_phi const_names sensor_pre_names sensor_names ctrl_names
+                               const_ls sensor_ls sensor_new_ls ctrl_ls
+    then
+      let val u = Runtime.fullGC()
+      in
+        monitor_loop_body plant_phi ctrl_phi
+                          const_names sensor_pre_names sensor_names ctrl_names default
+                          const_ls sensor_new_ls
+      end
+    else
+      violation "Plant Violation"
+    end
+  end
+  else
+    ()`
+
+val _ = append_prog monitor_loop_body;
+
+val monitor_loop = process_topdecs`
+  fun monitor_loop init_phi plant_phi ctrl_phi
+              const_names sensor_pre_names sensor_names ctrl_names default =
+  (* First read the constants and initial state *)
+  let val const_ls = get_const const_names
+      val sensor_ls = get_sensor sensor_names
+      val names_ls = List.append const_names sensor_names
+      val st_ls = List.append const_ls sensor_ls
+  in
+    if
+      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+    then
+      monitor_loop_body plant_phi ctrl_phi
+              const_names sensor_pre_names sensor_names ctrl_names default
+              const_ls sensor_ls
+    else
+      violation "Init Violation"
+  end`
+
+val _ = append_prog monitor_loop;
+
+(* val _ = ml_prog_update (close_module NONE); *)
 
 val _ = export_theory();
