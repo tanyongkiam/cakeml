@@ -1,15 +1,14 @@
-open preamble botProgTheory
+open preamble
 open ml_progLib ml_translatorLib cfMainTheory
 open basisFunctionsLib cfTacticsLib cfLetAutoLib cfLib
-open botFFITheory MonitorProofTheory
 open set_sepTheory semanticsLib
+open botFFITheory MonitorProofTheory
 
-(* Here, we turn the CF-verified App theorem for botProg into theorem about
-   CakeML's semantics *)
+(* Here, we prove a generic theorem that will let us turn
+   CF-verified App theorems about the bot_ffi world model
+   into a theorem about CakeML's semantics *)
 
-val _ = new_theory "botProof"
-
-val _ = translation_extends "botProg";
+val _ = new_theory "botFFIProof"
 
 val bot_proj1_def = Define `
   bot_proj1 = λw. FEMPTY |++ (mk_proj1 bot_ffi_part w)`
@@ -54,7 +53,7 @@ val bot_ffi_def = Define `
      ; final_event := NONE
      ; io_events := [] |>`;
 
-(* Rebuild the world*)
+(* Rebuild the world from a trace *)
 val extract_world_def = Define `
   (extract_world init_world [] = SOME init_world) ∧
   (extract_world init_world ((IO_event name conf bytes)::xs) =
@@ -152,48 +151,7 @@ val call_main_thm_bot = Q.store_thm("call_main_thm_bot",
   \\ fs [bot_proj1_def,mk_proj1_def,bot_ffi_part_def,FUPDATE_LIST,
          FAPPLY_FUPDATE_THM,FLOOKUP_UPDATE,botFFITheory.encode_11]);
 
-val (ML_code (ss,envs,vs,th)) = get_ml_prog_state ();
-
-val name = "bot_main"
-val spec =  bot_main_spec |>
-  Q.GEN`p` |> Q.ISPEC`(bot_proj1,bot_proj2)` |>
-  Q.GEN`u` |> Q.ISPEC `Conv NONE []` |> UNDISCH
-
-val th =
-  call_main_thm_bot
-    |> C MATCH_MP (th |> GEN_ALL |> ISPEC ``bot_ffi w``)
-    |> SPEC(stringSyntax.fromMLstring name)
-    |> CONV_RULE(QUANT_CONV(LAND_CONV(LAND_CONV EVAL THENC SIMP_CONV std_ss [])))
-    |> CONV_RULE(HO_REWR_CONV UNWIND_FORALL_THM1)
-    |> C HO_MATCH_MP spec;
-
-val prog_with_snoc = th |> concl |> find_term listSyntax.is_snoc
-val prog_rewrite = EVAL prog_with_snoc
-
-val th = PURE_REWRITE_RULE[prog_rewrite] th
-val (mods_tm,types_tm) = th |> concl |> dest_imp |> #1 |> dest_conj
-val mods_thm =
-  mods_tm |> (RAND_CONV EVAL THENC no_dup_mods_conv)
-  |> EQT_ELIM
-
-val types_thm =
-  types_tm |> (RAND_CONV EVAL THENC no_dup_top_types_conv)
-  |> EQT_ELIM
-val th = MATCH_MP th (CONJ mods_thm types_thm)
-
-val (split,precondh1) = th |> concl |> dest_imp |> #1 |> strip_exists |> #2 |> dest_conj
-val precond = rator precondh1
-val st = split |> rator |> rand
-
-val SPLIT_exists = Q.store_thm ("SPLIT_exists",
-  `∀s. A s /\ s ⊆ C
-    ==> (?h1 h2. SPLIT C (h1, h2) /\ A h1)`,
-  rw[]
-  \\ qexists_tac `s` \\ qexists_tac `C DIFF s`
-  \\ SPLIT_TAC
-);
-
-val parts_ok_bot_ffi = Q.prove(`
+val parts_ok_bot_ffi = Q.store_thm("parts_ok_bot_ffi",`
   parts_ok (bot_ffi w) (bot_proj1,bot_proj2)`,
   rw[cfStoreTheory.parts_ok_def,bot_ffi_def]>>
   fs[bot_proj2_def,bot_ffi_part_def,mk_proj2_def,mk_proj1_def,bot_proj1_def]
@@ -214,33 +172,5 @@ val parts_ok_bot_ffi = Q.prove(`
     pairarg_tac>>fs[]>>rw[]>>
     fs[fmap_eq_flookup]>>
     rw[FLOOKUP_UPDATE]);
-
-val SPLIT_SING = prove(
-  ``SPLIT s ({x},t) <=> x IN s /\ t = s DELETE x``,
-  fs [SPLIT_def,IN_DISJOINT,EXTENSION] \\ metis_tac []);
-
-val SPLIT_th = Q.prove(`
-  wf_world w ⇒
-  (∃h1 h2.
-      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_7 (bot_ffi w)))
-        (h1,h2) ∧ IOBOT w h1)`,
-  fs [IOBOT_def,SEP_CLAUSES,IOx_def,bot_ffi_part_def,
-      IO_def,SEP_EXISTS_THM,PULL_EXISTS,one_def] >>
-  rw[]>>simp[auto_state_7_def,cfStoreTheory.st2heap_def]>>
-  fs [SPLIT_SING,cfAppTheory.FFI_part_NOT_IN_store2heap]
-  \\ rw [cfStoreTheory.ffi2heap_def] \\ EVAL_TAC
-  \\ fs [parts_ok_bot_ffi]);
-
-val semantics_thm = MATCH_MP th (UNDISCH SPLIT_th) |> DISCH_ALL
-val prog_tm = rhs(concl prog_rewrite)
-
-val bot_prog_def = Define`bot_prog = ^prog_tm`;
-
-val bot_semantics_thm =
-  semantics_thm
-  |> ONCE_REWRITE_RULE[GSYM bot_prog_def]
-  |> DISCH_ALL
-  |> SIMP_RULE std_ss [AND_IMP_INTRO]
-  |> curry save_thm "bot_semantics_thm";
 
 val _ = export_theory();

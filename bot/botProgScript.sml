@@ -1,10 +1,12 @@
-open preamble MonitorProgTheory MonitorProofTheory botFFITheory
+open preamble MonitorProgTheory MonitorProofTheory botFFITheory botFFIProofTheory
 open ml_progLib ml_translatorLib
 open basisFunctionsLib
-open cfTacticsLib cfLetAutoLib
+open cfTacticsLib cfLetAutoLib semanticsLib
+open cfHeapsBaseTheory
 
-(* Here, we concretely instantiate the monitors with
-   formulas from an input file *)
+(* This is the final step that produces a monitor
+  Here, we concretely instantiate the monitors with
+  formulas from an input file *)
 
 val _ = new_theory "botProg"
 
@@ -118,7 +120,6 @@ val init_state_def = Define`
   )`
 
 val bot_main_spec = Q.store_thm("bot_main_spec",`
-  (* These specify what the inputs should be *)
   init_state w ==>
   app (p:'ffi ffi_proj) ^(fetch_v "bot_main" st)
     [u]
@@ -145,128 +146,75 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
   fs trans_th>>
   fs[good_ctrl_trace_def,good_plant_trace_def]);
 
-val main = reval ``Tdec (Dlet unknown_loc (Pvar "u") (App Opapp [Var (Short "bot_main"); Con NONE []]))``
-
+(* The rest of this automation produces a top-level theorem for CakeML semantics *)
 val (ML_code (ss,envs,vs,th)) = get_ml_prog_state ();
 
-val prog = (rconc o EVAL) ``SNOC ^main ^(th |> concl |> strip_comb |> #2 |> el 3)``
-
-val prog_def = Define`bot_prog = ^prog`;
-
-(*
-val spec = bot_main_spec |> SPEC_ALL |> UNDISCH_ALL
-            |> SIMP_RULE std_ss [STDIO_def] |> add_basis_proj;
 val name = "bot_main"
+val spec =  bot_main_spec |>
+  Q.GEN`p` |> Q.ISPEC`(bot_proj1,bot_proj2)` |>
+  Q.GEN`u` |> Q.ISPEC `Conv NONE []` |> UNDISCH
 
-open compilationLib
+val th =
+  call_main_thm_bot
+    |> C MATCH_MP (th |> GEN_ALL |> ISPEC ``bot_ffi w``)
+    |> SPEC(stringSyntax.fromMLstring name)
+    |> CONV_RULE(QUANT_CONV(LAND_CONV(LAND_CONV EVAL THENC SIMP_CONV std_ss [])))
+    |> CONV_RULE(HO_REWR_CONV UNWIND_FORALL_THM1)
+    |> C HO_MATCH_MP spec;
 
-(* Produce .S files *)
-val x64 = compile_x64 500 500 "bot_x64" prog_def;
-val arm6 = compile_arm6 100 100 "bot_arm6" prog_def;
+val prog_with_snoc = th |> concl |> find_term listSyntax.is_snoc
+val prog_rewrite = EVAL prog_with_snoc
 
+val th = PURE_REWRITE_RULE[prog_rewrite] th
+val (mods_tm,types_tm) = th |> concl |> dest_imp |> #1 |> dest_conj
 
-(* ? broken *)
-val (semantics_thm,prog_tm) = call_thm st name spec
-val cat_prog_def = Define`cat_prog = ^prog_tm`;
+val mods_thm =
+  mods_tm |> (RAND_CONV EVAL THENC no_dup_mods_conv)
+  |> EQT_ELIM
 
-val cat_semantics_thm =
+val types_thm =
+  types_tm |> (RAND_CONV EVAL THENC no_dup_top_types_conv)
+  |> EQT_ELIM
+val th = MATCH_MP th (CONJ mods_thm types_thm)
+
+val (split,precondh1) = th |> concl |> dest_imp |> #1 |> strip_exists |> #2 |> dest_conj
+val precond = rator precondh1
+val st = split |> rator |> rand
+
+val SPLIT_exists = Q.store_thm ("SPLIT_exists",
+  `∀s. A s /\ s ⊆ C
+    ==> (?h1 h2. SPLIT C (h1, h2) /\ A h1)`,
+  rw[]
+  \\ qexists_tac `s` \\ qexists_tac `C DIFF s`
+  \\ SPLIT_TAC
+);
+
+val SPLIT_SING = prove(
+  ``SPLIT s ({x},t) <=> x IN s /\ t = s DELETE x``,
+  fs [SPLIT_def,IN_DISJOINT,EXTENSION] \\ metis_tac []);
+
+val SPLIT_th = Q.prove(`
+  wf_world w ⇒
+  (∃h1 h2.
+      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_7 (bot_ffi w)))
+        (h1,h2) ∧ IOBOT w h1)`,
+  fs [IOBOT_def,SEP_CLAUSES,IOx_def,bot_ffi_part_def,
+      IO_def,SEP_EXISTS_THM,PULL_EXISTS,one_def] >>
+  rw[]>>simp[fetch "-""auto_state_7_def",cfStoreTheory.st2heap_def]>>
+  fs [SPLIT_SING,cfAppTheory.FFI_part_NOT_IN_store2heap]
+  \\ rw [cfStoreTheory.ffi2heap_def] \\ EVAL_TAC
+  \\ fs [parts_ok_bot_ffi]);
+
+val semantics_thm = MATCH_MP th (UNDISCH SPLIT_th) |> DISCH_ALL
+val prog_tm = rhs(concl prog_rewrite)
+
+val bot_prog_def = Define`bot_prog = ^prog_tm`;
+
+val bot_semantics_thm =
   semantics_thm
-  |> ONCE_REWRITE_RULE[GSYM cat_prog_def]
+  |> ONCE_REWRITE_RULE[GSYM bot_prog_def]
   |> DISCH_ALL
-  |> SIMP_RULE(srw_ss())[STD_streams_add_stdout,AND_IMP_INTRO,GSYM CONJ_ASSOC]
-  |> curry save_thm "cat_semantics_thm";
-
-
-
-(* The looping control monitor program *)
-val ctrl_bot_main =
-  process_topdecs`
-  fun bot_main u =
-    ctrl_monitor_loop init_fml ctrl_fml const_vars sensor_vars ctrl_vars default`
-
-val st = get_ml_prog_state();
-
-val trans_th = [cml_ctrl_th,cml_init_fml_th,cml_sensor_th,cml_ctrl_th,cml_ctrl_fml_th,cml_const_th,cml_default_th]
-
-val comp_eq = [world_component_equality,
-              world_config_component_equality,
-              world_state_component_equality,
-              world_oracle_component_equality];
-
-(* Define all the possible initial states w.r.t. to our formulas *)
-val init_state_def = Define`
-  init_state w <=>
-  ((w.wc = <|
-      const_names  := const_vars;
-      sensor_names := sensor_vars;
-      ctrl_names   := ctrl_vars;
-      init         := init_fml;
-      ctrl_monitor := ctrl_fml |>)  (* Other two parts are ARB for this model *)
-  ∧
-  w.tr = [] ∧
-  good_default default w ∧
-  eventually $~ w.wo.step_oracle
-  )`
-
-val bot_main_spec = Q.store_thm("bot_main_spec",`
-  (* These specify what the inputs should be *)
-  init_state w ==>
-  app (p:'ffi ffi_proj) ^(fetch_v "bot_main" st)
-    [u]
-  (STDIO fs * IOBOT w)
-  (POSTv uv.
-    &UNIT_TYPE () uv * (STDIO fs *
-    (SEP_EXISTS w'. IOBOT w' *
-     &(
-      (* Either the initial world violates init immediately *)
-      (w = w' ∧ ¬init_sat w.wc w.ws) ∨
-      (* Or we transition to a final world,
-         and good_world guarantees that the actuation trace all
-         satisfy the control monitor *)
-      good_world default w' ∧
-      ¬w'.wo.step_oracle 0))))`,
-  rw[]>>
-  xcf "bot_main" st>>
-  fs[init_state_def]>>
-  xapp>>
-  qexists_tac`STDIO fs`>>qexists_tac`w`>>
-  qexists_tac`default`>>
-  xsimpl>>fs[init_state_def]>>
-  fs (comp_eq@trans_th)>>xsimpl>>
-  fs[good_ctrl_trace_def]>>
-  rw[]>>
-  fs (comp_eq@trans_th)>>xsimpl>>
-  qexists_tac`x`>>fs[]>>xsimpl);
-
-val spec = bot_main_spec |> SPEC_ALL |> UNDISCH_ALL
-            |> SIMP_RULE std_ss [STDIO_def] |> add_basis_proj;
-val name = "bot_main"
-
-val main = reval ``Tdec (Dlet unknown_loc (Pvar "u") (App Opapp [Var (Short "bot_main"); Con NONE []]))``
-
-val (ML_code (ss,envs,vs,th)) = get_ml_prog_state ();
-
-val prog = (rconc o EVAL) ``SNOC ^main ^(th |> concl |> strip_comb |> #2 |> el 3)``
-
-val prog_def = Define`bot_prog = ^prog`;
-
-open compilationLib
-
-(* Produce .S files *)
-val x64 = compile_x64 500 500 "bot_x64" prog_def;
-val arm6 = compile_arm6 100 100 "bot_arm6" prog_def;
-
-
-(* ? broken *)
-val (semantics_thm,prog_tm) = call_thm st name spec
-val cat_prog_def = Define`cat_prog = ^prog_tm`;
-
-val cat_semantics_thm =
-  semantics_thm
-  |> ONCE_REWRITE_RULE[GSYM cat_prog_def]
-  |> DISCH_ALL
-  |> SIMP_RULE(srw_ss())[STD_streams_add_stdout,AND_IMP_INTRO,GSYM CONJ_ASSOC]
-  |> curry save_thm "cat_semantics_thm";
-*)
+  |> SIMP_RULE std_ss [AND_IMP_INTRO]
+  |> curry save_thm "bot_semantics_thm";
 
 val _ = export_theory();
