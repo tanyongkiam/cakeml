@@ -1,0 +1,18 @@
+#The constant variable names
+const_vars = ["V()";"ep()"]
+#The old sensor names (before plant)
+sensor_pre_vars = ["dpre";"vpre";"tpre"]
+#The new sensor names (after plant)
+sensor_vars = ["d";"v";"t"]
+#The control variable names
+ctrl_vars = ["dp";"vp";"tp"]
+#The bounds formula
+bounds_fml = And (Leq (Const 0w) (Var ("V()"))) (Leq (Const 0w) (Var ("ep()")))
+#The init formula
+init_fml = And (Leq (Const 0w) (Var ("ep()"))) (And (Leq (Const 0w) (Var ("V()"))) (Leq (Const 0w) (Var ("ep()"))))
+#The plant formula
+plant_fml = Leq (Times (Var"V()") (Plus (Var"ep()") (Times (Const (-1w)) (Var("t"))))) (Var ("d"))
+#The control formula
+ctrl_fml = And (And (Leq (Const 0w) (Var ("V()"))) (Leq (Const 0w) (Var ("ep()")))) (Or (And (Leq (Times (Var ("V()")) (Var ("ep()"))) (Var ("d")))(And (And (Leq (Const 0w) (Var ("vp"))) (Leq (Var ("vp")) (Var ("V()"))))(And (Equals (Var ("dp")) (Var ("d")))(Equals (Var ("tp")) (Const 0w))))) (And (Equals (Var ("dp")) (Var ("d")))(And (Equals (Var ("vp")) (Const 0w))(Equals (Var ("tp")) (Const 0w)))))
+#The default controller
+default_body = case (const_ls:word32 list,sense_ls:word32 list) of (_,[d;v;t]) => [d; 0w; 0w] | _ => []
