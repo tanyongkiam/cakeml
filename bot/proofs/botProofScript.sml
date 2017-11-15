@@ -1,15 +1,15 @@
 open preamble botProgTheory
-open ml_progLib ml_translatorLib
-open cfMainTheory
-open basisFunctionsLib
-open cfTacticsLib cfLetAutoLib cfLib
-open botFFITheory
-open MonitorProofTheory
+open ml_progLib ml_translatorLib cfMainTheory
+open basisFunctionsLib cfTacticsLib cfLetAutoLib cfLib
+open botFFITheory MonitorProofTheory
 open set_sepTheory semanticsLib
-(* Here, we turn the App theorem for botProg into theorem about
+
+(* Here, we turn the CF-verified App theorem for botProg into theorem about
    CakeML's semantics *)
 
 val _ = new_theory "botProof"
+
+val _ = translation_extends "botProg";
 
 val bot_proj1_def = Define `
   bot_proj1 = λw. FEMPTY |++ (mk_proj1 bot_ffi_part w)`
@@ -94,6 +94,18 @@ val call_FFI_rel_IMP = Q.prove(`
   \\ fs[MAP_ZIP]
   \\ rpt(IF_CASES_TAC \\fs[] >- ntac 2 (TOP_CASE_TAC\\simp[])));
 
+val main_call = ``Tdec (Dlet unknown_loc (Pcon NONE []) (App Opapp [Var (Short fname); Con NONE []]))``
+
+val SPLIT_EMPTY = store_thm("SPLIT_EMPTY",
+  ``(SPLIT EMPTY (s1,s2) <=> s1 = EMPTY /\ s2 = EMPTY) /\
+    (SPLIT s (EMPTY,s2) <=> s2 = s) /\
+    (SPLIT s (s1,EMPTY) <=> s1 = s)``,
+  fs [SPLIT_def,EXTENSION,IN_DISJOINT] \\ metis_tac []);
+
+val SPIT3_SING_IMP = prove(
+  ``SPLIT3 x ({a},b,c) ==> a IN x``,
+  fs [SPLIT3_def,EXTENSION,IN_DISJOINT] \\ metis_tac [])
+
 val call_main_thm_bot = Q.store_thm("call_main_thm_bot",
   `!fname fv.
   ML_code env1 (init_state (bot_ffi w)) prog NONE env2 st2 ==>
@@ -127,8 +139,18 @@ val call_main_thm_bot = Q.store_thm("call_main_thm_bot",
   \\ drule call_FFI_rel_IMP
   \\ EVAL_TAC \\ strip_tac
   \\ rw[]
-  (* Separation logic stuff? *)
-  \\ cheat);
+  \\ fs [IOBOT_def,cond_STAR]
+  \\ fs [IOx_def,IO_def,bot_ffi_part_def,SEP_EXISTS_THM]
+  \\ qpat_x_assum `one _ _` mp_tac
+  \\ once_rewrite_tac [one_def] \\ fs [SPLIT_EMPTY] \\ rveq
+  \\ strip_tac \\ rveq
+  \\ drule SPIT3_SING_IMP
+  \\ rewrite_tac [cfStoreTheory.st2heap_def,IN_UNION]
+  \\ fs [cfAppTheory.FFI_part_NOT_IN_store2heap]
+  \\ rw [cfStoreTheory.ffi2heap_def]
+  \\ pop_assum (qspec_then `"get_const"` mp_tac) \\ fs []
+  \\ fs [bot_proj1_def,mk_proj1_def,bot_ffi_part_def,FUPDATE_LIST,
+         FAPPLY_FUPDATE_THM,FLOOKUP_UPDATE,botFFITheory.encode_11]);
 
 val (ML_code (ss,envs,vs,th)) = get_ml_prog_state ();
 
@@ -193,22 +215,21 @@ val parts_ok_bot_ffi = Q.prove(`
     fs[fmap_eq_flookup]>>
     rw[FLOOKUP_UPDATE]);
 
+val SPLIT_SING = prove(
+  ``SPLIT s ({x},t) <=> x IN s /\ t = s DELETE x``,
+  fs [SPLIT_def,IN_DISJOINT,EXTENSION] \\ metis_tac []);
+
 val SPLIT_th = Q.prove(`
   wf_world w ⇒
   (∃h1 h2.
       SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_7 (bot_ffi w)))
         (h1,h2) ∧ IOBOT w h1)`,
+  fs [IOBOT_def,SEP_CLAUSES,IOx_def,bot_ffi_part_def,
+      IO_def,SEP_EXISTS_THM,PULL_EXISTS,one_def] >>
   rw[]>>simp[auto_state_7_def,cfStoreTheory.st2heap_def]>>
-  match_mp_tac SPLIT_exists>>fs[IOBOT_def,STAR_def,cond_def]>>
-  qmatch_goalsub_abbrev_tac` _ ∪ s`>>
-  qexists_tac`s`>>simp[Abbr`s`]>>
-  fs[cfStoreTheory.ffi2heap_def,IOx_def,bot_ffi_part_def,IO_def]>>
-  simp[parts_ok_bot_ffi,SEP_EXISTS_THM,PULL_EXISTS,one_def]>>
-  qexists_tac`[]`>>simp[SPLIT_def]>>
-  simp[EXTENSION,bot_ffi_def]>>rw[]>>
-  simp[mk_ffi_next_def]>>rw[]>>
-  (* what to do with FFI_split? *)
-  cheat)
+  fs [SPLIT_SING,cfAppTheory.FFI_part_NOT_IN_store2heap]
+  \\ rw [cfStoreTheory.ffi2heap_def] \\ EVAL_TAC
+  \\ fs [parts_ok_bot_ffi]);
 
 val semantics_thm = MATCH_MP th (UNDISCH SPLIT_th) |> DISCH_ALL
 val prog_tm = rhs(concl prog_rewrite)
