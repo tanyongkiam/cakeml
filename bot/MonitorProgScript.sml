@@ -238,7 +238,7 @@ val wfsem_bi_val_def = Define`
   Translation of the monitors into CML
 *)
 
-val _ = translation_extends"TextIOProg";
+val _ = translation_extends"Word8ArrayProg";
 
 (* val _ = ml_prog_update (open_module "Monitor"); *)
 

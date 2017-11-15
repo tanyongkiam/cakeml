@@ -8,7 +8,6 @@ ml_translatorTheory ml_progLib ml_translatorLib cfLib
 
 clFFITheory
 fsFFITheory fsFFIPropsTheory
-botFFITheory
 
 mlstringTheory
 
@@ -17,7 +16,6 @@ Word8ArrayProofTheory
 ArrayProofTheory
 CommandlineProofTheory
 TextIOProgTheory TextIOProofTheory
-MonitorProgTheory MonitorProofTheory
 
 basisProgTheory basisFunctionsLib basis_ffiLib
 

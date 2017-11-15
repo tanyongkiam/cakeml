@@ -1,5 +1,6 @@
 open preamble
      to_target32ProgTheory compilerTheory
+     bot_compilerTheory
      exportTheory
      ml_translatorLib ml_translatorTheory
 
@@ -136,6 +137,9 @@ val r = format_compiler_result_def
         |> translate;
 
 val r = translate (compile_to_bytes_def |> spec32 |> SIMP_RULE (srw_ss()) [MEMBER_INTRO])
+
+val r = translate (bot_basis_def|> spec32 |> SIMP_RULE (srw_ss()) [MEMBER_INTRO])
+val r = translate (bot_compile_to_bytes_def |> spec32 |> SIMP_RULE (srw_ss()) [MEMBER_INTRO])
 
 val () = Feedback.set_trace "TheoryPP.include_docs" 0;
 

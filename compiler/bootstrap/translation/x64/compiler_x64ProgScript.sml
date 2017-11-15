@@ -16,14 +16,17 @@ val res = translate
   (x64_backend_config_def
    |> SIMP_RULE(srw_ss())[FUNION_FUPDATE_1])
 
-val res = translate compiler_x64_def
+val bot_compiler_x64_def = Define`
+  bot_compiler_x64 cl ls = bot_compile_to_bytes x64_backend_config x64_export cl ls`
+
+val res = translate bot_compiler_x64_def
 
 val main = process_topdecs`
   fun main u =
     let
       val cl = Commandline.arguments ()
     in
-      case compiler_x64 cl (String.explode (TextIO.inputAll TextIO.stdIn))  of
+      case bot_compiler_x64 cl (String.explode (TextIO.inputAll TextIO.stdIn))  of
         (c, e) => (print_app_list c; TextIO.prerr_string e)
     end`;
 
@@ -35,7 +38,7 @@ val main_spec = Q.store_thm("main_spec",
   `app (p:'ffi ffi_proj) ^(fetch_v "main" st)
      [Conv NONE []] (STDIO fs * COMMANDLINE cl)
      (POSTv uv. &UNIT_TYPE () uv *
-      (let (out,err) = compiler_x64 (TL(MAP implode cl)) (get_stdin fs) in
+      (let (out,err) = bot_compiler_x64 (TL(MAP implode cl)) (get_stdin fs) in
          STDIO (add_stderr (add_stdout (fastForwardFD fs 0) (explode (concat (append out)))) (explode err)))
       * COMMANDLINE cl)`,
   xcf "main" st

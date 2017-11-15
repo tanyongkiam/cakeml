@@ -683,7 +683,7 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
     asm_exists_tac>>simp[]>>
     xsimpl>>fs[good_world_def]>>rw[]
     >-
-      (fs[bounds_sat_def,init_sat_def,wfsem_bi_val_def]>>
+      (fs[bounds_sat_def,wfsem_bi_val_def]>>
       EVERY_CASE_TAC>>fs[]>>
       metis_tac[])>>
     qexists_tac`x`>>simp[]>>xsimpl)

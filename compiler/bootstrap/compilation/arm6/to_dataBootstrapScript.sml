@@ -48,6 +48,6 @@ val entire_program_thm = entire_program_def;
 
 val to_data_arm6_thm = save_thm("to_data_arm6_thm",
   compilationLib.compile_to_data
-    cs init_conf_def entire_program_thm "data_prog_arm6");
+    cs init_conf_def compiler_prog_thm "data_prog_arm6");
 
 val _ = export_theory();
