@@ -41,8 +41,8 @@ val ctrl_vars = reval(do_input_term config_file "ctrl_vars");
 
 val bounds_fml = reval(do_input_term config_file "bounds_fml");
 val init_fml = reval(do_input_term config_file "init_fml");
-val plant_fml = reval(do_input_term config_file "plant_fml");
 val ctrl_fml = reval(do_input_term config_file "ctrl_fml");
+val plant_fml = reval(do_input_term config_file "plant_fml");
 
 val default_body = reval(do_input_term config_file "default_body");
 
