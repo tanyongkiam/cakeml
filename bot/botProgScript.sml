@@ -95,10 +95,10 @@ val trans_th = [cml_const_th,cml_sensor_pre_th,cml_sensor_th,cml_ctrl_th,
                cml_bounds_fml_th, cml_init_fml_th,cml_ctrl_fml_th,cml_plant_fml_th,
                cml_default_th]
 
-val comp_eq = [world_component_equality,
-              world_config_component_equality,
-              world_state_component_equality,
-              world_oracle_component_equality];
+val comp_eq = [mach_component_equality,
+              mach_config_component_equality,
+              mach_state_component_equality,
+              mach_oracle_component_equality];
 
 (* Define all the possible initial states w.r.t. to our formulas *)
 val init_state_def = Define`
@@ -128,12 +128,12 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
     &UNIT_TYPE () uv * (
     (SEP_EXISTS w'. IOBOT w' *
      &(
-      (* Either the initial world violates init or bounds immediately *)
+      (* Either the initial machine violates init or bounds immediately *)
       (w = w' ∧ (¬init_sat w.wc w.ws ∨ ¬bounds_sat w.wc w.ws) ) ∨
-      (* Or we transition to a final world,
-         and good_world guarantees that the actuation trace all
+      (* Or we transition to a final machine,
+         and good_mach guarantees that the actuation trace all
          satisfy the control monitor *)
-      good_world default w' ∧
+      good_mach default w' ∧
       (¬w'.wo.step_oracle 0 ∨
          good_plant_trace F w'.wc w'.tr w'.ws)))))`,
   rw[]>>
@@ -194,7 +194,7 @@ val SPLIT_SING = prove(
   fs [SPLIT_def,IN_DISJOINT,EXTENSION] \\ metis_tac []);
 
 val SPLIT_th = Q.prove(`
-  wf_world w ⇒
+  wf_mach w ⇒
   (∃h1 h2.
       SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_7 (bot_ffi w)))
         (h1,h2) ∧ IOBOT w h1)`,

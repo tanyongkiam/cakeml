@@ -5,7 +5,7 @@ open set_sepTheory semanticsLib
 open botFFITheory MonitorProofTheory
 
 (* Here, we prove a generic theorem that will let us turn
-   CF-verified App theorems about the bot_ffi world model
+   CF-verified App theorems about the bot_ffi state machine model
    into a theorem about CakeML's semantics *)
 
 val _ = new_theory "botFFIProof"
@@ -53,16 +53,16 @@ val bot_ffi_def = Define `
      ; final_event := NONE
      ; io_events := [] |>`;
 
-(* Rebuild the world from a trace *)
-val extract_world_def = Define `
-  (extract_world init_world [] = SOME init_world) ∧
-  (extract_world init_world ((IO_event name conf bytes)::xs) =
+(* Rebuild the mach from a trace *)
+val extract_mach_def = Define `
+  (extract_mach init_mach [] = SOME init_mach) ∧
+  (extract_mach init_mach ((IO_event name conf bytes)::xs) =
   (* monadic style doesn't work here *)
     case (ALOOKUP [("get_const",ffi_get_const); ("get_sensor",ffi_get_sensor);
                    ("get_ctrl",ffi_get_control); ("actuate",ffi_actuate);
                    ("has_next",ffi_has_next); ("violation",ffi_violation)] name) of
-    | SOME ffi_fun => (case ffi_fun conf (MAP FST bytes) init_world of
-                       | SOME (bytes',world') => extract_world world' xs
+    | SOME ffi_fun => (case ffi_fun conf (MAP FST bytes) init_mach of
+                       | SOME (bytes',mach') => extract_mach mach' xs
                        | NONE => NONE)
     | NONE => NONE)`
 
@@ -83,12 +83,12 @@ val call_FFI_rel_IMP = Q.prove(`
   st.oracle = bot_ffi_oracle ⇒
   ∃ls.
     st'.io_events = st.io_events ++ ls ∧
-    extract_world st.ffi_state ls = SOME st'.ffi_state`,
-  HO_MATCH_MP_TAC RTC_INDUCT \\ rw [] \\ fs [extract_world_def]
+    extract_mach st.ffi_state ls = SOME st'.ffi_state`,
+  HO_MATCH_MP_TAC RTC_INDUCT \\ rw [] \\ fs [extract_mach_def]
   \\ fs [evaluatePropsTheory.call_FFI_rel_def]
   \\ fs [ffiTheory.call_FFI_def]
   \\ EVERY_CASE_TAC \\ rw[]
-  \\ fs[extract_world_def,bot_ffi_oracle_def]
+  \\ fs[extract_mach_def,bot_ffi_oracle_def]
   \\ qpat_x_assum`_ = Oracle_return f l` mp_tac
   \\ fs[MAP_ZIP]
   \\ rpt(IF_CASES_TAC \\fs[] >- ntac 2 (TOP_CASE_TAC\\simp[])));
@@ -119,7 +119,7 @@ val call_main_thm_bot = Q.store_thm("call_main_thm_bot",
     ∃io_events w'.
     semantics_prog (init_state (bot_ffi w)) env1
       (SNOC ^main_call prog) (Terminate Success io_events) /\
-    extract_world w io_events = SOME w' ∧ R w w'`,
+    extract_mach w io_events = SOME w' ∧ R w w'`,
   rw[]>>
   drule (GEN_ALL call_main_thm2)>>
   rpt (disch_then drule)>>

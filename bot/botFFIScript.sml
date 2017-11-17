@@ -4,18 +4,18 @@ open MonitorProgTheory
 val _ = new_theory"botFFI"
 
 (*
-  This is our logical world model for the control/plant model
+  This is our logical state machine model for the control/plant model
   We don't need the full model for the 1shot controller monitor or loop controller monitor
-  However, we have included everything into the world model
+  However, we have included everything into the mach model
 
-  The world model has three parts:
-   - The world_config is an immutable configuration for the world.
-   - The world_state is unknown, and gets seen by the FFI
-   - The world_oracle gives the oracle transitions
+  The model has three parts:
+   - The mach_config is an immutable configuration for the mach.
+   - The mach_state is unknown, and gets seen by the FFI
+   - The mach_oracle gives the oracle transitions
 *)
 
 val _ = Datatype`
-  world_config = <|
+  mach_config = <|
     const_names        : string list;
     sensor_pre_names   : string list;
     sensor_names       : string list;
@@ -27,28 +27,28 @@ val _ = Datatype`
   |>`
 
 val _ = Datatype`
-  world_state = <|
+  mach_state = <|
     const_vals   : word32 list; (* Fixed constants *)
     sensor_vals  : word32 list;
     |>`
 
 val _ = Datatype`
-  world_oracle = <|
+  mach_oracle = <|
     (* Returns the next control decision when given some input words *)
     ctrl_oracle   : num -> word32 list -> word32 list;
     (* Returns the new observable sensor values when given the current
-       world state and control decision *)
-    transition_oracle : num -> (world_state # word32 list) -> word32 list;
+       mach state and control decision *)
+    transition_oracle : num -> (mach_state # word32 list) -> word32 list;
     (* Returns whether we are allowed to take a next step *)
     step_oracle   : num -> bool;
   |>`
 
 (* We track the trace of actuations *)
 val _ = Datatype`
-  world = <| wc : world_config ;
-             ws : world_state  ;
-             wo : world_oracle ;
-             tr : (world_state # word32 list) list|>`
+  mach = <| wc : mach_config ;
+             ws : mach_state  ;
+             wo : mach_oracle ;
+             tr : (mach_state # word32 list) list|>`
 
 (* flatten 4 tuples *)
 val FLAT_TUP_def = Define`
@@ -70,7 +70,7 @@ val get_oracle_def = Define`
   get_oracle f = (f 0n,λn. f (n+1))`
 
 val ffi_get_const_def = Define`
-  ffi_get_const (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_get_const (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * LENGTH st.wc.const_names ∧
      (* This second check is added for parts_ok *)
      LENGTH st.wc.const_names = LENGTH st.ws.const_vals
@@ -80,7 +80,7 @@ val ffi_get_const_def = Define`
     NONE`
 
 val ffi_get_sensor_def = Define`
-  ffi_get_sensor (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_get_sensor (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * LENGTH st.wc.sensor_names ∧
      LENGTH st.wc.sensor_names = LENGTH st.ws.sensor_vals
   then
@@ -89,7 +89,7 @@ val ffi_get_sensor_def = Define`
     NONE`
 
 val ffi_get_control_def = Define`
-  ffi_get_control (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_get_control (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH conf = 4 * (LENGTH st.wc.const_names + LENGTH st.wc.sensor_names) ∧
      LENGTH bytes = 4 * LENGTH st.wc.ctrl_names
   then
@@ -106,7 +106,7 @@ val ffi_get_control_def = Define`
   else NONE`
 
 val ffi_actuate_def = Define`
-  ffi_actuate (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_actuate (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * (LENGTH st.wc.ctrl_names)
   then
     let ws = st.ws in
@@ -116,7 +116,7 @@ val ffi_actuate_def = Define`
     let (cur_step_oracle,next_step_oracle) = get_oracle wo.step_oracle in
     if cur_step_oracle
     then
-      (* Transition to the new world state *)
+      (* Transition to the new mach state *)
       let new_ws = ws with <|sensor_vals := cur_transition_oracle (ws,ctrl)|> in
       let new_wo = wo with <|transition_oracle := next_transition_oracle;
                              step_oracle       := next_step_oracle|> in
@@ -126,7 +126,7 @@ val ffi_actuate_def = Define`
   else NONE`
 
 val ffi_has_next_def = Define`
-  ffi_has_next (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_has_next (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 1
   then
     if st.wo.step_oracle 0 then
@@ -137,19 +137,19 @@ val ffi_has_next_def = Define`
     NONE`
 
 val ffi_violation_def = Define`
-  ffi_violation (conf:word8 list) (bytes:word8 list) (st:world) =
+  ffi_violation (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 0
   then
     SOME(bytes, st)
   else
     NONE`
 
-val comp_eq = map theorem ["world_component_equality",
-                           "world_config_component_equality",
-                           "world_state_component_equality",
-                           "world_oracle_component_equality"];
+val comp_eq = map theorem ["mach_component_equality",
+                           "mach_config_component_equality",
+                           "mach_state_component_equality",
+                           "mach_oracle_component_equality"];
 
-(* This section defines an encoding of the world into CakeML's 'ffi type *)
+(* This section defines an encoding of the mach into CakeML's 'ffi type *)
 
 (* Turn a word32 list into a list of strings invertibly *)
 val w2sCHR_11 = Q.store_thm("w2sCHR_11",`
@@ -213,8 +213,8 @@ val decode_encode_fml = new_specification("decode_encode_fml",["decode_fml"],
         qexists_tac `\f. some c. encode_fml c = f` \\ fs [encode_fml_11]));
 val _ = export_rewrites ["decode_encode_fml"];
 
-val encode_world_config_def = Define`
-  encode_world_config wc =
+val encode_mach_config_def = Define`
+  encode_mach_config wc =
    Cons (List (MAP (Str ) wc.const_names))
    (Cons (List (MAP (Str) wc.sensor_pre_names))
    (Cons (List (MAP (Str) wc.sensor_names))
@@ -233,31 +233,31 @@ val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
   rfs[EL_MAP]>>
   metis_tac[]);
 
-val encode_world_config_11 = Q.prove(`
-  encode_world_config x = encode_world_config y ⇔
+val encode_mach_config_11 = Q.prove(`
+  encode_mach_config x = encode_mach_config y ⇔
   x = y`,
-  fs[encode_world_config_def]>>
+  fs[encode_mach_config_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
   fs[MAP_Str_11,encode_fml_11]);
 
 val encode_word32_list_inner_def = Define`
   encode_word32_list_inner = iList o (MAP (iStr o w2s 2 CHR))`
 
-val encode_world_state_def = Define`
-  encode_world_state ws =
+val encode_mach_state_def = Define`
+  encode_mach_state ws =
   Cons (encode_word32_list ws.const_vals)
   (encode_word32_list ws.sensor_vals)`
 
 (* This is a bit special: we will use the inner type as well *)
-val encode_world_state_inner_def = Define`
-  encode_world_state_inner ws =
+val encode_mach_state_inner_def = Define`
+  encode_mach_state_inner ws =
   iCons (encode_word32_list_inner ws.const_vals)
   (encode_word32_list_inner ws.sensor_vals)`
 
-val encode_world_state_11 = Q.prove(`
-  encode_world_state x = encode_world_state y ⇔
+val encode_mach_state_11 = Q.prove(`
+  encode_mach_state x = encode_mach_state y ⇔
   x = y`,
-  rw[encode_world_state_def]>>fs comp_eq>>
+  rw[encode_mach_state_def]>>fs comp_eq>>
   metis_tac[encode_word32_list_11]);
 
 val encode_word32_list_inner_11 = Q.prove(`
@@ -266,17 +266,17 @@ val encode_word32_list_inner_11 = Q.prove(`
   \\ fs [encode_word32_list_inner_def]
   \\ metis_tac[w2sCHR_11]);
 
-val encode_world_state_inner_11 = Q.prove(`
-  encode_world_state_inner x =
-  encode_world_state_inner y <=>
+val encode_mach_state_inner_11 = Q.prove(`
+  encode_mach_state_inner x =
+  encode_mach_state_inner y <=>
   x = y`,
-  rw[encode_world_state_inner_def]>>fs comp_eq>>
+  rw[encode_mach_state_inner_def]>>fs comp_eq>>
   metis_tac[encode_word32_list_inner_11]);
 
-val decode_encode_world_state_inner = new_specification("decode_encode_world_state_inner",["decode_world_state_inner"],
-  prove(``?decode. !cls. decode (encode_world_state_inner cls) = SOME cls``,
-        qexists_tac `\f. some c. encode_world_state_inner c = f` \\ fs [encode_world_state_inner_11]));
-val _ = export_rewrites ["decode_encode_world_state_inner"];
+val decode_encode_mach_state_inner = new_specification("decode_encode_mach_state_inner",["decode_mach_state_inner"],
+  prove(``?decode. !cls. decode (encode_mach_state_inner cls) = SOME cls``,
+        qexists_tac `\f. some c. encode_mach_state_inner c = f` \\ fs [encode_mach_state_inner_11]));
+val _ = export_rewrites ["decode_encode_mach_state_inner"];
 
 (* Now we encode the oracles *)
 val get_num_def = Define`
@@ -324,7 +324,7 @@ val encode_ctrl_oracle_11 = Q.store_thm("encode_ctrl_oracle_11",`
 
 val get_st_ctrl_pair_def = Define`
   (get_st_ctrl_pair (iCons st ctrl) =
-    case decode_world_state_inner st of
+    case decode_mach_state_inner st of
       NONE => ARB
     | SOME st => (st, get_word32_list ctrl)) ∧
   (get_st_ctrl_pair _ = ARB)`
@@ -343,7 +343,7 @@ val encode_transition_oracle_11 = Q.prove(`
   fs[FUN_EQ_THM]>>
   rw[]>>
   Cases_on`x'`>>
-  pop_assum (qspecl_then[`iNum x`,`iCons (encode_world_state_inner q) (encode_word32_list_inner r)`] assume_tac)>>
+  pop_assum (qspecl_then[`iNum x`,`iCons (encode_mach_state_inner q) (encode_word32_list_inner r)`] assume_tac)>>
   fs[get_num_def,get_st_ctrl_pair_def,get_word32_list_def,encode_word32_list_inner_def]>>
   fs[MAP_MAP_o,o_DEF,get_word32_def]>>
   `∀x:word32. s2w 2 ORD (w2s 2 CHR x)= x` by
@@ -351,39 +351,39 @@ val encode_transition_oracle_11 = Q.prove(`
   fs[]>>
   metis_tac[encode_word32_list_11]);
 
-val encode_world_oracle_def = Define`
-  encode_world_oracle wo =
+val encode_mach_oracle_def = Define`
+  encode_mach_oracle wo =
   Cons (encode_ctrl_oracle wo.ctrl_oracle)
   (Cons (encode_transition_oracle wo.transition_oracle)
   (encode_step_oracle wo.step_oracle))`
 
-val encode_world_oracle_11 = Q.prove(`
-  encode_world_oracle x = encode_world_oracle y ⇔
+val encode_mach_oracle_11 = Q.prove(`
+  encode_mach_oracle x = encode_mach_oracle y ⇔
   x = y`,
-  fs[encode_world_oracle_def]>>rw[EQ_IMP_THM]>>
+  fs[encode_mach_oracle_def]>>rw[EQ_IMP_THM]>>
   fs comp_eq>>
   metis_tac[encode_transition_oracle_11,encode_ctrl_oracle_11,encode_step_oracle_11]);
 
 val encode_def = Define`
   encode w =
-   Cons (encode_world_config w.wc)
-  (Cons (encode_world_state w.ws)
-  (Cons (encode_world_oracle w.wo)
+   Cons (encode_mach_config w.wc)
+  (Cons (encode_mach_state w.ws)
+  (Cons (encode_mach_oracle w.wo)
   (List
-    (MAP (λ(st,ws). Cons (encode_world_state st) (encode_word32_list ws)) w.tr))))`
+    (MAP (λ(st,ws). Cons (encode_mach_state st) (encode_word32_list ws)) w.tr))))`
 
 val encode_11 = Q.store_thm("encode_11",`
   ∀w w'.
   encode w' = encode w <=> w' = w`,
   fs[encode_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
-  fs[encode_world_config_11,encode_world_state_11,encode_world_oracle_11]>>
+  fs[encode_mach_config_11,encode_mach_state_11,encode_mach_oracle_11]>>
   rfs[LIST_EQ_REWRITE,EL_MAP]>>rw[]>>
   fs[EL_MAP]>>
   res_tac>>fs[]>>
   pairarg_tac>>fs[]>>
   pairarg_tac>>fs[]>>
-  metis_tac[encode_world_state_11,encode_word32_list_11]);
+  metis_tac[encode_mach_state_11,encode_word32_list_11]);
 
 val decode_encode = new_specification("decode_encode",["decode"],
   prove(``?decode. !cls. decode (encode cls) = SOME cls``,
