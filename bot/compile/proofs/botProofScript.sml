@@ -1,6 +1,6 @@
 open preamble
      semanticsPropsTheory backendProofTheory arm6_configProofTheory
-     botProgTheory botCompileTheory
+     botProgTheory bot_arm6CompileTheory
 
 val _ = new_theory"botProof";
 
