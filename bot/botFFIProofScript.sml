@@ -140,6 +140,7 @@ val call_main_thm_bot = Q.store_thm("call_main_thm_bot",
   \\ rw[]
   \\ fs [IOBOT_def,cond_STAR]
   \\ fs [IOx_def,IO_def,bot_ffi_part_def,SEP_EXISTS_THM]
+  \\ fs [ml_monad_translatorTheory.H_STAR_TRUE]
   \\ qpat_x_assum `one _ _` mp_tac
   \\ once_rewrite_tac [one_def] \\ fs [SPLIT_EMPTY] \\ rveq
   \\ strip_tac \\ rveq
