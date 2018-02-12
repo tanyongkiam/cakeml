@@ -1,12 +1,14 @@
 open preamble
      ml_translatorTheory ml_translatorLib ml_progLib basisFunctionsLib
-     CommandlineProgTheory
+     CommandLineProgTheory MarshallingProgTheory
 
 val _ = new_theory"TextIOProg";
 
-val _ = translation_extends "CommandlineProg";
+val _ = translation_extends "MarshallingProg";
 
 val _ = ml_prog_update (open_module "TextIO");
+
+val () = generate_sigs := true;
 
 val _ = process_topdecs `
   exception BadFileName;
@@ -26,18 +28,17 @@ val EndOfFile_exn_def = Define `
   EndOfFile_exn v =
     (v = Conv (SOME ("EndOfFile", TypeExn (Long "TextIO" (Short "EndOfFile")))) [])`
 
-(* 258 w8 array *)
-val iobuff_e = ``(App Aw8alloc [Lit (IntLit 258); Lit (Word8 0w)])``
-val _ = ml_prog_update
-          (add_Dlet (derive_eval_thm "iobuff_loc" iobuff_e) "iobuff" [])
-val iobuff_loc_def = definition "iobuff_loc_def"
-val iobuff_loc = EVAL``iobuff_loc`` |> curry save_thm "iobuff_loc"
-val _ = export_rewrites["iobuff_loc"]
+val iobuff_e = ``(App Aw8alloc [Lit (IntLit 2052); Lit (Word8 0w)])``
+val eval_thm = derive_eval_thm false "iobuff_loc" iobuff_e;
+val _ = ml_prog_update (add_Dlet eval_thm "iobuff" []);
 
 (* stdin, stdout, stderr *)
-val stdIn_def = Define`stdIn:word8 = n2w 0`;
-val stdOut_def = Define`stdOut:word8 = n2w 1`;
-val stdErr_def = Define`stdErr:word8 = n2w 2`;
+val stdIn_def0 = Define`stdIn:mlstring= strlit (MAP (CHR o w2n) (n2w8 0))`
+val stdIn_def = stdIn_def0 |> SIMP_RULE (srw_ss()) [MarshallingTheory.n2w8_def]
+val stdOut_def0 = Define`stdOut:mlstring= strlit (MAP (CHR o w2n) (n2w8 1))`;
+val stdOut_def = stdOut_def0 |> SIMP_RULE (srw_ss()) [MarshallingTheory.n2w8_def]
+val stdErr_def0 = Define`stdErr:mlstring= strlit (MAP (CHR o w2n) (n2w8 2))`;
+val stdErr_def = stdErr_def0 |> SIMP_RULE (srw_ss()) [MarshallingTheory.n2w8_def]
 val _ = next_ml_names := ["stdIn","stdOut","stdErr"];
 val r = translate stdIn_def;
 val r = translate stdOut_def;
@@ -51,30 +52,26 @@ val r = translate stdErr_def;
 
 val _ =
   process_topdecs`fun writei fd n i =
-    let val a = Word8Array.update iobuff 0 fd
-        val a = Word8Array.update iobuff 1 n
-        val a = Word8Array.update iobuff 2 i
-        val a = #(write) "" iobuff in
+    let val a = Marshalling.n2w2 n iobuff 0
+        val a = Marshalling.n2w2 i iobuff 2
+        val a = #(write) fd iobuff in
         if Word8Array.sub iobuff 0 = Word8.fromInt 1
         then raise InvalidFD
         else
-          let val nw = Word8.toInt(Word8Array.sub iobuff 1) in
+          let val nw = Marshalling.w22n iobuff 1 in
             if nw = 0 then writei fd n i
             else nw
           end
     end
     fun write fd n i =
       if n = 0 then () else
-        let val nw = writei fd (Word8.fromInt n) (Word8.fromInt i) in
+        let val nw = writei fd n i in
           if nw < n then write fd (n-nw) (i+nw) else () end` |> append_prog
 
 (* Output functions on given file descriptor *)
 val _ =
-  process_topdecs` fun write_char fd c =
-    (Word8Array.update iobuff 3 (Word8.fromInt(Char.ord c)); write fd 1 0; ())
-
-    fun print_char c = write_char stdOut c
-    fun prerr_char c = write_char stdErr c
+  process_topdecs` fun output1 fd c =
+    (Word8Array.update iobuff 4 (Word8.fromInt(Char.ord c)); write fd 1 0; ())
     ` |> append_prog
 
 (* writes a string into a file *)
@@ -82,73 +79,62 @@ val _ =
   process_topdecs` fun output fd s =
   if s = "" then () else
   let val z = String.size s
-      val n = if z <= 255 then z else 255
-      val fl = Word8Array.copyVec s 0 n iobuff 3
+      val n = if z <= 2048 then z else 2048
+      val fl = Word8Array.copyVec s 0 n iobuff 4
       val a = write fd n 0 in
          output fd (String.substring s n (z-n))
   end;
-  fun print_string s = output stdOut s;
-  fun prerr_string s = output stdErr s;
+  fun print s = output stdOut s
+  fun print_err s = output stdErr s
     ` |> append_prog
 
 val _ = process_topdecs`
   fun print_list ls =
-    case ls of [] => () | (x::xs) => (print_string x; print_list xs)`
+    case ls of [] => () | (x::xs) => (print x; print_list xs)`
        |> append_prog ;
-
-(* val print_newline : unit -> unit *)
-val _ = process_topdecs`
-    fun write_newline fd = write_char fd #"\n"
-    fun print_newline () = write_char stdOut #"\n"
-    fun prerr_newline () = write_char stdErr #"\n"
-    ` |> append_prog
 
 val _ = process_topdecs`
 fun openIn fname =
-  let val a = Word8Array.copyVec fname 0 (String.size fname) iobuff 0
-      val a = Word8Array.update iobuff (String.size fname) (Word8.fromInt 0)
-      val a = #(open_in) "" iobuff in
-        if Word8Array.sub iobuff 0 = Word8.fromInt 0
-        then Word8Array.sub iobuff 1
+  let val b = Word8Array.array 9 (Word8.fromInt 0)
+      val a = #(open_in) (fname^^(String.str (Char.chr 0))) b in
+        if Word8Array.sub b 0 = Word8.fromInt 0
+        then Word8Array.substring b 1 8
         else raise BadFileName
   end
 fun openOut fname =
-  let val a = Word8Array.copyVec fname 0 (String.size fname) iobuff 0
-      val a = Word8Array.update iobuff (String.size fname) (Word8.fromInt 0)
-      val a = #(open_out) "" iobuff in
-        if Word8Array.sub iobuff 0 = Word8.fromInt 0
-        then Word8Array.sub iobuff 1
+  let val b = Word8Array.array 9 (Word8.fromInt 0)
+      val a = #(open_out) (fname^^(String.str (Char.chr 0))) b in
+        if Word8Array.sub b 0 = Word8.fromInt 0
+        then Word8Array.substring b 1 8
         else raise BadFileName
   end` |> append_prog
 val _ = process_topdecs`
 
 fun close fd =
-  let val a = Word8Array.update iobuff 0 fd
-      val a = #(close) "" iobuff in
-        if Word8Array.sub iobuff 0 = Word8.fromInt 1
+  let val a = #(close) fd iobuff in
+        if Word8Array.sub iobuff 0 = Word8.fromInt 0
         then () else raise InvalidFD
   end` |> append_prog
 
 (* wrapper for ffi call *)
 val _ = process_topdecs`
   fun read fd n =
-    let val a = Word8Array.update iobuff 0 fd
-        val a = Word8Array.update iobuff 1 n in
-          (#(read) "" iobuff;
+    let val a = Marshalling.n2w2 n iobuff 0 in
+          (#(read) fd iobuff;
           if Word8.toInt (Word8Array.sub iobuff 0) <> 1
-          then Word8.toInt(Word8Array.sub iobuff 1)
+          then Marshalling.w22n iobuff 1
           else raise InvalidFD)
     end` |> append_prog
 
 (* reads 1 char *)
 val _ = process_topdecs`
 fun read_byte fd =
-    if read fd (Word8.fromInt 1) = 0 then raise EndOfFile
-    else Word8Array.sub iobuff 3
+    if read fd 1 = 0 then raise EndOfFile
+    else Word8Array.sub iobuff 4
 ` |> append_prog
 
 val _ = (append_prog o process_topdecs)`
-  fun read_char fd = Char.chr(Word8.toInt(read_byte fd))`
+  fun input1 fd = SOME (Char.chr(Word8.toInt(read_byte fd))) handle EndOfFile => NONE`
 
 (* val input : in_channel -> bytes -> int -> int -> int
 * input ic buf pos len reads up to len characters from the given channel ic,
@@ -158,9 +144,9 @@ val _ =
   process_topdecs`
 fun input fd buff off len =
 let fun input0 off len count =
-    let val nread = read fd (Word8.fromInt(min len 255)) in
+    let val nread = read fd (min len 2048) in
         if nread = 0 then count else
-          (Word8Array.copy iobuff 3 nread buff off;
+          (Word8Array.copy iobuff 4 nread buff off;
            input0 (off + nread) (len - nread) (count + nread))
     end
 in input0 off len 0 end
@@ -301,6 +287,9 @@ val () = (append_prog o process_topdecs)`
         end
       in inputAll_aux (Word8Array.array 127 (Word8.fromInt 0)) 0 end`;
 
-val _ = ml_prog_update (close_module NONE);
+(* TODO: need signatures for the non-translated functions as well *)
+val sigs_subset = module_signatures ["stdIn", "stdOut", "stdErr"];
+
+val _ = ml_prog_update (close_module (SOME sigs_subset));
 
 val _ = export_theory();

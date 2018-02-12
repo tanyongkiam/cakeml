@@ -5,6 +5,8 @@ val _ = new_theory"RuntimeProg"
 
 val _ = translation_extends"std_prelude"
 
+val () = generate_sigs := true;
+
 val _ = concretise_all () (* TODO: better to leave more abstract longer... *)
 
 val _ = ml_prog_update (open_module "Runtime");
@@ -15,6 +17,14 @@ val fullGC_def = Define `
 val () = next_ml_names := ["fullGC"];
 val result = translate fullGC_def;
 
-val _ = ml_prog_update (close_module NONE);
+val debugMsg_def = Define `
+  debugMsg s = empty_ffi s`;
+
+val () = next_ml_names := ["debugMsg"];
+val result = translate debugMsg_def;
+
+val sigs = module_signatures ["fullGC", "debugMsg"];
+
+val _ = ml_prog_update (close_module (SOME sigs));
 
 val _ = export_theory();

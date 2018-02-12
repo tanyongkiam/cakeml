@@ -348,6 +348,9 @@ fun word_ty_ok ty =
     end
   else false;
 
+val mlstring_ty = mlstringTheory.implode_def |> concl |> rand
+  |> type_of |> dest_type |> snd |> last;
+
   val type_mappings = ref ([]:(hol_type * hol_type) list)
   val other_types = ref ([]:(hol_type * term) list)
   val preprocessor_rws = ref ([]:thm list)
@@ -388,6 +391,7 @@ in
     if ty = numSyntax.num then Tapp [] astSyntax.TC_int else
     if ty = stringSyntax.char_ty then Tapp [] astSyntax.TC_char else
     if ty = oneSyntax.one_ty then Tapp [] astSyntax.TC_tup else
+    if ty = mlstring_ty then Tapp [] astSyntax.TC_string else
     if can dest_vartype ty then
       astSyntax.mk_Tvar(stringSyntax.fromMLstring ((* string_tl *) (dest_vartype ty)))
     else let
@@ -461,6 +465,7 @@ in
     val _ = (type_memory := map (fn (ty,eq_lemma,inv_def,conses,case_lemma,ts) => (ty,inv_def,conses,case_lemma)) res @ (!type_memory))
     val _ = (preprocessor_rws := rws2 @ (!preprocessor_rws))
     in () end
+  fun ignore_type ty = (type_memory := (ty,TRUTH,[],TRUTH) :: (!type_memory));
   fun lookup_type_thms ty = first (fn (ty1,_,_,_) => can (match_type ty1) ty) (!type_memory)
   fun eq_lemmas () = (!all_eq_lemmas)
   fun get_preprocessor_rws () = (!preprocessor_rws)
@@ -1025,8 +1030,8 @@ val (ml_ty_name,x::xs,ty,lhs,input) = hd ys
       (markerLib.move_conj_right p
       THENC
       (REWR_CONV (GSYM CONJ_ASSOC)))
-    val no_closure_pat = ``∀x v. p x v  ⇒ no_closures v``
-    val types_match_pat = ``∀x1 v1 x2 v2. p x1 v1 ∧ p x2 v2 ⇒ types_match v1 v2``
+    val no_closure_pat = get_term "no_closure_pat"
+    val types_match_pat = get_term "types_match_pat"
     val pull_no_closures = N_conj_conv (can (match_term no_closure_pat)) reps
     val pull_types_match = N_conj_conv (can (match_term types_match_pat)) reps
     val x2 = mk_var("x2",alpha)
@@ -2327,6 +2332,7 @@ val builtin_terops =
 val builtin_binops =
   [Eval_NUM_ADD,
    Eval_NUM_SUB,
+   Eval_NUM_SUB_nocheck,
    Eval_NUM_MULT,
    Eval_NUM_DIV,
    Eval_NUM_MOD,
@@ -2350,8 +2356,6 @@ val builtin_binops =
    Eval_force_gc_to_run,
    Eval_strsub,
    Eval_sub,
-   Eval_And,
-   Eval_Or,
    Eval_Implies]
   |> map SPEC_ALL
   |> map (fn th =>
@@ -2367,6 +2371,7 @@ val builtin_monops =
    Eval_vector,
    Eval_int_of_num,
    Eval_num_of_int,
+   Eval_empty_ffi,
    Eval_Chr,
    Eval_Ord]
   |> map SPEC_ALL
@@ -2709,6 +2714,35 @@ fun dest_word_shift tm =
   if wordsSyntax.is_word_ror tm then Eval_word_ror else
     failwith("not a word shift")
 
+(* CakeML signature generation and manipulation *)
+val generate_sigs = ref false;
+
+fun sig_of_mlname name = definition (ml_progLib.pick_name name ^ "_sig") |> concl |> rhs;
+
+fun module_signatures names = listSyntax.mk_list(map sig_of_mlname names, spec_ty);
+
+fun sig_of_const cake_name tm =
+  mk_Sval (stringSyntax.fromMLstring (ml_progLib.pick_name cake_name), type2t (type_of tm));
+
+fun generate_sig_thms results = let
+  fun const_from_def th = th |> concl |> strip_conj |> hd |> strip_forall |> #2
+                             |> dest_eq |> #1 |> strip_comb |> #1;
+
+  fun mk_sig_thm sval = let
+    val cake_name = dest_Sval sval |> #1 |> fromHOLstring;
+    val sig_const_nm = cake_name ^ "_sig";
+    val sig_const_tm = mk_var(sig_const_nm, spec_ty);
+
+    val def = new_definition(sig_const_nm, mk_eq(sig_const_tm, sval));
+    in def
+  end
+
+  val signatures = map (fn (_, ml_fname, def, _, _) => sig_of_const ml_fname (const_from_def def))
+                       results;
+
+  in map mk_sig_thm signatures
+end
+
 (*
 val tm = rhs
 val tm = rhs_tm
@@ -2847,6 +2881,21 @@ fun hol2deep tm =
     val th2 = hol2deep x2
     val result = MATCH_MP Eval_Equality (CONJ th1 th2) |> UNDISCH
     in check_inv "equal" tm result end else
+  (* and, or *)
+  if is_conj tm then let
+    val (x1,x2) = dest_conj tm
+    val th1 = hol2deep x1
+    val th2 = hol2deep x2
+    val th = MATCH_MP Eval_And (LIST_CONJ [D th1, D th2])
+    val result = UNDISCH th
+    in check_inv "and" tm result end else
+  if is_disj tm then let
+    val (x1,x2) = dest_disj tm
+    val th1 = hol2deep x1
+    val th2 = hol2deep x2
+    val th = MATCH_MP Eval_Or (LIST_CONJ [D th1, D th2])
+    val result = UNDISCH th
+    in check_inv "or" tm result end else
   (* if statements *)
   if is_cond tm then
     if is_precond (tm |> rator |> rator |> rand) then let
@@ -2916,15 +2965,11 @@ fun hol2deep tm =
     val h = lemma |> concl |> dest_imp |> fst
     val h_thm = EVAL h
     val lemma = REWRITE_RULE [h_thm] lemma
+    val _ = (rand (concl h_thm) = T) orelse failwith "false pre for w2w"
     val result =
-      if Teq (rand (concl h_thm)) then
         MATCH_MP (lemma |> SIMP_RULE std_ss [LET_THM]
                         |> CONV_RULE (RAND_CONV (RATOR_CONV wordsLib.WORD_CONV)))
           (hol2deep x1)
-      else let
-        val lemma = REWR_CONV wordsTheory.w2w_def tm
-        in hol2deep (rand (concl lemma))
-           |> CONV_RULE (RAND_CONV (RAND_CONV (REWR_CONV (GSYM lemma)))) end
     in check_inv "w2w" tm result end else
   (* word_add, _and, _or, _xor, _sub *)
   if can dest_word_binop tm andalso word_ty_ok (type_of tm) then let
@@ -3262,7 +3307,7 @@ val def = listTheory.APPEND;
 
 *)
 
-fun translate_main translate register_type def = (let
+fun translate_main utac translate register_type def = (let
 
   val original_def = def
   fun the (SOME x) = x | the _ = failwith("the of NONE")
@@ -3451,7 +3496,21 @@ val (fname,ml_fname,def,th,v) = hd thms
     (*
       set_goal([],goal)
     *)
+    val ulemma =
+        case utac of
+            NONE => NONE
+          | SOME tac => SOME (auto_prove "ind" (goal,
+                          STRIP_TAC
+                          \\ MATCH_MP_TAC ind_thm
+                          \\ REPEAT STRIP_TAC
+                          \\ FIRST (map MATCH_MP_TAC (map (fst o snd) goals))
+                          \\ REPEAT STRIP_TAC
+                          \\ POP_MP_TACs
+                          \\ tac)) handle HOL_ERR _ => NONE
     val lemma =
+        case ulemma of
+            SOME th => th
+          | _ =>
       auto_prove "ind" (goal,
         STRIP_TAC
         \\ MATCH_MP_TAC ind_thm
@@ -3528,7 +3587,7 @@ val (fname,ml_fname,def,th,v) = hd thms
         \\ rpt(split_ineq_orelse_tac(metis_tac [])))
     val results = UNDISCH lemma |> CONJUNCTS |> map SPEC_ALL
 (*
-val (th,(fname,def,_,pre)) = hd (zip results thms)
+val (th,(fname,ml_fname,def,_,pre)) = hd (zip results thms)
 *)
     (* clean up *)
     fun fix (th,(fname,ml_fname,def,_,pre)) = let
@@ -3566,9 +3625,15 @@ val (th,(fname,def,_,pre)) = hd (zip results thms)
    val _ = print ("Failed translation: " ^ comma names ^ "\n")
    in raise e end;
 
-fun translate def =
+fun translate0 tacopt def =
   let
-    val (is_rec,is_fun,results) = translate_main translate register_type def
+    val (is_rec,is_fun,results) =
+        translate_main tacopt (translate0 tacopt) register_type def
+
+    val () =
+      if !generate_sigs then
+        let val _ = generate_sig_thms results in () end
+      else ()
   in
     if is_rec then
     let
@@ -3652,9 +3717,13 @@ fun translate def =
         in save_thm(fname ^ "_v_thm",v_thm) end end
   end
 
+val translate = translate0 NONE
+fun utranslate tac = translate0 (SOME tac)
+
 fun abs_translate def =
   let
-    val (is_rec,is_fun,results) = translate_main abs_translate abs_register_type def
+    val (is_rec,is_fun,results) =
+        translate_main NONE abs_translate abs_register_type def
     (*
       val (fname,ml_fname,def,th,preopt) = hd results
     *)

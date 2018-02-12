@@ -148,7 +148,7 @@ val _ = use_mem_intro := true;
 val r = translate build_or_def;
 val _ = use_mem_intro := false;
 
-val r = translate (normalize_def);
+val r = translate normalize_def;
 
 val r = translate mem_regexp_def;
 val r = translate exec_dfa_def;
@@ -346,13 +346,27 @@ val r = translate (pegexecTheory.peg_exec_def);
 
 (* -- *)
 
-(* TODO: translate shifts as part of a separate module? word module? *)
+val all_charsets_def = Define `
+  all_charsets = Vector (GENLIST (\n. charset_sing (CHR n)) 256)`;
 
-val r = translate (shift_left_def |> spec64 |> CONV_RULE (wordsLib.WORD_CONV));
+val all_charsets_eq = EVAL ``all_charsets``;
 
-(* -- *)
+val charset_sing_eq = prove(
+  ``!c. charset_sing c = sub all_charsets (ORD c)``,
+  Cases
+  \\ `ORD (CHR n) = n` by fs [ORD_CHR]
+  \\ asm_rewrite_tac [sub_def,all_charsets_def]
+  \\ fs [EL_GENLIST]);
 
-val r = translate (charset_sing_def |> SIMP_RULE(srw_ss())[shift_left_rwt]);
+val r = translate all_charsets_eq;
+val r = translate charset_sing_eq;
+
+val charset_sing_side = prove(
+  ``!c. charset_sing_side c = T``,
+  fs [fetch "-" "charset_sing_side_def"] \\ rw []
+  \\ match_mp_tac LESS_LESS_EQ_TRANS
+  \\ qexists_tac `256` \\ fs [ORD_BOUND] \\ EVAL_TAC)
+  |> update_precondition
 
 val _ = use_mem_intro := true;
 val r = translate EscapableChar_def;
@@ -396,23 +410,23 @@ val parse_regexp_side = Q.prove(
 val print_matching_lines = process_topdecs`
   fun print_matching_lines match prefix fd =
     case TextIO.inputLine fd of NONE => ()
-    | SOME ln => (if match ln then (TextIO.print_string prefix; TextIO.print_string ln) else ();
+    | SOME ln => (if match ln then (TextIO.print prefix; TextIO.print ln) else ();
                   print_matching_lines match prefix fd)`;
 val _ = append_prog print_matching_lines;
 
 val print_matching_lines_spec = Q.store_thm("print_matching_lines_spec",
   `(STRING_TYPE --> BOOL) m mv ∧ STRING_TYPE pfx pfxv ∧
-   WORD ((n2w fd):word8) fdv ∧ fd ≠ 1 ∧ fd ≠ 2 ∧
-   fd ≤ 255 ∧ IS_SOME (get_file_content fs fd) ⇒
+   FD fd fdv ∧ fd ≠ 1 ∧ fd ≠ 2 ∧
+   IS_SOME (get_file_content fs fd) ⇒
    app (p:'ffi ffi_proj)
      ^(fetch_v "print_matching_lines"(get_ml_prog_state())) [mv; pfxv; fdv]
      (STDIO fs)
      (POSTv uv.
        &UNIT_TYPE () uv *
        STDIO (add_stdout (fastForwardFD fs fd)
-                     (CONCAT
-                        (MAP ((++) (explode pfx))
-                           (FILTER (m o implode) (linesFD fs fd))))))`,
+                     (concat
+                        (MAP (strcat pfx)
+                           (FILTER m (MAP implode (linesFD fs fd)))))))`,
   Induct_on`linesFD fs fd` \\ rw[]
   >- (
     qpat_x_assum`[] = _`(assume_tac o SYM) \\ fs[]
@@ -437,18 +451,19 @@ val print_matching_lines_spec = Q.store_thm("print_matching_lines_spec",
   \\ rveq
   \\ xlet_auto >- xsimpl
   (* TODO: xlet_auto doesn't handle if statements yet *)
-  \\ xlet`POSTv x. STDIO (add_stdout (lineForwardFD fs fd)(if m (implode ln) then explode pfx ++ ln else ""))`
+  \\ xlet`POSTv x. STDIO (add_stdout (lineForwardFD fs fd)
+                                     (if m (implode ln) then strcat pfx (implode ln) else strlit""))`
   >- (
     xif
     >- (
       (* TODO: xlet_auto failing on STDIO *)
-      xlet`POSTv x. STDIO (add_stdout (lineForwardFD fs fd) (explode pfx))`
+      xlet`POSTv x. STDIO (add_stdout (lineForwardFD fs fd) pfx)`
       >- (xapp \\ instantiate \\ xsimpl
           \\ CONV_TAC(SWAP_EXISTS_CONV) \\ qexists_tac`lineForwardFD fs fd`
           \\ xsimpl )
       \\ xapp \\ instantiate \\ xsimpl
       (* TODO: make this less painful? *)
-      \\ CONV_TAC(SWAP_EXISTS_CONV) \\ qexists_tac`add_stdout (lineForwardFD fs fd) (explode pfx)`
+      \\ CONV_TAC(SWAP_EXISTS_CONV) \\ qexists_tac`add_stdout (lineForwardFD fs fd) pfx`
       \\ xsimpl \\ rw[]
       (* TODO: make this less painful? *)
       \\ imp_res_tac STD_streams_lineForwardFD
@@ -483,7 +498,7 @@ val print_matching_lines_spec = Q.store_thm("print_matching_lines_spec",
   \\ simp[STD_streams_add_stdout]
   \\ DEP_REWRITE_TAC[GEN_ALL add_stdo_o]
   \\ conj_tac >- metis_tac[STD_streams_stdout]
-  \\ rw[]);
+  \\ rw[concat_cons]);
 
 val notfound_string_def = Define`
   notfound_string f = concat[strlit"cake_grep: ";f;strlit": No such file or directory\n"]`;
@@ -496,7 +511,7 @@ val print_matching_lines_in_file = process_topdecs`
     in (print_matching_lines m (String.concat[file,":"]) fd;
         TextIO.close fd)
     end handle TextIO.BadFileName =>
-        TextIO.prerr_string (notfound_string file)`;
+        TextIO.output TextIO.stdErr (notfound_string file)`;
 val _ = append_prog print_matching_lines_in_file;
 
 val print_matching_lines_in_file_spec = Q.store_thm("print_matching_lines_in_file_spec",
@@ -509,10 +524,10 @@ val print_matching_lines_in_file_spec = Q.store_thm("print_matching_lines_in_fil
      (POSTv uv. &UNIT_TYPE () uv *
                 STDIO (if inFS_fname fs (File f)
                    then add_stdout fs
-                      (CONCAT
-                          (MAP (explode o strcat f o strcat (strlit":"))
+                      (concat
+                          (MAP (strcat f o strcat (strlit":"))
                             (FILTER m (all_lines fs (File f)))))
-                   else add_stderr fs (explode (notfound_string f))))`,
+                   else add_stderr fs (notfound_string f)))`,
   xcf"print_matching_lines_in_file"(get_ml_prog_state())
   \\ reverse(Cases_on`STD_streams fs`) >- (fs[STDIO_def] \\ xpull)
   \\ qmatch_goalsub_abbrev_tac`_ * STDIO fs'`
@@ -524,7 +539,7 @@ val print_matching_lines_in_file_spec = Q.store_thm("print_matching_lines_in_fil
     \\ fs[BadFileName_exn_def]
     \\ reverse conj_tac >- (EVAL_TAC \\ rw[])
     \\ xlet_auto >- xsimpl
-    \\ xapp \\ instantiate \\ xsimpl
+    \\ xapp_spec output_stderr_spec \\ instantiate \\ xsimpl
     \\ CONV_TAC SWAP_EXISTS_CONV \\ qexists_tac`fs`
     \\ xsimpl)
   >- ( xsimpl )
@@ -542,8 +557,8 @@ val print_matching_lines_in_file_spec = Q.store_thm("print_matching_lines_in_fil
   \\ rveq
   \\ xlet_auto >- xsimpl
   \\ qmatch_asmsub_abbrev_tac`add_stdout fs out`
-  \\ imp_res_tac nextFD_leX
-  \\ imp_res_tac IS_SOME_get_file_content_openFileFS_nextFD
+  \\ imp_res_tac nextFD_ltX
+  \\ imp_res_tac IS_SOME_get_file_content_openFileFS_nextFD \\ rfs[]
   \\ imp_res_tac STD_streams_nextFD
   \\ rpt(first_x_assum(qspec_then`0`strip_assume_tac))
   \\ xlet_auto >- xsimpl
@@ -554,7 +569,8 @@ val print_matching_lines_in_file_spec = Q.store_thm("print_matching_lines_in_fil
   \\ xsimpl
   \\ rw[Abbr`fs''`,Abbr`fs'`,Abbr`out`]
   \\ simp[o_DEF,mlstringTheory.concat_thm,mlstringTheory.strcat_thm]
-  \\ srw_tac[ETA_ss][linesFD_openFileFS_nextFD,FILTER_MAP,o_DEF]
+  \\ fs[linesFD_openFileFS_nextFD]
+  \\ srw_tac[ETA_ss][FILTER_MAP,o_DEF]
   \\ simp[MAP_MAP_o,o_DEF]
   \\ rewrite_tac[GSYM APPEND_ASSOC,GSYM CONS_APPEND]
   \\ simp[GSYM add_stdo_A_DELKEY,openFileFS_A_DELKEY_nextFD]
@@ -613,12 +629,12 @@ val build_matcher_partial_spec = Q.store_thm("build_matcher_partial_spec",
 
 val grep = process_topdecs`
   fun grep u =
-    case Commandline.arguments ()
-    of [] => TextIO.prerr_string usage_string
-     | [_] => TextIO.prerr_string usage_string
+    case CommandLine.arguments ()
+    of [] => TextIO.output TextIO.stdErr usage_string
+     | [_] => TextIO.output TextIO.stdErr usage_string
      | (regexp::files) =>
        case parse_regexp (String.explode regexp) of
-         NONE => TextIO.prerr_string (parse_failure_string regexp)
+         NONE => TextIO.output TextIO.stdErr (parse_failure_string regexp)
        | SOME r =>
            (* abandoning this approach for now ...
          let
@@ -640,24 +656,24 @@ val _ = temp_overload_on("adderr",``combin$C add_stderr``);
 val grep_sem_file_def = Define`
   grep_sem_file L files filename =
     case ALOOKUP files (File filename) of
-    | NONE => adderr (explode (notfound_string filename))
+    | NONE => adderr (notfound_string filename)
     | SOME contents => addout
-          (CONCAT
-            (MAP (λmatching_line. explode filename ++ ":" ++ matching_line ++ "\n")
+          (concat
+            (MAP (λmatching_line. concat [filename;strlit":";implode matching_line;strlit"\n"])
                (FILTER (λline. line ∈ L) (splitlines contents))))`;
 
 val grep_sem_def = Define`
   (grep_sem (_::regexp::filenames) files =
-   if NULL filenames then adderr (explode usage_string) else
-   case parse_regexp regexp of
-   | NONE => adderr (explode (parse_failure_string (implode regexp)))
+   if NULL filenames then adderr usage_string else
+   case parse_regexp (explode regexp) of
+   | NONE => adderr (parse_failure_string regexp)
    | SOME r =>
        FOLDL
          (λaction filename.
-           grep_sem_file (regexp_lang r) files (implode filename)
+           grep_sem_file (regexp_lang r) files filename
              o action)
          I filenames) ∧
-  (grep_sem _ _ = adderr (explode usage_string))`;
+  (grep_sem _ _ = adderr usage_string)`;
 
 val grep_sem_ind = theorem"grep_sem_ind";
 
@@ -677,68 +693,6 @@ val STD_streams_grep_sem_file = Q.store_thm("STD_streams_grep_sem_file",
   rw[grep_sem_file_def]
   \\ CASE_TAC \\ simp[STD_streams_add_stderr,STD_streams_add_stdout]);
 
-(* TODO: move *)
-
-open fsFFITheory
-
-val _ = temp_overload_on("isFile",``λinode. ∃fnm. inode = File fnm``);
-
-val FILTER_EL_EQ = Q.store_thm("FILTER_EL_EQ",
-  `∀l1 l2. LENGTH l1 = LENGTH l2 ∧
-   (∀n. n < LENGTH l1 ∧ (P (EL n l1) ∨ P (EL n l2)) ⇒ (EL n l1 = EL n l2))
-   ⇒
-   FILTER P l1 = FILTER P l2`,
-  Induct \\ rw[] \\ Cases_on`l2` \\ fs[]
-  \\ first_assum(qspec_then`0`mp_tac)
-  \\ simp_tac (srw_ss())[] \\ simp[]
-  \\ rw[] \\ fs[]
-  \\ first_x_assum match_mp_tac \\ rw[]
-  \\ first_x_assum(qspec_then`SUC n`mp_tac) \\ rw[]);
-
-val LENGTH_ALIST_FUPDKEY = Q.store_thm("LENGTH_ALIST_FUPDKEY[simp]",
-  `∀ls. LENGTH (ALIST_FUPDKEY k f ls) = LENGTH ls`,
-  Induct \\ simp[ALIST_FUPDKEY_def]
-  \\ Cases \\ rw[ALIST_FUPDKEY_def]);
-
-val FST_EL_ALIST_FUPDKEY = Q.store_thm("FST_EL_ALIST_FUPDKEY",
-  `∀n. n < LENGTH ls ⇒ FST (EL n (ALIST_FUPDKEY k f ls)) = FST (EL n ls)`,
-  Induct_on`ls` \\ simp[]
-  \\ Cases \\ rw[ALIST_FUPDKEY_def]
-  \\ Cases_on`n` \\ fs[]);
-
-val EL_ALIST_FUPDKEY_unchanged = Q.store_thm("EL_ALIST_FUPDKEY_unchanged",
-  `∀n. n < LENGTH ls ∧ FST (EL n ls) ≠ k ⇒ EL n (ALIST_FUPDKEY k f ls) = EL n ls`,
-  Induct_on`ls` \\ simp[]
-  \\ Cases \\ simp[ALIST_FUPDKEY_def]
-  \\ Cases \\ simp[]
-  \\ IF_CASES_TAC \\ rveq \\ rw[]);
-
-val FILTER_File_add_stdo = Q.store_thm("FILTER_File_add_stdo",
-  `stdo fd nm fs init ⇒
-   FILTER (isFile o FST) (add_stdo fd nm fs out).files = FILTER (isFile o FST) fs.files`,
-  rw[add_stdo_def,up_stdo_def,fsupdate_def]
-  \\ CASE_TAC \\ CASE_TAC \\ fs[]
-  \\ match_mp_tac FILTER_EL_EQ \\ simp[]
-  \\ qmatch_assum_rename_tac`_ = SOME (k,_)`
-  \\ qx_gen_tac`n`
-  \\ simp[GSYM AND_IMP_INTRO] \\ strip_tac
-  \\ reverse(Cases_on`FST (EL n fs.files) = k`)
-  >- simp[EL_ALIST_FUPDKEY_unchanged]
-  \\ simp[FST_EL_ALIST_FUPDKEY,GSYM AND_IMP_INTRO]
-  \\ fs[stdo_def]);
-
-val FILTER_File_add_stdout = Q.store_thm("FILTER_File_add_stdout",
-  `STD_streams fs ⇒
-   FILTER (isFile o FST) (add_stdout fs out).files = FILTER (isFile o FST) fs.files`,
-  metis_tac[STD_streams_stdout,FILTER_File_add_stdo]);
-
-val FILTER_File_add_stderr = Q.store_thm("FILTER_File_add_stderr",
-  `STD_streams fs ⇒
-   FILTER (isFile o FST) (add_stderr fs out).files = FILTER (isFile o FST) fs.files`,
-  metis_tac[STD_streams_stderr,FILTER_File_add_stdo]);
-
-(* -- *)
-
 val grep_sem_file_FILTER_File = Q.store_thm("grep_sem_file_FILTER_File[simp]",
   `grep_sem_file L (FILTER (isFile o FST) ls) = grep_sem_file L ls`,
   rw[grep_sem_file_def,FUN_EQ_THM,ALOOKUP_FILTER,o_DEF,LAMBDA_PROD]);
@@ -750,7 +704,7 @@ val grep_sem_FILTER_File = Q.store_thm("grep_sem_FILTER_File[simp]",
 
 val grep_sem_file_lemma = Q.store_thm("grep_sem_file_lemma",
   `STD_streams fs ⇒
-   let fs' = FOLDL (λa f. grep_sem_file L fls (implode f) o a) I ls fs in
+   let fs' = FOLDL (λa f. grep_sem_file L fls f o a) I ls fs in
      STD_streams fs' ∧ (hasFreeFD fs ⇒ hasFreeFD fs') ∧
      FILTER (isFile o FST) fs'.files = FILTER (isFile o FST) fs.files`,
   simp[]
@@ -762,17 +716,29 @@ val grep_sem_file_lemma = Q.store_thm("grep_sem_file_lemma",
   \\ CASE_TAC
   \\ simp[FILTER_File_add_stderr,FILTER_File_add_stdout]);
 
-val STD_streams_grep_sem = Q.store_thm("STD_streams_grep_sem",
-  `∀cls fls fs. STD_streams fs ⇒ STD_streams (grep_sem cls fls fs)`,
+val grep_sem_file_with_numchars = Q.store_thm("grep_sem_file_with_numchars",
+  `grep_sem_file L file filename (fs with numchars := ns) =
+   grep_sem_file L file filename fs with numchars := ns`,
+  rw[grep_sem_file_def] \\ CASE_TAC \\ rw[add_stdo_with_numchars]);
+
+val grep_sem_with_numchars = Q.store_thm("grep_sem_with_numchars",
+  `∀cl fls fs.
+   grep_sem cl fls (fs with numchars := ns) =
+   grep_sem cl fls fs with numchars := ns`,
   recInduct grep_sem_ind
-  \\ rw[grep_sem_def,STD_streams_add_stderr]
-  \\ CASE_TAC \\ rw[STD_streams_add_stderr]
-  \\ imp_res_tac grep_sem_file_lemma \\ fs[]);
+  \\ rw[grep_sem_def,add_stdo_with_numchars]
+  \\ CASE_TAC \\ rw[add_stdo_with_numchars]
+  \\ rpt(pop_assum kall_tac)
+  \\ qid_spec_tac`fs`
+  \\ qid_spec_tac`filenames`
+  \\ ho_match_mp_tac SNOC_INDUCT
+  \\ rw[FOLDL_SNOC,FOLDL_APPEND]
+  \\ rw[grep_sem_file_with_numchars]);
 
 val grep_termination_assum_def = Define`
   (grep_termination_assum (_::regexp::filenames) ⇔
    if NULL filenames then T else
-     case parse_regexp regexp of
+     case parse_regexp (explode regexp) of
      | NONE => T
      | SOME r => IS_SOME (Brz empty [normalize r] (1,singleton (normalize r) 0,[]) MAXNUM_32)) ∧
   (grep_termination_assum _ ⇔ T)`;
@@ -794,7 +760,7 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ Cases_on`t` \\ fs[LIST_TYPE_def]
   >- (
     xmatch
-    \\ xapp
+    \\ xapp_spec output_stderr_spec
     \\ simp[grep_sem_def]
     \\ xsimpl
     \\ CONV_TAC SWAP_EXISTS_CONV
@@ -809,7 +775,7 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ Cases_on`t` \\ fs[LIST_TYPE_def]
   >- (
     xmatch
-    \\ xapp
+    \\ xapp_spec output_stderr_spec
     \\ simp[grep_sem_def]
     \\ xsimpl
     \\ CONV_TAC SWAP_EXISTS_CONV
@@ -826,11 +792,11 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ qmatch_assum_abbrev_tac`Abbrev(cl = grep::regexp::fls)`
   \\ xlet_auto >- xsimpl
   \\ xlet_auto >- xsimpl
-  \\ Cases_on`parse_regexp regexp` \\ fs[OPTION_TYPE_def]
+  \\ Cases_on`parse_regexp (explode regexp)` \\ fs[OPTION_TYPE_def]
   >- (
     xmatch
     \\ xlet_auto >- xsimpl
-    \\ xapp
+    \\ xapp_spec output_stderr_spec
     \\ instantiate
     \\ xsimpl
     \\ CONV_TAC SWAP_EXISTS_CONV
@@ -841,7 +807,7 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ pop_assum SUBST1_TAC
   \\ simp[Abbr`a0`]
   \\ xmatch
-  \\ rename1`parse_regexp regexp = SOME r`
+  \\ rename1`parse_regexp _ = SOME r`
   \\ qabbrev_tac`fcs = fs.files`
   \\ xfun_spec`appthis`
      `∀f fv fs.
@@ -873,7 +839,8 @@ val grep_spec = Q.store_thm("grep_spec",
     \\ `s1 = s2` suffices_by xsimpl
     \\ simp[Abbr`s1`,Abbr`s2`]
     \\ AP_TERM_TAC
-    \\ simp[all_lines_def,FILTER_MAP,strcat_thm,MAP_MAP_o,o_DEF]
+    \\ simp[FILTER_MAP,concat_cons,MAP_MAP_o,o_DEF,
+            all_lines_def,lines_of_def,implode_def]
     \\ AP_TERM_TAC
     \\ simp[FILTER_EQ,build_matcher_def,FRONT_APPEND]
     \\ gen_tac
@@ -894,14 +861,14 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ CONV_TAC (RESORT_EXISTS_CONV List.rev)
   \\ qexists_tac`λn. STDIO (FOLDL ff I (TAKE n fls) fs)`
   \\ xsimpl
-  \\ qexists_tac`MAP implode fls`
+  \\ qexists_tac`fls`
   \\ xsimpl
   \\ qexists_tac`STRING_TYPE`
   \\ reverse conj_tac
   >- ( simp[Abbr`fls`,LIST_TYPE_def] )
   \\ rw[] \\ rfs[EL_MAP]
   \\ qmatch_assum_abbrev_tac`STRING_TYPE f xv`
-  \\ `validArg (explode f)`
+  \\ `validArg f`
   by (
     fs[Abbr`fls`,Abbr`f`,explode_implode,EVERY_MEM,MEM_EL,PULL_EXISTS]
     \\ Cases_on`n` \\ fs[] )
@@ -917,19 +884,26 @@ val grep_spec = Q.store_thm("grep_spec",
   \\ fs[]);
 
 val st = get_ml_prog_state()
+
+val grep_whole_prog_spec = Q.store_thm("grep_whole_prog_spec",
+  `hasFreeFD fs ∧ grep_termination_assum cl ⇒
+   whole_prog_spec ^(fetch_v "grep" st) cl fs
+     ((=) (grep_sem cl fs.files fs))`,
+  disch_then assume_tac
+  \\ simp[whole_prog_spec_def]
+  \\ qexists_tac`grep_sem cl fs.files fs`
+  \\ simp[GSYM grep_sem_with_numchars,with_same_numchars]
+  \\ match_mp_tac (MP_CANON (MATCH_MP app_wgframe (UNDISCH grep_spec)))
+  \\ xsimpl);
+
 val name = "grep"
-val spec = grep_spec |> UNDISCH |> SIMP_RULE std_ss [STDIO_def]
-                     |> add_basis_proj
-val (sem_thm,prog_tm) = call_thm st name spec
+val spec = grep_whole_prog_spec |> UNDISCH
+val (sem_thm,prog_tm) = whole_prog_thm st name spec
 
 val grep_prog_def = Define`grep_prog = ^prog_tm`;
 
 val grep_semantics = save_thm("grep_semantics",
-  sem_thm
-  |> REWRITE_RULE[GSYM grep_prog_def]
-  |> DISCH_ALL
-  |> CONV_RULE(LAND_CONV EVAL)
-  |> REWRITE_RULE[AND_IMP_INTRO,GSYM CONJ_ASSOC]
-  |> SIMP_RULE(srw_ss())[STD_streams_grep_sem]);
+  sem_thm |> REWRITE_RULE[GSYM grep_prog_def]
+  |> DISCH_ALL |> SIMP_RULE(srw_ss())[AND_IMP_INTRO,GSYM CONJ_ASSOC]);
 
 val _ = export_theory ();

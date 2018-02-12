@@ -8,6 +8,7 @@ val _ = translation_extends "VectorProg";
 
 val _ = ml_prog_update (open_module "String");
 
+val () = generate_sigs := true;
 
 val _ = ml_prog_update (add_dec ``Dtabbrev unknown_loc [] "string" (Tapp [] TC_string)`` I);
 val _ = trans "sub" `strsub`
@@ -15,6 +16,8 @@ val _ = trans "implode" `implode`
 val _ = trans "size" `strlen`
 val _ = trans "concat" `mlstring$concat`
 val _ = trans "substring" `mlstring$substring`
+val result = translate strcat_def;
+val _ = trans "^" `mlstring$strcat`
 
 val result = translate explode_aux_def;
 val result = translate explode_def;
@@ -33,7 +36,6 @@ val extract_side_thm = Q.prove(
   `!s i opt. extract_side s i opt`,
   rw [extract_side_def, MIN_DEF] ) |> update_precondition
 
-val result = translate strcat_def;
 
 val result = translate concatWith_aux_def;
 val _ = next_ml_names := ["concatWith"];
@@ -57,6 +59,8 @@ val translate_side_thm = Q.prove (
   rw [translate_side_def, translate_aux_side_thm] ) |> update_precondition
 
 
+val r = translate splitl_aux_def;
+val r = translate splitl_def;
 
 val result = translate tokens_aux_def;
 val tokens_aux_side_def = theorem"tokens_aux_side_def";
@@ -175,7 +179,32 @@ val collate_side_thm = Q.prove (
   `!f s1 s2. collate_1_side f s1 s2`,
   rw [collate_side_def, collate_aux_side_thm] ) |> update_precondition
 
+val sigs = module_signatures [
+  "sub",
+  "implode",
+  "size",
+  "concat",
+  "substring",
+  "^",
+  "explode",
+  "extract",
+  "concatWith",
+  "str",
+  "translate",
+  "splitl",
+  "tokens",
+  "fields",
+  "isPrefix",
+  "isSuffix",
+  "isSubstring",
+  "compare",
+  "<",
+  "<=",
+  ">=",
+  ">",
+  "collate"
+];
 
-val _ = ml_prog_update (close_module NONE);
+val _ = ml_prog_update (close_module (SOME sigs));
 
 val _ = export_theory()

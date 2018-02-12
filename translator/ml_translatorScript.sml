@@ -363,31 +363,36 @@ val Eval_Equality = Q.store_thm("Eval_Equality",
 (* booleans *)
 
 val Eval_Or = Q.store_thm("Eval_Or",
-  `Eval env x1 (BOOL b1) ==>
-    Eval env x2 (BOOL b2) ==>
-    Eval env (Log Or x1 x2) (BOOL (b1 \/ b2))`,
+  `(a1 ==> Eval env x1 (BOOL b1)) /\
+   (a2 ==> Eval env x2 (BOOL b2))
+   ==>
+   (a1 /\ (~CONTAINER b1 ==> a2) ==>
+    Eval env (Log Or x1 x2) (BOOL (b1 \/ b2)))`,
   rw[Eval_def,BOOL_def]
   \\ rw[Once evaluate_cases,PULL_EXISTS]
-  \\ Cases_on `b1` \\ fs []
+  \\ Cases_on `b1` \\ fs [CONTAINER_def]
   THEN1 ( metis_tac[EVAL``do_log Or (Boolv T) x``,EVAL``Boolv T``] )
   \\ metis_tac[EVAL``do_log Or (Boolv F) x``,APPEND_ASSOC]);
 
 val Eval_And = Q.store_thm("Eval_And",
-  `Eval env x1 (BOOL b1) ==>
-    Eval env x2 (BOOL b2) ==>
-    Eval env (Log And x1 x2) (BOOL (b1 /\ b2))`,
+  `(a1 ==> Eval env x1 (BOOL b1)) /\
+   (a2 ==> Eval env x2 (BOOL b2))
+   ==>
+   (a1 /\ (CONTAINER b1 ==> a2) ==>
+    Eval env (Log And x1 x2) (BOOL (b1 /\ b2)))`,
   rw[Eval_def,BOOL_def]
   \\ rw[Once evaluate_cases,PULL_EXISTS]
-  \\ Cases_on `b1` \\ fs []
+  \\ Cases_on `b1` \\ fs [CONTAINER_def]
   THEN1 ( metis_tac[EVAL``do_log And (Boolv T) x``,APPEND_ASSOC] )
   \\ metis_tac[EVAL``do_log And (Boolv F) x``,EVAL``Boolv F``]);
 
 val Eval_If = Q.store_thm("Eval_If",
   `(a1 ==> Eval env x1 (BOOL b1)) /\
-    (a2 ==> Eval env x2 (a b2)) /\
-    (a3 ==> Eval env x3 (a b3)) ==>
-    (a1 /\ (CONTAINER b1 ==> a2) /\ (~CONTAINER b1 ==> a3) ==>
-     Eval env (If x1 x2 x3) (a (if b1 then b2 else b3)))`,
+   (a2 ==> Eval env x2 (a b2)) /\
+   (a3 ==> Eval env x3 (a b3))
+   ==>
+   (a1 /\ (CONTAINER b1 ==> a2) /\ (~CONTAINER b1 ==> a3) ==>
+    Eval env (If x1 x2 x3) (a (if b1 then b2 else b3)))`,
   rw[Eval_def,BOOL_def,CONTAINER_def] \\ fs[]
   \\ rw[Once evaluate_cases]
   \\ metis_tac[EVAL``do_if (Boolv T) x y``,EVAL``do_if (Boolv F) x y``,APPEND_ASSOC]);
@@ -646,6 +651,18 @@ val Eval_int_negate = Q.store_thm("Eval_int_negate",
   fs[INT_def])
 
 (* arithmetic for num *)
+
+val sub_nocheck_def = Define`
+  sub_nocheck (n:num) m = n - m`;
+
+val Eval_NUM_SUB_nocheck = save_thm("Eval_NUM_SUB_nocheck",
+  Eval_INT_SUB |> Q.SPECL [`&n`,`&m`]
+  |> UNDISCH_ALL |> DISCH ``PRECONDITION ((m:num) <= n)``
+  |> SIMP_RULE std_ss [GSYM NUM_def,INT_SUB,PRECONDITION_def]
+  |> CONV_RULE ((RATOR_CONV o RAND_CONV) (ONCE_REWRITE_CONV [GSYM PRECONDITION_def]))
+  |> DISCH ``Eval env x2 (INT (&m))``
+  |> DISCH ``Eval env x1 (INT (&n))``
+  |> SIMP_RULE std_ss [GSYM NUM_def,GSYM sub_nocheck_def]);
 
 val Eval_NUM_ADD = save_thm("Eval_NUM_ADD",
   Eval_INT_ADD |> Q.SPECL [`&n1`,`&n2`]
@@ -998,32 +1015,74 @@ val Eval_n2w = Q.store_thm("Eval_n2w",
   \\ fs [integer_wordTheory.i2w_def]);
 
 val Eval_w2w = Q.store_thm("Eval_w2w",
-  `dimindex (:'a) <= 64 /\ (dimindex (:'a) <= 8 <=> dimindex (:'b) <= 8) ==>
+  `dimindex (:'a) <= 64 /\ dimindex (:'b) <= 64 ==>
     Eval env x1 (WORD (w:'b word)) ==>
     Eval env
-      (let w = if dimindex (:'a) <= 8 then W8 else W64 in
-         if dimindex (:'b) <= dimindex (:'a) then
-           App (Shift w Lsr (dimindex (:'a) - dimindex (:'b))) [x1]
-         else
-           App (Shift w Lsl (dimindex (:'b) - dimindex (:'a))) [x1])
+      (if (dimindex (:'a) <= 8 <=> dimindex (:'b) <= 8) then
+         let w = if dimindex (:'a) <= 8 then W8 else W64 in
+           if dimindex (:'b) <= dimindex (:'a) then
+             App (Shift w Lsr (dimindex (:'a) - dimindex (:'b))) [x1]
+           else
+             App (Shift w Lsl (dimindex (:'b) - dimindex (:'a))) [x1]
+       else if dimindex (:'b) <= 8 then
+         App (Shift W64 Lsl (64 - dimindex (:'a)))
+           [App (Shift W64 Lsr (8 - dimindex (:'b)))
+              [App (WordFromInt W64) [App (WordToInt W8) [x1]]]]
+       else
+         App (Shift W8 Lsl (8 - dimindex (:'a)))
+           [App (WordFromInt W8) [App (WordToInt W64)
+              [App (Shift W64 Lsr (64 - dimindex (:'b))) [x1]]]])
       (WORD ((w2w w):'a word))`,
-  Cases_on `dimindex (:'a) ≤ 8` \\ fs []
-  \\ IF_CASES_TAC
-  \\ fs [GSYM NOT_LESS] \\ fs [NOT_LESS]
-  \\ fs [Eval_def,WORD_def] \\ rpt strip_tac
-  \\ pop_assum (qspec_then `refs` mp_tac) \\ strip_tac
-  \\ once_rewrite_tac [evaluate_cases] \\ fs []
-  \\ once_rewrite_tac [METIS_PROVE [] ``b1/\b2/\b3<=>b2/\(b1/\b3)``]
-  \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
-  \\ asm_exists_tac \\ fs []
-  \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
-  \\ fs [empty_state_def]
-  \\ fs [do_app_def,shift8_lookup_def,shift64_lookup_def]
-  \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def]
-  \\ rw []
-  \\ Cases_on `i + dimindex (:'a) < dimindex (:'b) + 8` \\ fs []
-  \\ Cases_on `i + dimindex (:'a) < dimindex (:'b) + 64` \\ fs []
-  \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def]);
+  IF_CASES_TAC THEN1
+   (Cases_on `dimindex (:'a) ≤ 8` \\ fs []
+    \\ IF_CASES_TAC
+    \\ fs [GSYM NOT_LESS] \\ fs [NOT_LESS]
+    \\ fs [Eval_def,WORD_def] \\ rpt strip_tac
+    \\ pop_assum (qspec_then `refs` mp_tac) \\ strip_tac
+    \\ once_rewrite_tac [evaluate_cases] \\ fs []
+    \\ once_rewrite_tac [METIS_PROVE [] ``b1/\b2/\b3<=>b2/\(b1/\b3)``]
+    \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
+    \\ asm_exists_tac \\ fs []
+    \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
+    \\ fs [empty_state_def]
+    \\ fs [do_app_def,shift8_lookup_def,shift64_lookup_def]
+    \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def]
+    \\ rw []
+    \\ Cases_on `i + dimindex (:'a) < dimindex (:'b) + 8` \\ fs []
+    \\ Cases_on `i + dimindex (:'a) < dimindex (:'b) + 64` \\ fs []
+    \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def])
+  \\ IF_CASES_TAC \\ fs [] \\ rw []
+  THEN1
+   (fs [GSYM NOT_LESS] \\ fs [NOT_LESS]
+    \\ fs [Eval_def,WORD_def] \\ rpt strip_tac \\ rfs []
+    \\ pop_assum (qspec_then `refs` mp_tac) \\ strip_tac
+    \\ ntac 8 (once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS])
+    \\ once_rewrite_tac [METIS_PROVE [] ``b1/\b2/\b3<=>b2/\(b1/\b3)``]
+    \\ asm_exists_tac \\ fs []
+    \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
+    \\ fs [empty_state_def]
+    \\ simp [do_app_def]
+    \\ fs [shift64_lookup_def,shift8_lookup_def]
+    \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def]
+    \\ rpt strip_tac
+    \\ eq_tac \\ strip_tac \\ fs []
+    \\ rfs [fcpTheory.FCP_BETA,w2w]
+    \\ fs [fcpTheory.FCP_BETA,w2w,EVAL ``dimindex (:8)``]
+    \\ rfs [fcpTheory.FCP_BETA,w2w,EVAL ``dimindex (:8)``]
+    \\ Cases_on `i + dimindex (:α) − 64 < 8`
+    \\ fs [fcpTheory.FCP_BETA,w2w,EVAL ``dimindex (:8)``])
+  THEN1
+   (fs [GSYM NOT_LESS] \\ fs [NOT_LESS]
+    \\ fs [Eval_def,WORD_def] \\ rpt strip_tac \\ rfs []
+    \\ pop_assum (qspec_then `refs` mp_tac) \\ strip_tac
+    \\ ntac 8 (once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS])
+    \\ once_rewrite_tac [METIS_PROVE [] ``b1/\b2/\b3<=>b2/\(b1/\b3)``]
+    \\ asm_exists_tac \\ fs []
+    \\ once_rewrite_tac [evaluate_cases] \\ fs [PULL_EXISTS]
+    \\ fs [empty_state_def]
+    \\ simp [do_app_def]
+    \\ fs [shift64_lookup_def,shift8_lookup_def]
+    \\ fs [fcpTheory.CART_EQ,w2w,fcpTheory.FCP_BETA,word_lsl_def,word_lsr_def]));
 
 val Eval_word_lsl = Q.store_thm("Eval_word_lsl",
   `!n.
@@ -1443,8 +1502,7 @@ val Eval_sub = Q.store_thm("Eval_sub",
   `?l. v = Vector l` by metis_tac [vector_nchotomy] >>
   rw [] >>
   fs [VECTOR_TYPE_def, length_def, NUM_def, sub_def, INT_def] >>
-  qexists_tac`EL n l'` >>
-  fs [LIST_REL_EL_EQN] >> res_tac >> fs [INT_ABS_NUM,GSYM NOT_LESS]);
+  fs [LIST_REL_EL_EQN]);
 
 val Eval_vector = Q.store_thm("Eval_vector",
  `!env x1 a l.
@@ -1524,6 +1582,27 @@ val Eval_force_gc_to_run = Q.store_thm("Eval_force_gc_to_run",
   asm_exists_tac >> fs [] >>
   fs [do_app_def,INT_def,UNIT_TYPE_def]);
 
+val Eval_empty_ffi = Q.store_thm("Eval_empty_ffi",
+  `Eval env x (STRING_TYPE s) ==>
+   Eval env (App (FFI "") [x; App Aw8alloc [Lit (IntLit 0); Lit (Word8 0w)]])
+     (UNIT_TYPE (empty_ffi s))`,
+  rw [Eval_def]
+  \\ ntac 8 (rw [Once evaluate_cases,PULL_EXISTS,empty_state_with_refs_eq])
+  \\ fs [do_app_def,store_alloc_def]
+  \\ ntac 1 (rw [Once evaluate_cases,PULL_EXISTS,empty_state_with_refs_eq])
+  \\ pop_assum (qspec_then `refs ⧺ [W8array []]` mp_tac)
+  \\ fs [empty_state_def]
+  \\ strip_tac \\ asm_exists_tac \\ fs []
+  \\ ntac 1 (rw [Once evaluate_cases,PULL_EXISTS,empty_state_with_refs_eq])
+  \\ Cases_on `s` \\ fs [STRING_TYPE_def]
+  \\ rveq \\ fs [store_lookup_def]
+  \\ simp_tac std_ss [APPEND,GSYM APPEND_ASSOC]
+  \\ fs [EL_LENGTH_APPEND]
+  \\ fs [ffiTheory.call_FFI_def]
+  \\ fs [store_assign_def]
+  \\ simp_tac std_ss [APPEND,GSYM APPEND_ASSOC]
+  \\ fs [EL_LENGTH_APPEND]
+  \\ EVAL_TAC \\ fs []);
 
 (* a few misc. lemmas that help the automation *)
 
@@ -1958,6 +2037,8 @@ val translator_terms = save_thm("translator_terms",
      ("pmatch_eq_Match_type_error",``pmatch _ _ _ _ _ = Match_type_error``),
      ("auto eq proof 1",``!x1 x2 x3 x4. bbb``),
      ("auto eq proof 2",``!x1 x2. bbb ==> bbbb``),
-     ("remove lookup_cons",``!x1 x2 x3. (lookup_cons x1 x2 = SOME x3) = T``)]);
+     ("remove lookup_cons",``!x1 x2 x3. (lookup_cons x1 x2 = SOME x3) = T``),
+     ("no_closure_pat",``∀x v. p x v ⇒ no_closures v``),
+     ("types_match_pat",``∀x1 v1 x2 v2. p x1 v1 ∧ p x2 v2 ⇒ types_match v1 v2``)]);
 
 val _ = export_theory();
