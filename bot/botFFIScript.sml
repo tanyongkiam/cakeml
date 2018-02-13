@@ -20,10 +20,10 @@ val _ = Datatype`
     sensor_pre_names   : string list;
     sensor_names       : string list;
     ctrl_names         : string list;
-    bounds             : fml;
     init               : fml;
     ctrl_monitor       : fml;
     plant_monitor      : fml;
+    default            : (word32 + string) list
   |>`
 
 val _ = Datatype`
@@ -43,12 +43,12 @@ val _ = Datatype`
     step_oracle   : num -> bool;
   |>`
 
-(* We track the trace of actuations *)
+(* a mach is a record of the three components above + a trace of actuations *)
 val _ = Datatype`
   mach = <| wc : mach_config ;
-             ws : mach_state  ;
-             wo : mach_oracle ;
-             tr : (mach_state # word32 list) list|>`
+            ws : mach_state  ;
+            wo : mach_oracle ;
+            tr : (mach_state # word32 list) list|>`
 
 (* flatten 4 tuples *)
 val FLAT_TUP_def = Define`
@@ -69,6 +69,7 @@ val w8_to_w32_def = Define`
 val get_oracle_def = Define`
   get_oracle f = (f 0n,λn. f (n+1))`
 
+(* Specification of the get_const FFI *)
 val ffi_get_const_def = Define`
   ffi_get_const (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * LENGTH st.wc.const_names ∧
@@ -79,6 +80,7 @@ val ffi_get_const_def = Define`
   else
     NONE`
 
+(* Specification of the get_sensor FFI *)
 val ffi_get_sensor_def = Define`
   ffi_get_sensor (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * LENGTH st.wc.sensor_names ∧
@@ -88,6 +90,7 @@ val ffi_get_sensor_def = Define`
   else
     NONE`
 
+(* Specification of the get_control FFI *)
 val ffi_get_control_def = Define`
   ffi_get_control (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH conf = 4 * (LENGTH st.wc.const_names + LENGTH st.wc.sensor_names) ∧
@@ -105,6 +108,7 @@ val ffi_get_control_def = Define`
       NONE
   else NONE`
 
+(* Specification of the actuate FFI *)
 val ffi_actuate_def = Define`
   ffi_actuate (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 4 * (LENGTH st.wc.ctrl_names)
@@ -125,6 +129,7 @@ val ffi_actuate_def = Define`
        NONE
   else NONE`
 
+(* Specification of the has_next FFI *)
 val ffi_has_next_def = Define`
   ffi_has_next (conf:word8 list) (bytes:word8 list) (st:mach) =
   if LENGTH bytes = 1
@@ -213,16 +218,33 @@ val decode_encode_fml = new_specification("decode_encode_fml",["decode_fml"],
         qexists_tac `\f. some c. encode_fml c = f` \\ fs [encode_fml_11]));
 val _ = export_rewrites ["decode_encode_fml"];
 
+(* Encode the default list *)
+val encode_sum_list_def = Define`
+  encode_sum_list = encode_list
+    (λs. case s of
+     INL w =>
+       Cons (Num 0) (Str (w2s 2 CHR w))
+    | INR x =>
+       Cons (Num 1) (Str x))`
+
+val encode_sum_list_11 = Q.store_thm("encode_sum_list_11",`
+  !x y. encode_sum_list x = encode_sum_list y <=> x = y`,
+  Induct \\ Cases_on `y`
+  \\ fs [encode_sum_list_def,encode_list_def]
+  \\ rw[]>>every_case_tac>>fs[]
+  \\ metis_tac[w2sCHR_11]);
+
 val encode_mach_config_def = Define`
   encode_mach_config wc =
    Cons (List (MAP (Str ) wc.const_names))
    (Cons (List (MAP (Str) wc.sensor_pre_names))
    (Cons (List (MAP (Str) wc.sensor_names))
    (Cons (List (MAP (Str) wc.ctrl_names))
-   (Cons (encode_fml wc.bounds)
    (Cons (encode_fml wc.init)
    (Cons (encode_fml wc.ctrl_monitor)
-   (encode_fml wc.plant_monitor)))))))`
+   (Cons (encode_fml wc.plant_monitor)
+   (encode_sum_list wc.default)
+   ))))))`
 
 val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
   MAP (Str) ls =
@@ -238,7 +260,7 @@ val encode_mach_config_11 = Q.prove(`
   x = y`,
   fs[encode_mach_config_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
-  fs[MAP_Str_11,encode_fml_11]);
+  fs[MAP_Str_11,encode_fml_11,encode_sum_list_11]);
 
 val encode_word32_list_inner_def = Define`
   encode_word32_list_inner = iList o (MAP (iStr o w2s 2 CHR))`

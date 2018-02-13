@@ -24,7 +24,7 @@ val POS_INF_def = Define`POS_INF:word32 = ^POS_INF`
 *)
 val _ = Datatype`
   trm = Const word32
-      | Var string (* TODO: should really be mlstring *)
+      | Var string (* TODO: this could also use the faster mlstring *)
       | Plus trm trm
       | Times trm trm
       | Max trm trm
@@ -39,11 +39,13 @@ val _ = Datatype`
       | Or fml fml
       | Not fml`
 
+(* The discrete fragment of hybrid programs we need for sandboxes *)
 val _ = Datatype`
    hp = Test fml
+      | Assign string (trm option)
       | Seq hp hp
-      | Assign num trm
-      | Choice hp hp`
+      | Choice hp hp
+      | Loop hp`
 
 (*
 val _ = overload_on ("+",Term `Plus`)
@@ -391,8 +393,19 @@ val get_ctrl = process_topdecs`
 
 val _ = append_prog get_ctrl;
 
+(* The defaults is a list of (INL) word constants or (INR) constant/sensor names *)
+val lookup_defaults_def = Define`
+  (lookup_defaults nls [] = []:word32 list) ∧
+  (lookup_defaults nls (INL w::xs) = w::lookup_defaults nls xs) ∧
+  (lookup_defaults nls (INR x::xs) =
+    case ALOOKUP nls x of
+      NONE => 0w :: lookup_defaults nls xs (* TODO: cannot occur *)
+    | SOME v => v :: lookup_defaults nls xs)`
+
+val res = translate lookup_defaults_def;
+
 (* Pure controller monitor wrapper
-   The additional string literal is just there for external logging
+   The additional string literal is used for external logging
 *)
 val ctrl_monitor_def = Define`
   ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
@@ -404,7 +417,7 @@ val ctrl_monitor_def = Define`
     then
       (strlit"OK",ctrl_ls)
     else
-      (strlit"Control Violation",default const_ls sensor_ls)`
+      (strlit"Control Violation",lookup_defaults (ZIP (const_names++sensor_names,const_ls++sensor_ls)) default)`
 
 val res = translate ctrl_monitor_def;
 
@@ -479,22 +492,23 @@ val violation = process_topdecs`
 val _ = append_prog violation;
 
 val ctrl_monitor_loop = process_topdecs`
-  fun ctrl_monitor_loop bounds_phi ctrl_phi
+  fun ctrl_monitor_loop init_phi ctrl_phi
               const_names sensor_names ctrl_names default =
-  (* First read the constants and initial state *)
+  (* First we check that we are in a sensible initial state *)
   let val const_ls = get_const const_names
+      val sensor_ls = get_sensor sensor_names
+      val names_ls = List.append const_names sensor_names
+      val st_ls = List.append const_ls sensor_ls
   in
     if
-      wfsem_bi_val bounds_phi (vars_to_state const_names const_ls)
+      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
     then
-      let val sensor_ls = get_sensor sensor_names
-      in
-        ctrl_monitor_loop_body ctrl_phi
-                const_names sensor_names ctrl_names default
-                const_ls sensor_ls
-      end
+      (* Enter the loop body proper *)
+      ctrl_monitor_loop_body ctrl_phi
+              const_names sensor_names ctrl_names default
+              const_ls sensor_ls
     else
-      violation "Bounds Violation"
+      violation "Init Violation"
   end`
 
 val _ = append_prog ctrl_monitor_loop;
@@ -544,30 +558,22 @@ val monitor_loop_body = process_topdecs`
 val _ = append_prog monitor_loop_body;
 
 val monitor_loop = process_topdecs`
-  fun monitor_loop bounds_phi init_phi plant_phi ctrl_phi
+  fun monitor_loop init_phi plant_phi ctrl_phi
               const_names sensor_pre_names sensor_names ctrl_names default =
   (* First read the constants and initial state *)
   let val const_ls = get_const const_names
-  in
-    if
-      wfsem_bi_val bounds_phi (vars_to_state const_names const_ls)
-    then
-    let
       val sensor_ls = get_sensor sensor_names
       val names_ls = List.append const_names sensor_names
       val st_ls = List.append const_ls sensor_ls
-    in
-      if
-        wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
-      then
-        monitor_loop_body plant_phi ctrl_phi
+  in
+    if
+      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+    then
+      monitor_loop_body plant_phi ctrl_phi
                 const_names sensor_pre_names sensor_names ctrl_names default
                 const_ls sensor_ls
-      else
-        violation "Init Violation"
-    end
     else
-      violation "Bounds Violation"
+      violation "Init Violation"
   end`
 
 val _ = append_prog monitor_loop;
