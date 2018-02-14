@@ -140,7 +140,7 @@ val parse_hp_def = Define`
       NONE => NONE
       | SOME (ss,sensorplus,plantmon)=>
         if ss = sensors then
-          SOME(consts,sensors,ctrl,ctrlplus,default,init,ctrlmon,plantmon)
+          SOME(consts,sensors,sensorplus,ctrl,ctrlplus,default,init,ctrlmon,plantmon)
         else NONE)
     | _ => NONE
   | _=> NONE`
@@ -164,20 +164,34 @@ EVAL ``parse_loop2
   (Assign "sensor1" (SOME (Var "sensorplus1")))))``
    *)
 
-fun do_input_term config_file =
-  let val stropt = TextIO.inputLine config_file in
+val config_filename = "foo"
+val config_file = TextIO.openIn config_filename;
+
+fun check_fv trm =
+  if free_vars trm ≠ [] then raise ERR "" "configuration has free variables"
+
+fun read_configuration config_filename  =
+  let val config_file = TextIO.openIn config_filename;
+      val stropt = TextIO.inputLine config_file in
   case stropt of
-    NONE => raise ERR "" "Failed to read config file"
+    NONE => raise ERR "read_config" ("Failed to read config file: "^config_filename)
   | SOME str =>
-      (Term ([QUOTE str]))
-      handle (HOL_ERR _) => raise ERR str "Failed to parse"
+    let val trm = (Term ([QUOTE str]))
+      handle (HOL_ERR _) => raise ERR "read_config" ("Failed to parse input as a HOL term: "^str)
+        val fvs = free_vars trm
+    in
+      trm
+    end
   end
 
-val config_filename = "monitor_config.txt";
-val config_file = TextIO.openIn config_filename;
+read_configuration "monitor_config.txt"
+fun read_
+
 
 (* Reads a term directly from the file *)
 val hp_term = do_input_term config_file
+
+EVAL``parse_hp ^hp_term``
 
 val const_vars = reval(do_input_term config_file "const_vars");
 val sensor_pre_vars = reval(do_input_term config_file "sensor_pre_vars");

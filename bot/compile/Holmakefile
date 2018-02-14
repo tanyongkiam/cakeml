@@ -1,4 +1,5 @@
-INCLUDES = .. ../../misc ../../basis ../../compiler
+INCLUDES = .. ../../translator ../../basis  ../../semantics ../../compiler
+
 TARGETS = $(patsubst %Script.sml,%Theory.uo,$(wildcard *.sml))
 all: $(TARGETS)
 .PHONY: all
@@ -8,11 +9,9 @@ endif
 
 ifdef POLY
 HOLHEAP = heap
-PARENT_HOLHEAP = ../../compiler/heap
+PARENT_HOLHEAP = ../heap
 EXTRA_CLEANS = $(HOLHEAP) $(HOLHEAP).o
 all: $(HOLHEAP)
-
-BARE_THYS = ../../compiler/compilationLib
 
 DEPS = $(patsubst %,%.uo,$(BARE_THYS)) $(PARENT_HOLHEAP)
 
