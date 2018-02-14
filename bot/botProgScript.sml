@@ -13,26 +13,171 @@ val _ = new_theory "botProg"
 val _ = translation_extends "MonitorProg";
 
 (*"*)
-val reval = rconc o EVAL
+(* Helper functions *)
 
-fun do_input_term config_file prefix =
+(* Parses a sequence of (non-det) assignments to a list of names *)
+val parse_names_def = Define`
+  (parse_names (Assign x NONE) = SOME [x]) ∧
+  (parse_names (Seq p1 p2) =
+    case parse_names p1 of
+      NONE => NONE
+    | SOME xs =>
+    case parse_names p2 of
+      NONE => NONE
+    | SOME ys => SOME(xs++ys)) ∧
+  (parse_names _ = NONE)`
+
+(* Parses a sequence of (concrete) assignments to a list of (name,rhs) pairs *)
+val parse_namevals_def = Define`
+  (parse_namevals (Assign x (SOME e)) = SOME [(x,e)]) ∧
+  (parse_namevals (Seq p1 p2) =
+    case parse_namevals p1 of
+      NONE => NONE
+    | SOME xs =>
+    case parse_namevals p2 of
+      NONE => NONE
+    | SOME ys => SOME(xs++ys)) ∧
+  (parse_namevals _ = NONE)`
+
+(* Expects 3 seqs at the top-level
+  {Consts:=*};
+  {Sensors:=*};
+  {?Init}; ...
+*)
+val parse_header_def = Define`
+  (parse_header (Seq c (Seq s (Seq (Test init) rest))) =
+    case (parse_names c, parse_names s) of
+      (SOME consts,SOME sensors) =>
+        SOME (consts,sensors,init,rest)
+    | _ => NONE) ∧
+  (parse_header _ = NONE)`
+
+(* Parses the RHS of defaults *)
+val parse_default_def = Define`
+  (parse_default [] = SOME []) ∧
+  (parse_default (Const w::xs) =
+    case parse_default xs of
+      NONE => NONE
+    | SOME vs => SOME(INL w :: vs)) ∧
+  (parse_default (Var x::xs) =
+    case parse_default xs of
+      NONE => NONE
+    | SOME vs => SOME(INR x :: vs)) ∧
+  (parse_default _ = NONE)`
+
+(* Parses the controller monitor and default
+   We require the pattern
+   {?ctrlmon; ctrl := ctrl+}
+   U
+   {?~ctrlmon;ctrl := def}
+
+   Returns (c,c+,defaults,ctrlmon)
+*)
+
+val parse_choice_def = Define`
+  (parse_choice (Choice (Seq (Test f) c) (Seq (Test nf) def)) =
+  if Not(f) ≠ nf then NONE
+  else
+  case parse_namevals c of
+    NONE => NONE
+  | SOME ctrls =>
+  case parse_namevals def of
+    NONE => NONE
+  | SOME defs =>
+  (* Sanity checks *)
+  if MAP FST ctrls = MAP FST defs then
+    case parse_default (MAP SND defs) of
+      NONE => NONE
+    | SOME defaults => SOME (MAP FST ctrls,MAP SND ctrls,defaults,f)
+  else
+    NONE) ∧
+  (parse_choice _ = NONE)`
+
+(* Parse the first part of the sandboxing loop
+  {Ctrl+:=*}
+  {?...} U {? ...}
+*)
+val parse_loop1_def = Define`
+  (parse_loop1 (Seq c (Seq (ctrlmonchoice) rest)) =
+  case parse_names c of
+     NONE => NONE
+  |  SOME ctrlplus =>
+  case parse_choice ctrlmonchoice of
+     NONE => NONE
+  |  SOME (ctrl,cplus,default,ctrlmon) =>
+    if MAP Var ctrlplus = cplus then
+      SOME(ctrl,ctrlplus,default,ctrlmon,rest)
+    else NONE) ∧
+  (parse_loop1 _ = NONE)`
+
+(* Parse the second part of the sandboxing loop *)
+val parse_loop2_def = Define`
+  (parse_loop2 (Seq s (Seq (Test plantmon) rest)) =
+  case parse_names s of
+     NONE => NONE
+  |  SOME sensorplus =>
+  case parse_namevals rest of
+    NONE => NONE
+  | SOME svals =>
+  if MAP Var sensorplus = MAP SND svals then
+     SOME(MAP FST svals, sensorplus,plantmon)
+  else NONE) ∧
+  (parse_loop2 _ = NONE)`
+
+(* The sandbox pattern *)
+val parse_hp_def = Define`
+  parse_hp hp =
+  (* Extract the header *)
+  case parse_header hp of
+    NONE => NONE
+  | SOME (consts,sensors,init,hp) =>
+  case hp of
+    Loop hp =>
+      (case parse_loop1 hp of
+      NONE => NONE
+      | SOME (ctrl,ctrlplus,default,ctrlmon,hp) =>
+      case parse_loop2 hp of
+      NONE => NONE
+      | SOME (ss,sensorplus,plantmon)=>
+        if ss = sensors then
+          SOME(consts,sensors,ctrl,ctrlplus,default,init,ctrlmon,plantmon)
+        else NONE)
+    | _ => NONE
+  | _=> NONE`
+
+(* Sanity Checks
+EVAL ``parse_choice
+  (Choice (Seq (Test cmon) (Assign "ctrl1" (SOME (Var "ctrlplus1"))))
+          (Seq (Test (Not(cmon))) (Assign "ctrl1" (SOME (Const 0w)))))``
+
+EVAL ``parse_loop1
+  (Seq (Assign "ctrlplus1" NONE)
+  (Seq
+  (Choice (Seq (Test cmon) (Assign "ctrl1" (SOME (Var "ctrlplus1"))))
+          (Seq (Test (Not(cmon))) (Assign "ctrl1" (SOME (Const 0w)))))
+  foo))``
+
+EVAL ``parse_loop2
+  (Seq (Assign "sensorplus1" NONE)
+  (Seq
+  (Test pmon)
+  (Assign "sensor1" (SOME (Var "sensorplus1")))))``
+   *)
+
+fun do_input_term config_file =
   let val stropt = TextIO.inputLine config_file in
   case stropt of
-    NONE => raise ERR "" "Out of lines"
+    NONE => raise ERR "" "Failed to read config file"
   | SOME str =>
-    (* Ignore lines starting with # *)
-    if String.isPrefix "#" str then
-      do_input_term config_file prefix
-    else
-    if String.isPrefix (prefix^" =") str
-    then
-      (Term ([QUOTE (String.extract(str,String.size prefix + 2, NONE))]))
+      (Term ([QUOTE str]))
       handle (HOL_ERR _) => raise ERR str "Failed to parse"
-    else raise ERR "" ("Failed to read config: "^prefix)
   end
 
 val config_filename = "monitor_config.txt";
 val config_file = TextIO.openIn config_filename;
+
+(* Reads a term directly from the file *)
+val hp_term = do_input_term config_file
 
 val const_vars = reval(do_input_term config_file "const_vars");
 val sensor_pre_vars = reval(do_input_term config_file "sensor_pre_vars");

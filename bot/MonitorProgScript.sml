@@ -342,17 +342,20 @@ val _ = append_prog unpack_w32_list
 
 (* Helper function to handoff a state to the monitor *)
 
-val vars_to_state_def = Define`
-  (vars_to_state [] [] = []:wstate) ∧
-  (vars_to_state (x::xs) (v:word32::vs) = ((x, (v,v))::vars_to_state xs vs)) ∧
-  (vars_to_state [] _ = []) ∧
-  (vars_to_state _ [] = [])`
+val vars_to_state_aux_def = Define`
+  (vars_to_state_aux [] [] = []:wstate) ∧
+  (vars_to_state_aux (x::xs) (v:word32::vs) = ((x, (v,v))::vars_to_state_aux xs vs)) ∧
+  (vars_to_state_aux [] _ = []) ∧
+  (vars_to_state_aux _ [] = [])`
 
+val vars_to_state_def = Define`
+  vars_to_state xs ys = REVERSE (vars_to_state_aux xs ys)`
+
+val res = translate vars_to_state_aux_def;
 val res = translate vars_to_state_def;
 
 (* Now we define the various monitoring wrappers *)
 
-(* TODO: should be in Word8Array basis? *)
 val to_string = process_topdecs`
   fun to_string arr = Word8Array.substring arr 0 (Word8Array.length arr);`
 
@@ -408,16 +411,16 @@ val res = translate lookup_defaults_def;
    The additional string literal is used for external logging
 *)
 val ctrl_monitor_def = Define`
-  ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                        const_ls sensor_ls ctrl_ls default =
-  let st_ls = FLAT [const_ls; sensor_ls; ctrl_ls] in
-  let names_ls = FLAT [const_names; sensor_names; ctrl_names] in
+  ctrl_monitor ctrl_phi const_names sensor_names ctrlplus_names
+                        const_ls sensor_ls ctrlplus_ls default =
+  let st_ls = FLAT [const_ls; sensor_ls; ctrlplus_ls] in
+  let names_ls = FLAT [const_names; sensor_names; ctrlplus_names] in
     if
       wfsem_bi_val ctrl_phi (vars_to_state names_ls st_ls)
     then
-      (strlit"OK",ctrl_ls)
+      (strlit"OK",ctrlplus_ls)
     else
-      (strlit"Control Violation",lookup_defaults (ZIP (const_names++sensor_names,const_ls++sensor_ls)) default)`
+      (strlit"Control Violation",lookup_defaults (REVERSE (ZIP (const_names++sensor_names,const_ls++sensor_ls))) default)`
 
 val res = translate ctrl_monitor_def;
 
@@ -430,15 +433,15 @@ val actuate = process_topdecs`
 val _ = append_prog actuate;
 
 val ctrl_monitor_1shot = process_topdecs`
-  fun ctrl_monitor_1shot ctrl_phi const_names sensor_names ctrl_names default =
+  fun ctrl_monitor_1shot ctrl_phi const_names sensor_names ctrlplus_names default =
   let
     (* First read the constants and state *)
     val const_ls = get_const const_names
     val sensor_ls = get_sensor sensor_names
-    val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls
+    val ctrlplus_ls = get_ctrl ctrlplus_names const_ls sensor_ls
   in
-    case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                        const_ls sensor_ls ctrl_ls default
+    case ctrl_monitor ctrl_phi const_names sensor_names ctrlplus_names
+                        const_ls sensor_ls ctrlplus_ls default
     of
       (flg,ls) => actuate flg ls
   end`
@@ -457,15 +460,15 @@ val has_next = process_topdecs`
 val _ = append_prog has_next;
 
 val ctrl_monitor_loop_body = process_topdecs`
-  fun ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrl_names default
+  fun ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrlplus_names default
                              const_ls sensor_ls =
   (* First, we we will check if there is a next iteration *)
   if has_next()
   then
-  let val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls in
+  let val ctrlplus_ls = get_ctrl ctrlplus_names const_ls sensor_ls in
   (* Run the controller monitor *)
-  case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                      const_ls sensor_ls ctrl_ls default
+  case ctrl_monitor ctrl_phi const_names sensor_names ctrlplus_names
+                      const_ls sensor_ls ctrlplus_ls default
   of
     (flg,ctrl_ls) =>
     let
@@ -473,7 +476,7 @@ val ctrl_monitor_loop_body = process_topdecs`
     val sensor_ls = get_sensor sensor_names
     val u = Runtime.fullGC()
     in
-      ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrl_names default
+      ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrlplus_names default
                     const_ls sensor_ls
     end
   end
@@ -493,7 +496,7 @@ val _ = append_prog violation;
 
 val ctrl_monitor_loop = process_topdecs`
   fun ctrl_monitor_loop init_phi ctrl_phi
-              const_names sensor_names ctrl_names default =
+              const_names sensor_names ctrlplus_names default =
   (* First we check that we are in a sensible initial state *)
   let val const_ls = get_const const_names
       val sensor_ls = get_sensor sensor_names
@@ -505,7 +508,7 @@ val ctrl_monitor_loop = process_topdecs`
     then
       (* Enter the loop body proper *)
       ctrl_monitor_loop_body ctrl_phi
-              const_names sensor_names ctrl_names default
+              const_names sensor_names ctrlplus_names default
               const_ls sensor_ls
     else
       violation "Init Violation"
@@ -514,39 +517,41 @@ val ctrl_monitor_loop = process_topdecs`
 val _ = append_prog ctrl_monitor_loop;
 
 val plant_monitor_def = Define`
-  plant_monitor plant_phi const_names sensor_pre_names sensor_names ctrl_names
-                            const_ls sensor_pre_ls sensor_ls ctrl_ls =
-  let st_ls = FLAT [const_ls; sensor_pre_ls; sensor_ls; ctrl_ls] in
-  let names_ls = FLAT [const_names; sensor_pre_names; sensor_names; ctrl_names] in
+  plant_monitor plant_phi const_names sensor_names ctrl_names sensorplus_names
+                          const_ls    sensor_ls    ctrl_ls    sensorplus_ls =
+  let names_ls = FLAT [const_names; sensor_names; ctrl_names; sensorplus_names] in
+  let st_ls    = FLAT [const_ls   ; sensor_ls   ; ctrl_ls   ; sensorplus_ls] in
     wfsem_bi_val plant_phi (vars_to_state names_ls st_ls)`
 
 val res = translate plant_monitor_def;
 
 val monitor_loop_body = process_topdecs`
   fun monitor_loop_body plant_phi ctrl_phi
-                        const_names sensor_pre_names sensor_names ctrl_names default
+                        const_names sensor_names ctrlplus_names ctrl_names
+                        sensorplus_names default
                         const_ls sensor_ls =
   (* First, we we will check if there is a next iteration *)
   if has_next()
   then
-  let val ctrl_ls = get_ctrl ctrl_names const_ls sensor_ls in
+  let val ctrlplus_ls = get_ctrl ctrlplus_names const_ls sensor_ls in
   (* Run the controller monitor *)
-  case ctrl_monitor ctrl_phi const_names sensor_names ctrl_names
-                      const_ls sensor_ls ctrl_ls default
+  case ctrl_monitor ctrl_phi const_names sensor_names ctrlplus_names
+                      const_ls sensor_ls ctrlplus_ls default
   of
     (flg,ctrl_ls) =>
     let
     val u = actuate flg ctrl_ls
-    val sensor_new_ls = get_sensor sensor_names
+    val sensorplus_ls = get_sensor sensor_names
     in
-    if plant_monitor plant_phi const_names sensor_pre_names sensor_names ctrl_names
-                               const_ls sensor_ls sensor_new_ls ctrl_ls
+    if plant_monitor plant_phi const_names sensor_names ctrl_names sensorplus_names
+                               const_ls    sensor_ls    ctrl_ls    sensorplus_ls
     then
       let val u = Runtime.fullGC()
       in
         monitor_loop_body plant_phi ctrl_phi
-                          const_names sensor_pre_names sensor_names ctrl_names default
-                          const_ls sensor_new_ls
+                          const_names sensor_names ctrlplus_names ctrl_names
+                          sensorplus_names default
+                          const_ls sensorplus_ls
       end
     else
       violation "Plant Violation"
@@ -559,7 +564,8 @@ val _ = append_prog monitor_loop_body;
 
 val monitor_loop = process_topdecs`
   fun monitor_loop init_phi plant_phi ctrl_phi
-              const_names sensor_pre_names sensor_names ctrl_names default =
+                   const_names sensor_names ctrlplus_names ctrl_names
+                   sensorplus_names default =
   (* First read the constants and initial state *)
   let val const_ls = get_const const_names
       val sensor_ls = get_sensor sensor_names
@@ -570,8 +576,9 @@ val monitor_loop = process_topdecs`
       wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
     then
       monitor_loop_body plant_phi ctrl_phi
-                const_names sensor_pre_names sensor_names ctrl_names default
-                const_ls sensor_ls
+                        const_names sensor_names ctrlplus_names ctrl_names
+                        sensorplus_names default
+                        const_ls sensor_ls
     else
       violation "Init Violation"
   end`
