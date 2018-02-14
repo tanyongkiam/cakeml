@@ -164,11 +164,24 @@ EVAL ``parse_loop2
   (Assign "sensor1" (SOME (Var "sensorplus1")))))``
    *)
 
-val config_filename = "foo"
-val config_file = TextIO.openIn config_filename;
-
 fun check_fv trm =
-  if free_vars trm ≠ [] then raise ERR "" "configuration has free variables"
+  let val fvs = free_vars trm  in
+  if free_vars trm <> [] then
+    raise ERR "" ("term has free variables: "^ String.concatWith " " (map term_to_string fvs))
+  else
+    ()
+  end;
+
+val parse_hp_tm = ``parse_hp``;
+val hp_ty = ``:hp``;
+
+fun check_hp_type trm =
+  if type_of trm <> hp_ty then
+    raise ERR "" ("term is not a HP: "^ term_to_string trm)
+  else ();
+
+fun split9 [i1,i2,i3,i4,i5,i6,i7,i8,i9] = (i1,i2,i3,i4,i5,i6,i7,i8,i9)
+  | split9 _ = raise ERR "" "too many terms in list"
 
 fun read_configuration config_filename  =
   let val config_file = TextIO.openIn config_filename;
@@ -176,46 +189,33 @@ fun read_configuration config_filename  =
   case stropt of
     NONE => raise ERR "read_config" ("Failed to read config file: "^config_filename)
   | SOME str =>
-    let val trm = (Term ([QUOTE str]))
-      handle (HOL_ERR _) => raise ERR "read_config" ("Failed to parse input as a HOL term: "^str)
-        val fvs = free_vars trm
+    let val trm = (Term ([QUOTE str])) handle (HOL_ERR _) => raise ERR "read_config" ("Failed to parse input as a HOL term: "^str)
+        val _ = check_fv trm
+        val _ = check_hp_type trm
+        val opt = (rhs o concl o EVAL) (mk_comb (parse_hp_tm,trm))
     in
-      trm
+      if optionLib.is_some opt
+      then
+        split9 (pairSyntax.strip_pair (optionLib.dest_some opt))
+      else
+        raise ERR "read_config" ("Input HP is not of expected shape: "^(term_to_string trm))
     end
-  end
+  end;
 
-read_configuration "monitor_config.txt"
-fun read_
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,default,init_fml,ctrl_fml,plant_fml)
+  = read_configuration "monitor_config.txt"
 
-
-(* Reads a term directly from the file *)
-val hp_term = do_input_term config_file
-
-EVAL``parse_hp ^hp_term``
-
-val const_vars = reval(do_input_term config_file "const_vars");
-val sensor_pre_vars = reval(do_input_term config_file "sensor_pre_vars");
-val sensor_vars = reval(do_input_term config_file "sensor_vars");
-val ctrl_vars = reval(do_input_term config_file "ctrl_vars");
-
-val bounds_fml = reval(do_input_term config_file "bounds_fml");
-val init_fml = reval(do_input_term config_file "init_fml");
-val ctrl_fml = reval(do_input_term config_file "ctrl_fml");
-val plant_fml = reval(do_input_term config_file "plant_fml");
-
-val default_body = reval(do_input_term config_file "default_body");
-
+(* Define constant names for each of the required terms *)
 val const_vars_def = Define`
   const_vars = ^const_vars`
-val sensor_pre_vars_def = Define`
-  sensor_pre_vars = ^sensor_pre_vars`
 val sensor_vars_def = Define`
   sensor_vars = ^sensor_vars`
+val sensorplus_vars_def = Define`
+  sensorplus_vars = ^sensorplus_vars`
 val ctrl_vars_def = Define`
   ctrl_vars = ^ctrl_vars`
-
-val bounds_fml_def = Define`
-  bounds_fml = ^bounds_fml`
+val ctrlplus_vars_def = Define`
+  ctrlplus_vars = ^ctrlplus_vars`
 
 val init_fml_def = Define`
   init_fml = ^init_fml`
@@ -227,56 +227,60 @@ val plant_fml_def = Define`
   plant_fml = ^plant_fml`
 
 val default_def = Define`
-  default (const_ls:word32 list) (sense_ls:word32 list) =
-  ^(default_body |> SIMP_CONV std_ss[NULL_EQ] |> rconc)`
+  default = ^default`
 
+(* Automatically turn the defs into CML implementations *)
 val cml_const_th = translate const_vars_def;
-val cml_sensor_pre_th = translate sensor_pre_vars_def;
 val cml_sensor_th = translate sensor_vars_def;
+val cml_sensorplus_th = translate sensorplus_vars_def;
 val cml_ctrl_th = translate ctrl_vars_def;
+val cml_ctrlplus_th = translate ctrlplus_vars_def;
 
-val cml_bounds_fml_th = translate bounds_fml_def;
 val cml_init_fml_th = translate init_fml_def;
 val cml_ctrl_fml_th = translate ctrl_fml_def;
 val cml_plant_fml_th = translate plant_fml_def;
 
 val cml_default_th = translate default_def;
 
+(* Finally, we define the top-level call *)
 val bot_main = process_topdecs`
   fun bot_main u =
-    monitor_loop bounds_fml init_fml plant_fml ctrl_fml const_vars sensor_pre_vars sensor_vars ctrl_vars default`
+    monitor_loop init_fml plant_fml ctrl_fml const_vars sensor_vars ctrlplus_vars ctrl_vars sensorplus_vars default`
 
 val _ = append_prog bot_main;
 
 val st = get_ml_prog_state();
 
-val trans_th = [cml_const_th,cml_sensor_pre_th,cml_sensor_th,cml_ctrl_th,
-               cml_bounds_fml_th, cml_init_fml_th,cml_ctrl_fml_th,cml_plant_fml_th,
-               cml_default_th]
+val trans_th = [cml_const_th,cml_sensor_th,cml_sensorplus_th,cml_ctrl_th,cml_ctrlplus_th,cml_init_fml_th,cml_ctrl_fml_th,cml_plant_fml_th,cml_default_th]
 
 val comp_eq = [mach_component_equality,
               mach_config_component_equality,
               mach_state_component_equality,
               mach_oracle_component_equality];
 
-(* Define all the possible initial states w.r.t. to our formulas *)
-val init_state_def = Define`
-  init_state w <=>
-  ((w.wc = <|
-      const_names      := const_vars;
+(* The sandbox configuration *)
+val init_wc_def = Define`
+  init_wc =
+  <|  const_names      := const_vars;
       sensor_names     := sensor_vars;
-      sensor_pre_names := sensor_pre_vars;
+      sensorplus_names := sensorplus_vars;
       ctrl_names       := ctrl_vars;
-      bounds           := bounds_fml;
+      ctrlplus_names   := ctrlplus_vars;
       init             := init_fml;
       ctrl_monitor     := ctrl_fml;
       plant_monitor    := plant_fml;
-       |>)  (* Other two parts are ARB for this model *)
-  ∧
+      default          := default;
+  |>`
+
+val init_wf = EVAL ``wf_config init_wc``
+
+(* Define the possible initial states w.r.t. to our formulas *)
+val init_state_def = Define`
+  init_state w <=>
+  (w.wc = init_wc ∧
   w.tr = [] ∧
-  good_default default w ∧
-  eventually $~ w.wo.step_oracle
-  )`
+  good_default w ∧
+  eventually $~ w.wo.step_oracle)`
 
 val bot_main_spec = Q.store_thm("bot_main_spec",`
   init_state w ==>
@@ -287,12 +291,12 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
     &UNIT_TYPE () uv * (
     (SEP_EXISTS w'. IOBOT w' *
      &(
-      (* Either the initial machine violates init or bounds immediately *)
-      (w = w' ∧ (¬init_sat w.wc w.ws ∨ ¬bounds_sat w.wc w.ws) ) ∨
+      (* Either the initial machine violates init immediately *)
+      (w = w' ∧ (¬init_sat w.wc w.ws) ) ∨
       (* Or we transition to a final machine,
          and good_mach guarantees that the actuation trace all
          satisfy the control monitor *)
-      good_mach default w' ∧
+      good_mach w' ∧
       (¬w'.wo.step_oracle 0 ∨
          good_plant_trace F w'.wc w'.tr w'.ws)))))`,
   rw[]>>
@@ -300,9 +304,8 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
   fs[init_state_def]>>
   xapp>>
   qexists_tac`emp`>>qexists_tac`w`>>
-  qexists_tac`default`>>
-  xsimpl>>fs[init_state_def]>>
-  fs trans_th>>
+  xsimpl>>fs[init_state_def,init_wf]>>
+  fs[init_wc_def]>>fs trans_th>>
   fs[good_ctrl_trace_def,good_plant_trace_def]);
 
 (* The rest of this automation produces a top-level theorem for CakeML semantics *)
@@ -355,11 +358,11 @@ val SPLIT_SING = prove(
 val SPLIT_th = Q.prove(`
   wf_mach w ⇒
   (∃h1 h2.
-      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_7 (bot_ffi w)))
+      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_8 (bot_ffi w)))
         (h1,h2) ∧ IOBOT w h1)`,
   fs [IOBOT_def,SEP_CLAUSES,IOx_def,bot_ffi_part_def,
       IO_def,SEP_EXISTS_THM,PULL_EXISTS,one_def] >>
-  rw[]>>simp[fetch "-""auto_state_7_def",cfStoreTheory.st2heap_def]>>
+  rw[]>>simp[fetch "-""auto_state_8_def",cfStoreTheory.st2heap_def]>>
   fs [SPLIT_SING,cfAppTheory.FFI_part_NOT_IN_store2heap]
   \\ rw [cfStoreTheory.ffi2heap_def] \\ EVAL_TAC
   \\ fs [parts_ok_bot_ffi]);
