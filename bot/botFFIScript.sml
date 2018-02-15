@@ -24,6 +24,8 @@ val _ = Datatype`
     init               : fml;
     ctrl_monitor       : fml;
     plant_monitor      : fml;
+    ctrlfixed_names    : string list;
+    ctrlfixed_rhs      : (word32 + string) list;
     default            : (word32 + string) list
   |>`
 
@@ -245,8 +247,10 @@ val encode_mach_config_def = Define`
    (Cons (encode_fml wc.init)
    (Cons (encode_fml wc.ctrl_monitor)
    (Cons (encode_fml wc.plant_monitor)
+   (Cons (List (MAP (Str) wc.ctrlfixed_names))
+   (Cons (encode_sum_list wc.ctrlfixed_rhs)
    (encode_sum_list wc.default)
-   )))))))`
+   )))))))))`
 
 val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
   MAP (Str) ls =

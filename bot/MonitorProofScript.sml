@@ -134,14 +134,16 @@ val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
 
 (*
   These are the syntactic well-formedness condition on mach_config
-  We could also add DISTINCTness conditions here
 *)
 val wf_config_def = Define`
   wf_config wc ⇔
   LENGTH wc.sensor_names = LENGTH wc.sensorplus_names ∧
   LENGTH wc.ctrl_names = LENGTH wc.ctrlplus_names ∧
-  EVERY (λd. case d of INR x => MEM x (wc.const_names ++ wc.sensor_names) | _ => T)
-    wc.default`
+  LENGTH wc.ctrl_names = LENGTH wc.default ∧
+  EVERY (λd. case d of INR x =>
+    MEM x (wc.const_names ++ wc.sensor_names) | _ => T) wc.default ∧
+  EVERY (λd. case d of INR x =>
+    MEM x (wc.const_names ++ wc.sensor_names) | _ => T) wc.ctrlfixed_rhs`
 
 (* Well-formed machs obey their config's lengths *)
 val wf_mach_def = Define`
@@ -292,24 +294,12 @@ val string_ID = Q.store_thm("string_ID",`
     fs[MOD_LESS,ORD_BOUND]>>
   metis_tac[CHR_ORD]);
 
-(* The control choice is good w.r.t. to a mach state *)
-val ctrl_sat_def = Define`
-  ctrl_sat wc ws ctrl ⇔
-  wfsem wc.ctrl_monitor
-    (vars_to_state
-    (wc.const_names ++ wc.sensor_names ++ wc.ctrlplus_names)
-    (ws.const_vals  ++ ws.sensor_vals  ++ ctrl)) = SOME T`
-
 val actuate_spec = Q.store_thm("actuate_spec",`
   LIST_TYPE WORD32 ctrl_vals ctrlv ∧
   STRING_TYPE strng strngv ∧
   LENGTH ctrl_vals = LENGTH w.wc.ctrl_names ∧
-  (*ctrl_sat w.wc w.ws ctrl_vals ∧*)
   wf_config w.wc ∧
   w.wo.step_oracle 0
-  (*∧
-  ¬w.wo.step_oracle n ∧
-  good_ctrl_trace w.wc w.tr*)
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "actuate" bot_st) [strngv;ctrlv]
    (IOBOT w )
@@ -318,7 +308,6 @@ val actuate_spec = Q.store_thm("actuate_spec",`
    (POSTv uv. &(UNIT_TYPE () uv) *
    SEP_EXISTS w'. IOBOT w'  *
    &(
-    (*good_ctrl_trace w'.wc w'.tr ∧*)
     w'.tr = SNOC (w.ws,ctrl_vals) w.tr ∧
     w.wc = w'.wc ∧
     w.ws.const_vals = w'.ws.const_vals ∧
@@ -355,30 +344,55 @@ val actuate_spec = Q.store_thm("actuate_spec",`
   At this point, we have enough to specify our 1-shot controller.
 *)
 
+val get_default_def = Define`
+  get_default wc ws defs =
+  let names = wc.const_names ++ wc.sensor_names in
+  let vals  = ws.const_vals  ++ ws.sensor_vals in
+    lookup_defaults (ZIP (names,vals)) defs`
+
+(* The control choice is good w.r.t. to a mach state *)
+val ctrl_sat_def = Define`
+  ctrl_sat wc ws ctrl ⇔
+  wfsem wc.ctrl_monitor
+    (vars_to_state
+    (wc.const_names ++ wc.sensor_names ++ wc.ctrlplus_names ++ wc.ctrlfixed_names)
+    (ws.const_vals  ++ ws.sensor_vals  ++ ctrl              ++ get_default wc ws wc.ctrlfixed_rhs)) = SOME T`
+
 (* First we define what we means for a default controller to make sense with respect
    to a world w
    When looked up, its output satisfies the controller monitor
 *)
 val good_default_1shot_def = Define`
   good_default_1shot w ⇔
-  let names = w.wc.const_names ++ w.wc.sensor_names in
-  let vals = w.ws.const_vals   ++ w.ws.sensor_vals in
-  (let def_ctrl = lookup_defaults (REVERSE (ZIP (names,vals))) w.wc.default in
-  LENGTH def_ctrl = LENGTH w.wc.ctrl_names ∧
-  ctrl_sat w.wc w.ws def_ctrl)`
+  ctrl_sat w.wc w.ws (get_default w.wc w.ws w.wc.default)`
+
+val LENGTH_lookup_defaults = Q.prove(`
+  ∀def ls.
+  EVERY (λd. case d of INR x => MEM x (MAP FST ls) | _ => T) def ==>
+  LENGTH (lookup_defaults ls def) = LENGTH def`,
+  Induct>>fs[lookup_defaults_def,lookup_defaults_aux_def]>>
+  Cases>>fs[lookup_defaults_aux_def,MEM_MAP]>>
+  fs[EXISTS_PROD]>>rw[]>>
+  TOP_CASE_TAC>>
+  fs[ALOOKUP_NONE,MEM_MAP,FORALL_PROD]);
 
 val good_default_1shot_IMP = Q.prove(`
   ∀ls w.
   good_default_1shot w ∧
+  wf_config w.wc ∧
+  wf_mach w ∧
   LENGTH ls = LENGTH w.wc.ctrl_names ==>
   let r = SND (ctrl_monitor w.wc.ctrl_monitor
                w.wc.const_names w.wc.sensor_names w.wc.ctrlplus_names
                w.ws.const_vals w.ws.sensor_vals ls
-               w.wc.default) in
+               w.wc.ctrlfixed_names w.wc.ctrlfixed_rhs w.wc.default) in
   ctrl_sat w.wc w.ws r ∧
   LENGTH r = LENGTH w.wc.ctrl_names`,
   rw[ctrl_monitor_def,ctrl_sat_def,wfsem_bi_val_def,good_default_1shot_def]>>
-  EVERY_CASE_TAC>>fs[]);
+  EVERY_CASE_TAC>>fs[get_default_def]>>
+  fs[wf_config_def,wf_mach_def]>>
+  match_mp_tac LENGTH_lookup_defaults>>
+  fs[MAP_ZIP,LENGTH_APPEND]);
 
 val comp_eq = [mach_component_equality,
                mach_config_component_equality,
@@ -392,13 +406,15 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
     LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
+    LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+    LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
     LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.default defaultv ∧
     good_default_1shot w ∧
     wf_config w.wc ∧
     w.wo.step_oracle 0
     ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_1shot" bot_st)
-      [fv;const_namesv;sensor_namesv;ctrlplus_namesv;defaultv]
+      [fv;const_namesv;sensor_namesv;ctrlplus_namesv;ctrlfixed_namesv;ctrlfixed_rhsv;defaultv]
     (IOBOT w)
     (POSTv uv.  &(UNIT_TYPE () uv) *
       SEP_EXISTS w' ctrl_vals.
@@ -410,6 +426,7 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
         w'.tr = SNOC (w.ws,ctrl_vals) w.tr ∧
         ctrl_sat w.wc w.ws ctrl_vals))`,
   rw[]>>
+  reverse (Cases_on`wf_mach w`) >- (simp[IOBOT_def]>>xpull)>>
   xcf "ctrl_monitor_1shot" bot_st>>
   fs[wf_config_def]>>
   rpt(xlet_auto>- (xsimpl>>metis_tac[]))>>
@@ -417,7 +434,7 @@ val ctrl_monitor_1shot_spec = Q.store_thm("ctrl_monitor_1shot_spec",`
   fs[]>>
   drule good_default_1shot_IMP>>
   disch_then (qspec_then`vv` assume_tac)>>
-  rfs[]>>
+  rfs[wf_config_def]>>
   qmatch_asmsub_abbrev_tac`PAIR_TYPE _ _ fls _`>>
   Cases_on`fls`>> fs[ml_translatorTheory.PAIR_TYPE_def]>>
   xmatch>>
@@ -466,19 +483,21 @@ val good_mach_def = Define`
 val good_default_IMP = Q.store_thm("good_default_IMP",`
   ∀ls.
   good_mach w ∧
+  wf_config w.wc ∧
   wf_mach w ∧
   LENGTH ls = LENGTH w.wc.ctrl_names ==>
   let r = SND (ctrl_monitor w.wc.ctrl_monitor
                w.wc.const_names w.wc.sensor_names w.wc.ctrlplus_names
                w.ws.const_vals w.ws.sensor_vals ls
-               w.wc.default) in
+               w.wc.ctrlfixed_names w.wc.ctrlfixed_rhs w.wc.default) in
   ctrl_sat w.wc w.ws r ∧
   LENGTH r = LENGTH w.wc.ctrl_names`,
   fs[good_mach_def]>>rpt strip_tac>>fs[good_default_def,good_default_1shot_def]>>
   first_x_assum(qspec_then `w.ws.sensor_vals` assume_tac)>>
   rfs[ctrl_sat_def,wfsem_bi_val_def,ctrl_monitor_def,wf_mach_def]>>
-  fs[]>>
-  EVERY_CASE_TAC>>fs[]);
+  EVERY_CASE_TAC>>fs[get_default_def,wf_config_def]>>
+  match_mp_tac LENGTH_lookup_defaults>>
+  fs[MAP_ZIP,LENGTH_APPEND]);
 
 val has_next_spec = Q.store_thm("has_next_spec",`
     UNIT_TYPE u uv
@@ -532,6 +551,8 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
     LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
+    LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+    LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
     LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.default defaultv ∧
     LIST_TYPE WORD32 w.ws.const_vals const_valsv ∧
     LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv ∧
@@ -539,7 +560,9 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
     eventually ($~) w.wo.step_oracle
     ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_loop_body" bot_st)
-      [fv;const_namesv;sensor_namesv;ctrlplus_namesv;defaultv;const_valsv;sensor_valsv]
+      [fv;const_namesv;sensor_namesv;ctrlplus_namesv;
+       ctrlfixed_namesv;ctrlfixed_rhsv;defaultv;
+       const_valsv;sensor_valsv]
     (IOBOT w * &good_mach w)
     (POSTv uv.  &(UNIT_TYPE () uv) *
     SEP_EXISTS w'. IOBOT w' *
@@ -569,7 +592,7 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
   drule good_default_IMP>>
   simp[]>>
   disch_then(qspec_then`vv` mp_tac)>>
-  impl_tac>- fs[]>>
+  impl_tac>- fs[wf_config_def]>>
   strip_tac>>
   qpat_x_assum`(q,r) = _` (assume_tac o SYM)>>fs[]>>
   drule (GEN_ALL actuate_spec)>>simp[]>>
@@ -651,6 +674,8 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+  LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
   LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.default defaultv ∧
   eventually ($~) w.wo.step_oracle ∧
   good_default w ∧
@@ -658,7 +683,8 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   good_ctrl_trace w.wc w.tr
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "ctrl_monitor_loop" bot_st)
-    [initv;fv;const_namesv;sensor_namesv;ctrlplus_namesv;defaultv]
+    [initv;fv;const_namesv;sensor_namesv;ctrlplus_namesv;
+     ctrlfixed_namesv;ctrlfixed_rhsv; defaultv]
   (IOBOT w)
   (POSTv uv.  &(UNIT_TYPE () uv) *
     SEP_EXISTS w'. IOBOT w' *
@@ -732,6 +758,8 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
     LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.sensorplus_names sensorplus_namesv ∧
+    LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+    LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
     LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.default defaultv ∧
     LIST_TYPE WORD32 w.ws.const_vals const_valsv ∧
     LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv ∧
@@ -740,7 +768,8 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
     ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop_body" bot_st)
       [plantfv;ctrlfv;
-      const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;defaultv;
+      const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;
+      ctrlfixed_namesv; ctrlfixed_rhsv; defaultv;
       const_valsv;sensor_valsv]
     (IOBOT w * &(good_mach w ∧ good_plant_trace T w.wc w.tr w.ws) )
     (POSTv uv.  &(UNIT_TYPE () uv) *
@@ -772,7 +801,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
   drule good_default_IMP>>
   simp[]>>
   disch_then(qspec_then`vv` mp_tac)>>
-  impl_tac>- fs[]>>
+  impl_tac>- fs[wf_config_def]>>
   strip_tac>>
   qpat_x_assum`(q,r) = _` (assume_tac o SYM)>>fs[]>>
   drule (GEN_ALL actuate_spec)>>simp[]>>
@@ -848,6 +877,8 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.sensorplus_names sensorplus_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+  LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
   LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.default defaultv ∧
   wf_config w.wc ∧
   eventually ($~) w.wo.step_oracle ∧
@@ -857,7 +888,7 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   good_plant_trace T w.wc w.tr w.ws
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
-    [iv;plantfv;ctrlfv;const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;defaultv]
+    [iv;plantfv;ctrlfv;const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;ctrlfixed_namesv;ctrlfixed_rhsv;defaultv]
   (IOBOT w)
   (POSTv uv. &(UNIT_TYPE () uv) * SEP_EXISTS w'. IOBOT w' *
     &(
