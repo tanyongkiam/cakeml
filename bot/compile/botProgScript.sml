@@ -4,6 +4,17 @@ open basisFunctionsLib
 open cfTacticsLib cfLetAutoLib semanticsLib
 open cfHeapsBaseTheory
 
+fun bring_fwd_ctors ty =
+  TypeBase.constructors_of ty
+  |> map (fn cn =>
+    let val {Thy,Name,...} = dest_thy_const cn in
+      Parse.bring_to_front_overload Name {Name=Name,Thy=Thy}
+    end)
+
+val _ = bring_fwd_ctors ``:MonitorProg$trm``
+val _ = bring_fwd_ctors ``:MonitorProg$fml``
+val _ = bring_fwd_ctors ``:MonitorProg$hp``
+
 (* This is the final step that produces a monitor
   Here, we concretely instantiate the monitors with
   formulas from an input file *)
@@ -131,18 +142,18 @@ val parse_hp_def = Define`
   case parse_header hp of
     NONE => NONE
   | SOME (consts,sensors,init,hp) =>
-  case hp of
+  (case hp of
     Loop hp =>
       (case parse_loop1 hp of
       NONE => NONE
       | SOME (ctrl,ctrlplus,default,ctrlmon,hp) =>
-      case parse_loop2 hp of
+      (case parse_loop2 hp of
       NONE => NONE
       | SOME (ss,sensorplus,plantmon)=>
         if ss = sensors then
           SOME(consts,sensors,sensorplus,ctrl,ctrlplus,default,init,ctrlmon,plantmon)
-        else NONE)
-    | _ => NONE
+        else NONE))
+    | _ => NONE)
   | _=> NONE`
 
 (* Sanity Checks
@@ -202,8 +213,9 @@ fun read_configuration config_filename  =
     end
   end;
 
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,default,init_fml,ctrl_fml,plant_fml)
-  = read_configuration "monitor_config.txt"
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,default,init_fml,ctrl_fml,plant_fml) = read_configuration "sandbox.txt"
+
+``(Seq (Seq (Assign ("V") NONE) (Assign ("ep") NONE)) (Seq (Seq (Assign ("d") NONE) (Assign ("t") NONE)) (Seq (Test (And (Leq (Const 0w) (Var "d")) (And (Equals (Var "v") (Const 0w)) (And (Equals (Var "t") (Const 0w)) (And (Leq (Const 0w) (Var "V")) (Leq (Const 0w) (Var "ep"))))))) (Loop (Seq (Seq (Assign ( "tpost") NONE) (Assign ( "vpost") NONE)) (Seq (Choice (Seq (Test (Or (And (Leq (Times (Var "V") (Var "ep")) (Var "d")) (And (And (Leq (Const 0w) (Var "vpost")) (Leq (Var "vpost") (Var "V"))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (Equals (Var "tpost") (Const 0w)))))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (And (Equals (Var "tpost") (Const 0w)) (Equals (Var "vpost") (Const 0w))))))) (Seq (Assign ( "t") (SOME (Var "tpost"))) (Assign ( "v") (SOME (Var "vpost"))))) (Seq (Test (Not (Or (And (Leq (Times (Var "V") (Var "ep")) (Var "d")) (And (And (Leq (Const 0w) (Var "vpost")) (Leq (Var "vpost") (Var "V"))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (Equals (Var "tpost") (Const 0w)))))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (And (Equals (Var "tpost") (Const 0w)) (Equals (Var "vpost") (Const 0w)))))))) (Seq (Assign ( "t") (SOME (Const 0w))) (Assign ( "v") (SOME (Const 0w)))))) (Seq (Seq (Assign ( "dpost") NONE) (Assign ( "tpost") NONE)) (Seq (Test (And (Leq (Const 0w) (Var "tpost")) (And (Leq (Times (Var "v") (Plus (Var "ep") (Times (Const (-1w)) (Var "tpost")))) (Var "dpost")) (Leq (Var "tpost") (Var "ep"))))) (Seq (Assign ( "d") (SOME (Var "dpost"))) (Assign ( "t") (SOME (Var "tpost"))))))))))))``
 
 (* Define constant names for each of the required terms *)
 val const_vars_def = Define`
