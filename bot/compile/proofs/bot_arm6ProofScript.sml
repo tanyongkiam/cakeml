@@ -2,7 +2,7 @@ open preamble
      semanticsPropsTheory backendProofTheory arm6_configProofTheory
      botProgTheory bot_arm6CompileTheory
 
-val _ = new_theory"botProof";
+val _ = new_theory"bot_arm6Proof";
 
 val bot_io_events_def = new_specification("bot_io_events_def",["bot_io_events"],
   bot_semantics_thm |> Q.GENL[`w`]

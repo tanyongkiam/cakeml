@@ -106,18 +106,25 @@ val parse_choice_def = Define`
 
 (* Parse the first part of the sandboxing loop
   {Ctrl+:=*}
+  {CtrlFixed:=*}
   {?...} U {? ...}
 *)
 val parse_loop1_def = Define`
-  (parse_loop1 (Seq c (Seq (ctrlmonchoice) rest)) =
+  (parse_loop1 (Seq c (Seq c2 (Seq (ctrlmonchoice) rest))) =
   case parse_names c of
      NONE => NONE
   |  SOME ctrlplus =>
+  case parse_namevals c2 of
+     NONE => NONE
+  |  SOME ctrlfixed =>
+  case parse_default (MAP SND ctrlfixed) of
+     NONE => NONE
+  |  SOME ctrlfixed_rhs =>
   case parse_choice ctrlmonchoice of
      NONE => NONE
   |  SOME (ctrl,cplus,default,ctrlmon) =>
     if MAP Var ctrlplus = cplus then
-      SOME(ctrl,ctrlplus,default,ctrlmon,rest)
+      SOME(ctrl,ctrlplus,MAP FST ctrlfixed,ctrlfixed_rhs,default,ctrlmon,rest)
     else NONE) ∧
   (parse_loop1 _ = NONE)`
 
@@ -135,6 +142,29 @@ val parse_loop2_def = Define`
   else NONE) ∧
   (parse_loop2 _ = NONE)`
 
+(* More sanity checks on the input *)
+val fv_trm_def = Define`
+  (fv_trm (Const _) = []) ∧
+  (fv_trm (Var x) = [x]) ∧
+  (fv_trm (Plus t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_trm (Times t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_trm (Max t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_trm (Min t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_trm (Neg t) = fv_trm t)`
+
+val fv_fml_def = Define`
+  (fv_fml (Le t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_fml (Leq t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_fml (Equals t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
+  (fv_fml (And f1 f2) = fv_fml f1 ++ fv_fml f2) ∧
+  (fv_fml (Or f1 f2) = fv_fml f1 ++ fv_fml f2) ∧
+  (fv_fml (Not f) = fv_fml f)`
+
+val fv_ls_def = Define`
+  (fv_ls [] = []) ∧
+  (fv_ls (INR v :: xs) = v :: fv_ls xs) ∧
+  (fv_ls (INL _ :: xs) = fv_ls xs)`
+
 (* The sandbox pattern *)
 val parse_hp_def = Define`
   parse_hp hp =
@@ -146,15 +176,22 @@ val parse_hp_def = Define`
     Loop hp =>
       (case parse_loop1 hp of
       NONE => NONE
-      | SOME (ctrl,ctrlplus,default,ctrlmon,hp) =>
+      | SOME (ctrl,ctrlplus,ctrlfixed,ctrlfixedrhs,default,ctrlmon,hp) =>
       (case parse_loop2 hp of
       NONE => NONE
       | SOME (ss,sensorplus,plantmon)=>
         if ss = sensors then
-          SOME(consts,sensors,sensorplus,ctrl,ctrlplus,default,init,ctrlmon,plantmon)
+          if EVERY (λx. MEM x (consts++sensors)) (fv_fml init) ∧
+             EVERY (λx. MEM x (consts++sensors++ctrlplus++ctrlfixed)) (fv_fml ctrlmon) ∧
+             EVERY (λx. MEM x (consts++sensors++ctrl++sensorplus)) (fv_fml plantmon) ∧
+             EVERY (λx. MEM x (consts++sensors)) (fv_ls default) ∧
+             EVERY (λx. MEM x (consts++sensors)) (fv_ls ctrlfixedrhs)
+          then
+            SOME(consts,sensors,sensorplus,ctrl,ctrlplus,ctrlfixed,ctrlfixedrhs,default,init,ctrlmon,plantmon)
+          else
+            NONE
         else NONE))
-    | _ => NONE)
-  | _=> NONE`
+    | _ => NONE)`
 
 (* Sanity Checks
 EVAL ``parse_choice
@@ -163,10 +200,11 @@ EVAL ``parse_choice
 
 EVAL ``parse_loop1
   (Seq (Assign "ctrlplus1" NONE)
+  (Seq (Assign "ctrlfixed1" (SOME (Const 0w)))
   (Seq
   (Choice (Seq (Test cmon) (Assign "ctrl1" (SOME (Var "ctrlplus1"))))
           (Seq (Test (Not(cmon))) (Assign "ctrl1" (SOME (Const 0w)))))
-  foo))``
+  foo)))``
 
 EVAL ``parse_loop2
   (Seq (Assign "sensorplus1" NONE)
@@ -191,8 +229,8 @@ fun check_hp_type trm =
     raise ERR "" ("term is not a HP: "^ term_to_string trm)
   else ();
 
-fun split9 [i1,i2,i3,i4,i5,i6,i7,i8,i9] = (i1,i2,i3,i4,i5,i6,i7,i8,i9)
-  | split9 _ = raise ERR "" "too many terms in list"
+fun split11 [i1,i2,i3,i4,i5,i6,i7,i8,i9,i10,i11] = (i1,i2,i3,i4,i5,i6,i7,i8,i9,i10,i11)
+  | split11 _ = raise ERR "" "incorrect number of terms in list"
 
 fun read_configuration config_filename  =
   let val config_file = TextIO.openIn config_filename;
@@ -207,15 +245,13 @@ fun read_configuration config_filename  =
     in
       if optionLib.is_some opt
       then
-        split9 (pairSyntax.strip_pair (optionLib.dest_some opt))
+        split11 (pairSyntax.strip_pair (optionLib.dest_some opt))
       else
         raise ERR "read_config" ("Input HP is not of expected shape: "^(term_to_string trm))
     end
   end;
 
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,default,init_fml,ctrl_fml,plant_fml) = read_configuration "sandbox.txt"
-
-``(Seq (Seq (Assign ("V") NONE) (Assign ("ep") NONE)) (Seq (Seq (Assign ("d") NONE) (Assign ("t") NONE)) (Seq (Test (And (Leq (Const 0w) (Var "d")) (And (Equals (Var "v") (Const 0w)) (And (Equals (Var "t") (Const 0w)) (And (Leq (Const 0w) (Var "V")) (Leq (Const 0w) (Var "ep"))))))) (Loop (Seq (Seq (Assign ( "tpost") NONE) (Assign ( "vpost") NONE)) (Seq (Choice (Seq (Test (Or (And (Leq (Times (Var "V") (Var "ep")) (Var "d")) (And (And (Leq (Const 0w) (Var "vpost")) (Leq (Var "vpost") (Var "V"))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (Equals (Var "tpost") (Const 0w)))))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (And (Equals (Var "tpost") (Const 0w)) (Equals (Var "vpost") (Const 0w))))))) (Seq (Assign ( "t") (SOME (Var "tpost"))) (Assign ( "v") (SOME (Var "vpost"))))) (Seq (Test (Not (Or (And (Leq (Times (Var "V") (Var "ep")) (Var "d")) (And (And (Leq (Const 0w) (Var "vpost")) (Leq (Var "vpost") (Var "V"))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (Equals (Var "tpost") (Const 0w)))))) (And (Leq (Const 0w) (Var "ep")) (And (Equals (Var "dpost") (Var "d")) (And (Equals (Var "tpost") (Const 0w)) (Equals (Var "vpost") (Const 0w)))))))) (Seq (Assign ( "t") (SOME (Const 0w))) (Assign ( "v") (SOME (Const 0w)))))) (Seq (Seq (Assign ( "dpost") NONE) (Assign ( "tpost") NONE)) (Seq (Test (And (Leq (Const 0w) (Var "tpost")) (And (Leq (Times (Var "v") (Plus (Var "ep") (Times (Const (-1w)) (Var "tpost")))) (Var "dpost")) (Leq (Var "tpost") (Var "ep"))))) (Seq (Assign ( "d") (SOME (Var "dpost"))) (Assign ( "t") (SOME (Var "tpost"))))))))))))``
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.txt"
 
 (* Define constant names for each of the required terms *)
 val const_vars_def = Define`
@@ -228,6 +264,10 @@ val ctrl_vars_def = Define`
   ctrl_vars = ^ctrl_vars`
 val ctrlplus_vars_def = Define`
   ctrlplus_vars = ^ctrlplus_vars`
+val ctrlfixed_vars_def = Define`
+  ctrlfixed_vars = ^ctrlfixed_vars`
+val ctrlfixed_rhs_def = Define`
+  ctrlfixed_rhs = ^ctrlfixed_rhs`
 
 val init_fml_def = Define`
   init_fml = ^init_fml`
@@ -247,6 +287,8 @@ val cml_sensor_th = translate sensor_vars_def;
 val cml_sensorplus_th = translate sensorplus_vars_def;
 val cml_ctrl_th = translate ctrl_vars_def;
 val cml_ctrlplus_th = translate ctrlplus_vars_def;
+val cml_ctrlfixed_th = translate ctrlfixed_vars_def;
+val cml_ctrlfixed_rhs_th = translate ctrlfixed_rhs_def;
 
 val cml_init_fml_th = translate init_fml_def;
 val cml_ctrl_fml_th = translate ctrl_fml_def;
@@ -257,13 +299,13 @@ val cml_default_th = translate default_def;
 (* Finally, we define the top-level call *)
 val bot_main = process_topdecs`
   fun bot_main u =
-    monitor_loop init_fml plant_fml ctrl_fml const_vars sensor_vars ctrlplus_vars ctrl_vars sensorplus_vars default`
+    monitor_loop init_fml plant_fml ctrl_fml const_vars sensor_vars ctrlplus_vars ctrl_vars sensorplus_vars ctrlfixed_vars ctrlfixed_rhs default`
 
 val _ = append_prog bot_main;
 
 val st = get_ml_prog_state();
 
-val trans_th = [cml_const_th,cml_sensor_th,cml_sensorplus_th,cml_ctrl_th,cml_ctrlplus_th,cml_init_fml_th,cml_ctrl_fml_th,cml_plant_fml_th,cml_default_th]
+val trans_th = [cml_const_th,cml_sensor_th,cml_sensorplus_th,cml_ctrl_th,cml_ctrlplus_th,cml_init_fml_th,cml_ctrl_fml_th,cml_plant_fml_th,cml_ctrlfixed_th,cml_ctrlfixed_rhs_th,cml_default_th]
 
 val comp_eq = [mach_component_equality,
               mach_config_component_equality,
@@ -281,6 +323,8 @@ val init_wc_def = Define`
       init             := init_fml;
       ctrl_monitor     := ctrl_fml;
       plant_monitor    := plant_fml;
+      ctrlfixed_names  := ctrlfixed_vars;
+      ctrlfixed_rhs    := ctrlfixed_rhs;
       default          := default;
   |>`
 
@@ -370,11 +414,11 @@ val SPLIT_SING = prove(
 val SPLIT_th = Q.prove(`
   wf_mach w ⇒
   (∃h1 h2.
-      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_8 (bot_ffi w)))
+      SPLIT (st2heap (bot_proj1,bot_proj2) (auto_state_10 (bot_ffi w)))
         (h1,h2) ∧ IOBOT w h1)`,
   fs [IOBOT_def,SEP_CLAUSES,IOx_def,bot_ffi_part_def,
       IO_def,SEP_EXISTS_THM,PULL_EXISTS,one_def] >>
-  rw[]>>simp[fetch "-""auto_state_8_def",cfStoreTheory.st2heap_def]>>
+  rw[]>>simp[fetch "-""auto_state_10_def",cfStoreTheory.st2heap_def]>>
   fs [SPLIT_SING,cfAppTheory.FFI_part_NOT_IN_store2heap]
   \\ rw [cfStoreTheory.ffi2heap_def] \\ EVAL_TAC
   \\ fs [parts_ok_bot_ffi]);
