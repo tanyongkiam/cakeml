@@ -24,7 +24,7 @@ val _ = new_theory "botProg"
 val _ = translation_extends "MonitorProg";
 
 (*"*)
-(* Helper functions *)
+(* Helper functions for parsing the input sandbox *)
 
 (* Parses a sequence of (non-det) assignments to a list of names *)
 val parse_names_def = Define`
@@ -251,7 +251,175 @@ fun read_configuration config_filename  =
     end
   end;
 
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.txt"
+(* Helper functions for printing the C template *)
+val header_lines =
+  ["#include <csetjmp>",
+  "#include <stdint.h>",
+  "#include <assert.h>",
+  "#include <string.h>",
+  "",
+  "// For calling to/from CakeML",
+  "extern \"C\" int cml_main(int argc, char **argv);",
+  "extern \"C\" void cml_exit(void);",
+  "std::jmp_buf env;",
+  "",
+  "// Expose FFIs to CakeML",
+  "extern \"C\" void ffiget_const (int32_t *c, long clen, int32_t *a, long alen);",
+  "extern \"C\" void ffiget_sensor(int32_t *c, long clen, int32_t *a, long alen);",
+  "extern \"C\" void ffiget_ctrl (int32_t *c, long clen, int32_t *a, long alen);",
+  "extern \"C\" void ffiactuate(char *c, long clen, int32_t *a, long alen);",
+  "extern \"C\" void ffihas_next(int32_t *c, long clen, int8_t *a, long alen);",
+  "extern \"C\" void ffiviolation(char *c, long clen, int32_t *a, long alen);"];
+
+fun arr_set_lines arr_name [] index = []
+  | arr_set_lines arr_name (v::vs) index =
+    ("  "^arr_name^"["^Int.toString index^"] = "^v^";")::
+    arr_set_lines arr_name vs (index+1);
+
+fun arr_get_lines arr_name [] index = []
+  | arr_get_lines arr_name (v::vs) index =
+    ("  int32_t "^v^" = "^arr_name^"["^Int.toString index^"];")::
+    arr_get_lines arr_name vs (index+1);
+
+fun const_lines consts =
+  ["void ffiget_const (int32_t *c, long clen, int32_t *a, long alen) {",
+  "  assert(clen == 0);",
+  "  assert(alen == "^Int.toString (List.length consts)^" * 4);",
+  "",
+  " /*",
+  "  * Insert code for computing the constants here",
+  "  */",
+  "",
+  "  // Set the values of constants"] @
+  arr_set_lines "a" consts 0 @
+  ["}"];
+
+fun sensor_lines sensors =
+  ["void ffiget_sensor(int32_t *c, long clen, int32_t *a, long alen) {",
+  "  assert(clen == 0);",
+  "  assert(alen == "^Int.toString (List.length sensors)^" * 4);",
+  "",
+  " /*",
+  "  * Insert code for computing the current sensor values here",
+  "  */",
+  "",
+  "  // Set the current sensor values"] @
+  arr_set_lines "a" sensors 0 @
+  ["}"];
+
+fun ctrl_lines consts sensors ctrls =
+  ["void ffiget_ctrl(int32_t *c, long clen, int32_t *a, long alen) {",
+  "  assert(clen == "^Int.toString (List.length consts + List.length sensors) ^" * 4);",
+  "  assert(alen == "^Int.toString (List.length ctrls)^" * 4);",
+  "",
+  "  // the constants"] @
+  arr_get_lines "c" consts 0 @
+  ["  // the current sensor values"] @
+  arr_get_lines "c" sensors (List.length consts) @
+  ["",
+  " /*",
+  "  * Insert code for computing the (unverified) control values here",
+  "  */",
+  "",
+  "  // Set the control values"] @
+  arr_set_lines "a" ctrls 0 @
+  ["}"];
+
+fun actuate_lines ctrls =
+  ["void ffiactuate(char *c, long clen, int32_t *a, long alen) {",
+  "  assert(alen == 2 * 4);",
+  "",
+  "  const char* how = (const char *)c; // distinguish between normal OK and fallback",
+  "  if (strncmp(how,\"OK\",clen) == 0) {",
+  "    // Control monitor OK",
+  "  } else if (strncmp(how,\"Control Violation\",clen) == 0) {",
+  "    // Control monitor violated",
+  "  } else {",
+  "    // Unknown string -- should never occur",
+  "    assert(false);",
+  "  }",
+  "",
+  "  // the actuation values"] @
+  arr_get_lines "a" ctrls 0 @
+  ["",
+  " /*",
+  "  * Insert code for actuating the controls",
+  "  */",
+  "}"];
+
+val end_lines =
+  ["void ffihas_next(int32_t *c, long clen, int8_t *a, long alen) {",
+  "  assert(clen == 0);",
+  "  assert(alen == 1);",
+  "",
+  "  bool has_next = true;",
+  "",
+  "  /*",
+  "   * Insert code for deciding whether to continue running here",
+  "   */",
+  "",
+  "  if (has_next)",
+  "    a[0] = 1;",
+  "  else",
+  "    a[0] = 0;",
+  "}",
+  "",
+  "void ffiviolation(char *c, long clen, int32_t *a, long alen) {",
+  "  assert(alen == 0);",
+  "",
+  "  const char* how = (const char *)c; // distinguish between normal OK and fallback",
+  "  if (strncmp(how,\"Init Violation\",clen) == 0) {",
+  "    // Initial conditions violated",
+  "  } else if (strncmp(how,\"Plant Violation\",clen) == 0) {",
+  "    // Plant monitor violated",
+  "  }  else {",
+  "    // Unknown string -- should never occur",
+  "    assert(false);",
+  "  }",
+  "",
+  "  /*",
+  "   * Insert code for handling violation here",
+  "   */",
+  "}",
+  "",
+  "",
+  "void cml_exit(void) {",
+  "  longjmp(env,1);",
+  "}",
+  "",
+  "int main (int argc, char **argv) {",
+  "",
+  "  /*",
+  "   * Insert initialization code here",
+  "   */",
+  "",
+  "  // Passing control to CakeML",
+  "  int sj = 0;",
+  "  sj = setjmp(env);",
+  "  if (sj == 0) {",
+  "    int ret = cml_main(argc,argv);",
+  "    // CakeML return value is stored in ret",
+  "  }",
+  "",
+  "  /*",
+  "   * Insert cleanup code here",
+  "   */",
+  "}"];
+
+fun write_template template_filename const_vars sensor_vars ctrl_vars =
+  let
+    val out_file = TextIO.openOut template_filename;
+    val consts = map stringSyntax.fromHOLstring (#1 (listSyntax.dest_list const_vars))
+    val sensors = map stringSyntax.fromHOLstring (#1 (listSyntax.dest_list sensor_vars))
+    val ctrls = map stringSyntax.fromHOLstring (#1 (listSyntax.dest_list ctrl_vars))
+    val str = String.concatWith "\n" (header_lines @ ""::const_lines consts @ ""::sensor_lines sensors @ ""::ctrl_lines consts sensors ctrls @ ""::actuate_lines ctrls @ ""::end_lines)
+  in
+    TextIO.output(out_file,str); TextIO.flushOut out_file
+  end;
+
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.txt";
+
+val template_str = write_template "bot_ffi.c" const_vars sensor_vars ctrl_vars;
 
 (* Define constant names for each of the required terms *)
 val const_vars_def = Define`
