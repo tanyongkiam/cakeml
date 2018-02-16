@@ -273,12 +273,12 @@ val header_lines =
 
 fun arr_set_lines arr_name [] index = []
   | arr_set_lines arr_name (v::vs) index =
-    ("  "^arr_name^"["^Int.toString index^"] = "^v^";")::
+    ("  "^arr_name^"["^Int.toString index^"] = "^v^"; // sets "^v)::
     arr_set_lines arr_name vs (index+1);
 
 fun arr_get_lines arr_name [] index = []
   | arr_get_lines arr_name (v::vs) index =
-    ("  int32_t "^v^" = "^arr_name^"["^Int.toString index^"];")::
+    ("  int32_t "^v^" = "^arr_name^"["^Int.toString index^"]; // the current "^v)::
     arr_get_lines arr_name vs (index+1);
 
 fun const_lines consts =
@@ -327,8 +327,11 @@ fun ctrl_lines consts sensors ctrls =
 
 fun actuate_lines ctrls =
   ["void ffiactuate(char *c, long clen, int32_t *a, long alen) {",
-  "  assert(alen == 2 * 4);",
+  "  assert(alen == "^Int.toString (List.length ctrls)^" * 4);",
   "",
+  "  // the actuation values"] @
+  arr_get_lines "a" ctrls 0 @
+  ["",
   "  const char* how = (const char *)c; // distinguish between normal OK and fallback",
   "  if (strncmp(how,\"OK\",clen) == 0) {",
   "    // Control monitor OK",
@@ -339,9 +342,6 @@ fun actuate_lines ctrls =
   "    assert(false);",
   "  }",
   "",
-  "  // the actuation values"] @
-  arr_get_lines "a" ctrls 0 @
-  ["",
   " /*",
   "  * Insert code for actuating the controls",
   "  */",

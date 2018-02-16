@@ -25,8 +25,8 @@ void ffiget_const (int32_t *c, long clen, int32_t *a, long alen) {
   */
 
   // Set the values of constants
-  a[0] = V;
-  a[1] = ep;
+  a[0] = V; // sets V
+  a[1] = ep; // sets ep
 }
 
 void ffiget_sensor(int32_t *c, long clen, int32_t *a, long alen) {
@@ -38,8 +38,8 @@ void ffiget_sensor(int32_t *c, long clen, int32_t *a, long alen) {
   */
 
   // Set the current sensor values
-  a[0] = d;
-  a[1] = t;
+  a[0] = d; // sets d
+  a[1] = t; // sets t
 }
 
 void ffiget_ctrl(int32_t *c, long clen, int32_t *a, long alen) {
@@ -47,23 +47,27 @@ void ffiget_ctrl(int32_t *c, long clen, int32_t *a, long alen) {
   assert(alen == 2 * 4);
 
   // the constants
-  int32_t V = c[0];
-  int32_t ep = c[1];
+  int32_t V = c[0]; // the current V
+  int32_t ep = c[1]; // the current ep
   // the current sensor values
-  int32_t d = c[2];
-  int32_t t = c[3];
+  int32_t d = c[2]; // the current d
+  int32_t t = c[3]; // the current t
 
  /*
   * Insert code for computing the (unverified) control values here
   */
 
   // Set the control values
-  a[0] = t;
-  a[1] = v;
+  a[0] = t; // sets t
+  a[1] = v; // sets v
 }
 
 void ffiactuate(char *c, long clen, int32_t *a, long alen) {
   assert(alen == 2 * 4);
+
+  // the actuation values
+  int32_t t = a[0]; // the current t
+  int32_t v = a[1]; // the current v
 
   const char* how = (const char *)c; // distinguish between normal OK and fallback
   if (strncmp(how,"OK",clen) == 0) {
@@ -74,10 +78,6 @@ void ffiactuate(char *c, long clen, int32_t *a, long alen) {
     // Unknown string -- should never occur
     assert(false);
   }
-
-  // the actuation values
-  int32_t t = a[0];
-  int32_t v = a[1];
 
  /*
   * Insert code for actuating the controls
