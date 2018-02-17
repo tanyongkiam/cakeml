@@ -417,7 +417,7 @@ fun write_template template_filename const_vars sensor_vars ctrl_vars =
     TextIO.output(out_file,str); TextIO.flushOut out_file
   end;
 
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.txt";
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.hol";
 
 val template_str = write_template "bot_ffi.c" const_vars sensor_vars ctrl_vars;
 
