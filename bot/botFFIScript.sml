@@ -26,7 +26,7 @@ val _ = Datatype`
     plant_monitor      : fml;
     ctrlfixed_names    : string list;
     ctrlfixed_rhs      : (word32 + string) list;
-    default            : (word32 + string) list
+    default            : trm list
   |>`
 
 val _ = Datatype`
@@ -221,7 +221,7 @@ val decode_encode_fml = new_specification("decode_encode_fml",["decode_fml"],
         qexists_tac `\f. some c. encode_fml c = f` \\ fs [encode_fml_11]));
 val _ = export_rewrites ["decode_encode_fml"];
 
-(* Encode the default list *)
+(* Encode the fixed list *)
 val encode_sum_list_def = Define`
   encode_sum_list = encode_list
     (λs. case s of
@@ -249,7 +249,7 @@ val encode_mach_config_def = Define`
    (Cons (encode_fml wc.plant_monitor)
    (Cons (List (MAP (Str) wc.ctrlfixed_names))
    (Cons (encode_sum_list wc.ctrlfixed_rhs)
-   (encode_sum_list wc.default)
+   (List (MAP encode_trm wc.default))
    )))))))))`
 
 val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
@@ -261,12 +261,17 @@ val MAP_Str_11 = Q.store_thm("MAP_Str_11",`
   rfs[EL_MAP]>>
   metis_tac[]);
 
+val encode_default_11 = Q.prove(`
+  ∀x y.
+  MAP encode_trm x = MAP encode_trm y ⇒ x = y`,
+  Induct>>fs[]>>Cases_on`y`>>fs[encode_trm_11]);
+
 val encode_mach_config_11 = Q.prove(`
   encode_mach_config x = encode_mach_config y ⇔
   x = y`,
   fs[encode_mach_config_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
-  fs[MAP_Str_11,encode_fml_11,encode_sum_list_11]);
+  fs[MAP_Str_11,encode_fml_11,encode_sum_list_11,encode_default_11]);
 
 val encode_word32_list_inner_def = Define`
   encode_word32_list_inner = iList o (MAP (iStr o w2s 2 CHR))`
