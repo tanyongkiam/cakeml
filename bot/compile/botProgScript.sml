@@ -63,26 +63,26 @@ val parse_header_def = Define`
     | _ => NONE) ∧
   (parse_header _ = NONE)`
 
-(* Parses the RHS of defaults *)
-val parse_default_def = Define`
-  (parse_default [] = SOME []) ∧
-  (parse_default (Const w::xs) =
-    case parse_default xs of
+(* Parses the RHS of fixed controls *)
+val parse_fixed_def = Define`
+  (parse_fixed [] = SOME []) ∧
+  (parse_fixed (Const w::xs) =
+    case parse_fixed xs of
       NONE => NONE
     | SOME vs => SOME(INL w :: vs)) ∧
-  (parse_default (Var x::xs) =
-    case parse_default xs of
+  (parse_fixed (Var x::xs) =
+    case parse_fixed xs of
       NONE => NONE
     | SOME vs => SOME(INR x :: vs)) ∧
-  (parse_default _ = NONE)`
+  (parse_fixed _ = NONE)`
 
 (* Parses the controller monitor and default
    We require the pattern
    {?ctrlmon; ctrl := ctrl+}
    U
-   {?~ctrlmon;ctrl := def}
+   {?~ctrlmon;ctrl := defs}
 
-   Returns (c,c+,defaults,ctrlmon)
+  return (ctrl,ctrl+,defs,rest)
 *)
 
 val parse_choice_def = Define`
@@ -95,11 +95,9 @@ val parse_choice_def = Define`
   case parse_namevals def of
     NONE => NONE
   | SOME defs =>
-  (* Sanity checks *)
+  (* Sanity check *)
   if MAP FST ctrls = MAP FST defs then
-    case parse_default (MAP SND defs) of
-      NONE => NONE
-    | SOME defaults => SOME (MAP FST ctrls,MAP SND ctrls,defaults,f)
+    SOME (MAP FST ctrls,MAP SND ctrls,MAP SND defs,f)
   else
     NONE) ∧
   (parse_choice _ = NONE)`
@@ -117,7 +115,7 @@ val parse_loop1_def = Define`
   case parse_namevals c2 of
      NONE => NONE
   |  SOME ctrlfixed =>
-  case parse_default (MAP SND ctrlfixed) of
+  case parse_fixed (MAP SND ctrlfixed) of
      NONE => NONE
   |  SOME ctrlfixed_rhs =>
   case parse_choice ctrlmonchoice of
@@ -184,7 +182,7 @@ val parse_hp_def = Define`
           if EVERY (λx. MEM x (consts++sensors)) (fv_fml init) ∧
              EVERY (λx. MEM x (consts++sensors++ctrlplus++ctrlfixed)) (fv_fml ctrlmon) ∧
              EVERY (λx. MEM x (consts++sensors++ctrl++sensorplus)) (fv_fml plantmon) ∧
-             EVERY (λx. MEM x (consts++sensors)) (fv_ls default) ∧
+             EVERY (λx. MEM x (consts)) (FLAT(MAP fv_trm default)) ∧
              EVERY (λx. MEM x (consts++sensors)) (fv_ls ctrlfixedrhs)
           then
             SOME(consts,sensors,sensorplus,ctrl,ctrlplus,ctrlfixed,ctrlfixedrhs,default,init,ctrlmon,plantmon)
@@ -417,9 +415,16 @@ fun write_template template_filename const_vars sensor_vars ctrl_vars =
     TextIO.output(out_file,str); TextIO.flushOut out_file
   end;
 
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration "sandbox.hol";
+val folder_str =
+  Option.valOf (OS.Process.getEnv "SANDBOX_FOLDER")
+  handle _ => ".";
 
-val template_str = write_template "bot_ffi.c" const_vars sensor_vars ctrl_vars;
+val sandbox_str = "sandbox.hol";
+
+(* Copy the sandbox file into the appropriate folder *)
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration sandbox_str;
+
+val template_str = write_template (folder_str^"/bot_ffi.c") const_vars sensor_vars ctrl_vars;
 
 (* Define constant names for each of the required terms *)
 val const_vars_def = Define`
