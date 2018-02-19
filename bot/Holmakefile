@@ -1,4 +1,4 @@
-INCLUDES = ../characteristic ../basis ../translator ../misc $(HOLDIR)/examples/formal-languages/regular ../semantics ../compiler ../compiler/proofs ../compiler/encoders/x64/proofs ../compiler/encoders/arm6/proofs
+INCLUDES = ../characteristic ../basis ../translator ../misc $(HOLDIR)/examples/formal-languages/regular ../semantics ../compiler ../compiler/proofs ../compiler/encoders/x64/proofs ../compiler/encoders/arm6/proofs ../compiler/backend/x64/proofs ../compiler/backend/arm6/proofs
 
 OPTIONS = QUIT_ON_FAILURE
 
