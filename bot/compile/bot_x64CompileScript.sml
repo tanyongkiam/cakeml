@@ -10,6 +10,6 @@ val folder_str =
   handle _ => ".";
 
 (* Produce .S files *)
-val x64 = save_thm("bot_x64", compile_x64 500 500 (folder_str ^ "bot_x64") bot_prog_def);
+val x64 = save_thm("bot_x64", compile_x64 500 500 (folder_str ^ "/bot_x64") bot_prog_def);
 
 val _ = export_theory();
