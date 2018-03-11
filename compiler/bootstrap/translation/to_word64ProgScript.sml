@@ -145,9 +145,6 @@ val EqualityType_ASM_INST_TYPE = find_equality_type_thm``ASM_INST_TYPE``
 val EqualityType_STACKLANG_STORE_NAME_TYPE = find_equality_type_thm``STACKLANG_STORE_NAME_TYPE``
   |> SIMP_RULE std_ss []
 
-val EqualityType_WORDLANG_NUM_EXP_TYPE = find_equality_type_thm``WORDLANG_NUM_EXP_TYPE``
-  |> SIMP_RULE std_ss [EqualityType_NUM,EqualityType_WORD]
-
 val WORDLANG_EXP_TYPE_def = theorem"WORDLANG_EXP_TYPE_def";
 val WORDLANG_EXP_TYPE_ind = theorem"WORDLANG_EXP_TYPE_ind";
 
@@ -169,8 +166,7 @@ val WORDLANG_EXP_TYPE_no_closures = Q.prove(
             EqualityType_WORD,
             EqualityType_AST_SHIFT_TYPE,
             EqualityType_ASM_BINOP_TYPE,
-            EqualityType_STACKLANG_STORE_NAME_TYPE,
-            EqualityType_WORDLANG_NUM_EXP_TYPE]);
+            EqualityType_STACKLANG_STORE_NAME_TYPE]);
 
 val ctor_same_type_def = semanticPrimitivesTheory.ctor_same_type_def;
 
@@ -196,8 +192,7 @@ val WORDLANG_EXP_TYPE_types_match = Q.prove(
             EqualityType_WORD,
             EqualityType_AST_SHIFT_TYPE,
             EqualityType_ASM_BINOP_TYPE,
-            EqualityType_STACKLANG_STORE_NAME_TYPE,
-            EqualityType_WORDLANG_NUM_EXP_TYPE]);
+            EqualityType_STACKLANG_STORE_NAME_TYPE]);
 
 val WORDLANG_EXP_TYPE_11 = Q.prove(
   `∀a b c d. WORDLANG_EXP_TYPE a b ∧ WORDLANG_EXP_TYPE c d ⇒ (a = c ⇔ b = d)`,
@@ -229,8 +224,7 @@ val WORDLANG_EXP_TYPE_11 = Q.prove(
             EqualityType_WORD,
             EqualityType_AST_SHIFT_TYPE,
             EqualityType_ASM_BINOP_TYPE,
-            EqualityType_STACKLANG_STORE_NAME_TYPE,
-            EqualityType_WORDLANG_NUM_EXP_TYPE])
+            EqualityType_STACKLANG_STORE_NAME_TYPE])
 
 val EqualityType_WORDLANG_EXP_TYPE = Q.prove(
   `EqualityType WORDLANG_EXP_TYPE`,
@@ -531,8 +525,6 @@ val _ = translate (wordLangTheory.word_sh_def
   |> INST_TYPE [``:'a``|->``:64``]
   |> REWRITE_RULE [miscTheory.word_ror_eq_any_word64_ror]
   |> RW[shift_left_rwt,shift_right_rwt,arith_shift_right_rwt] |> conv64)
-
-val _ = translate (wordLangTheory.num_exp_def |> conv64)
 
 val _ = translate (asmTheory.word_cmp_def |> REWRITE_RULE[WORD_LO,WORD_LT] |> spec64 |> REWRITE_RULE[word_msb_rw])
 
