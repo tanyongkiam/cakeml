@@ -385,7 +385,7 @@ val _ = append_prog get_sensor;
 (* Read the controls *)
 val get_ctrl = process_topdecs`
   fun get_ctrl ctrl_names const_ls sensor_ls =
-  let val csarr = pack_w32_list (List.append const_ls sensor_ls)
+  let val csarr = pack_w32_list (const_ls @ sensor_ls)
       val param_str = to_string csarr
       val ctrl_vals = Word8Array.array (4 * List.length ctrl_names) (Word8.fromInt 0)
       val u = #(get_ctrl) param_str ctrl_vals
@@ -522,8 +522,8 @@ val ctrl_monitor_loop = process_topdecs`
   let val const_ls = get_const const_names
       val default_ls = evaluate_default const_names const_ls default
       val sensor_ls = get_sensor sensor_names
-      val names_ls = List.append const_names sensor_names
-      val st_ls = List.append const_ls sensor_ls
+      val names_ls = const_names @ sensor_names
+      val st_ls = const_ls @ sensor_ls
   in
     if
       wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
@@ -594,8 +594,8 @@ val monitor_loop = process_topdecs`
   let val const_ls = get_const const_names
       val default_ls = evaluate_default const_names const_ls default
       val sensor_ls = get_sensor sensor_names
-      val names_ls = List.append const_names sensor_names
-      val st_ls = List.append const_ls sensor_ls
+      val names_ls = const_names @ sensor_names
+      val st_ls = const_ls @ sensor_ls
   in
     if
       wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
