@@ -1,11 +1,647 @@
 open preamble ml_progLib ml_translatorLib
      basisFunctionsLib
      cfTacticsLib cfLetAutoLib
-     MonitorProgTheory botFFITheory
+     intervalArithTheory MonitorProgTheory botFFITheory
      Word8ArrayProofTheory
 open cfHeapsBaseTheory blastLib ml_translatorTheory
 
 val _ = new_theory"MonitorProof";
+
+(*"*)
+(*
+  A functional spec for successful sandbox loop body transition
+  with respect to a given list of default arguments
+  (The ctrl monitor decides between the two, and the plant monitor succeeds)
+*)
+
+(* prevent automatic rewrite *)
+val hide_def = Define`
+  hide f p r <=> if f then p else r`
+
+val body_step_def = Define`
+  body_step flg defaults w w' <=>
+  ∃ctrlplus_ls.
+  LENGTH ctrlplus_ls = LENGTH w.wc.ctrlplus_names ∧
+  let ctrl = SND
+     (ctrl_monitor w.wc.ctrl_monitor
+     w.wc.const_names w.wc.sensor_names w.wc.ctrlplus_names
+     w.ws.const_vals w.ws.sensor_vals ctrlplus_ls
+     w.wc.ctrlfixed_names w.wc.ctrlfixed_rhs defaults) in
+  let plant =
+     (plant_monitor w.wc.plant_monitor
+     w.wc.const_names w.wc.sensor_names w.wc.ctrl_names w.wc.sensorplus_names
+     w.ws.const_vals w.ws.sensor_vals ctrl w'.ws.sensor_vals) in
+ hide flg plant ~plant ∧
+ ffi_actuate [] (w32_to_w8 ctrl) w = SOME(w32_to_w8 ctrl, w')`
+
+val body_sandbox_def = Define`
+  body_sandbox flg wc =
+   Seq (AssignAnyPar wc.ctrlplus_names)
+  (Seq (AssignVarPar wc.ctrlfixed_names wc.ctrlfixed_rhs)
+  (Seq (Choice (Test wc.ctrl_monitor) (AssignPar wc.ctrlplus_names wc.default))
+  (Seq (AssignVarPar wc.ctrl_names wc.ctrlplus_names)
+  (
+    Seq (AssignAnyPar wc.sensorplus_names)
+    (hide flg
+      (Seq (Test wc.plant_monitor)
+           (AssignVarPar wc.sensor_names wc.sensorplus_names))
+      Skip)
+  ))))`
+
+(*
+  The state relation between an FFI state and a HP state
+  - maps point FFI state to a point interval
+*)
+val state_agree_def = Define`
+  state_agree hp_w n v ⇔ ALOOKUP hp_w n = SOME (v,v)`
+
+val state_rel_def = Define`
+  state_rel w (hp_w:wstate) ⇔
+  let names =  w.wc.sensor_names ++ w.wc.const_names in
+  let vals  =  w.ws.sensor_vals  ++ w.ws.const_vals  in
+    LIST_REL (state_agree hp_w) names vals`
+
+val state_agree_append = Q.store_thm("state_agree_append",`
+  ALL_DISTINCT names ∧
+  no_overlap names (MAP FST y) ∧
+  LIST_REL (state_agree x) names vals
+  ⇒
+  LIST_REL
+    (state_agree (y++x)) names vals`,
+  fs[state_agree_def,LIST_REL_EL_EQN,no_overlap_def]>>
+  rw[]>>
+  simp[ALOOKUP_APPEND]>>
+  imp_res_tac ALOOKUP_ALL_DISTINCT_EL>>
+  TOP_CASE_TAC>>fs[]>>
+  imp_res_tac ALOOKUP_MEM>>fs[MEM_EL]>>
+  pop_assum (assume_tac o SYM)>>
+  fs[PULL_EXISTS]>>
+  last_x_assum drule>>fs[]>>
+  disch_then(qspec_then`n'` assume_tac)>>
+  rfs[EL_MAP]);
+
+val state_agree_append2 = Q.store_thm("state_agree_append2",`
+  ALL_DISTINCT names ∧
+  LENGTH names = LENGTH vals ∧
+  MAP FST y = names ∧
+  MAP SND y = ZIP(vals,vals)
+  ⇒
+  LIST_REL
+    (state_agree (REVERSE y++x)) names vals`,
+  rw[]>>
+  fs[state_agree_def,LIST_REL_EL_EQN]>>rw[]>>
+  simp[ALOOKUP_APPEND,EL_MAP]>>
+  simp[alookup_distinct_reverse]>>
+  imp_res_tac ALOOKUP_ALL_DISTINCT_EL>>
+  pop_assum(qspec_then`n` assume_tac)>>rfs[]>>
+  rfs[LIST_EQ_REWRITE,EL_ZIP]>>
+  metis_tac[EL_MAP]);
+
+(*
+  These are syntactic well-formedness condition on mach_config
+
+*)
+val wf_config_def = Define`
+  wf_config wc ⇔
+  LENGTH wc.sensor_names = LENGTH wc.sensorplus_names ∧
+  LENGTH wc.ctrl_names = LENGTH wc.ctrlplus_names ∧
+  LENGTH wc.ctrl_names = LENGTH wc.default ∧
+  LENGTH wc.ctrlfixed_names = LENGTH wc.ctrlfixed_rhs ∧
+  ALL_DISTINCT wc.const_names ∧
+  ALL_DISTINCT wc.sensor_names ∧
+  ALL_DISTINCT wc.ctrlplus_names ∧
+  ALL_DISTINCT wc.sensorplus_names ∧
+  ALL_DISTINCT wc.ctrlfixed_names ∧
+  ALL_DISTINCT wc.ctrl_names ∧
+  no_overlap wc.ctrlfixed_names wc.ctrlfixed_rhs ∧
+  no_overlap wc.ctrl_names wc.ctrlplus_names ∧
+  no_overlap wc.sensor_names (wc.sensorplus_names ++ wc.ctrl_names ++ wc.ctrlplus_names ++ wc.ctrlfixed_names) ∧
+  no_overlap wc.const_names
+    (wc.sensor_names ++ wc.sensorplus_names ++ wc.ctrl_names ++ wc.ctrlplus_names ++
+     wc.ctrlfixed_names) ∧
+  no_overlap wc.ctrl_names wc.sensorplus_names ∧
+  no_overlap wc.ctrlplus_names (FLAT (MAP fv_trm wc.default)) ∧
+  no_overlap wc.ctrlplus_names wc.ctrlfixed_names ∧
+  let fixed_deps = wc.const_names ++ wc.sensor_names in
+  EVERY (λx. MEM x fixed_deps) wc.ctrlfixed_rhs ∧
+  let plant_deps = wc.const_names ++ wc.sensor_names ++ wc.ctrl_names ++ wc.sensorplus_names in
+  EVERY (λx. MEM x plant_deps) (fv_fml wc.plant_monitor) ∧
+  let ctrl_deps = wc.const_names ++ wc.sensor_names ++ wc.ctrlplus_names ++ wc.ctrlfixed_names in
+  EVERY (λx. MEM x ctrl_deps) (fv_fml wc.ctrl_monitor)`
+
+(* Well-formed machs obey their config's lengths *)
+val wf_mach_def = Define`
+  wf_mach w ⇔
+  let constlen = LENGTH w.wc.const_names in
+  let sensorlen = LENGTH w.wc.sensor_names in
+  let ctrllen = LENGTH w.wc.ctrl_names in
+  LENGTH w.ws.const_vals = constlen ∧
+  LENGTH w.ws.sensor_vals = sensorlen ∧
+  (∀n inp.
+    (*LENGTH inp = clen + slen ⇒ -- we could restrict it more... *)
+    LENGTH (w.wo.ctrl_oracle n inp) = ctrllen) ∧
+  (∀n inp.
+    (* See above on the length restriction *)
+    LENGTH (w.wo.transition_oracle n inp) = sensorlen)`
+
+val MAP_ZIP2 = Q.prove(`
+  LENGTH xs = LENGTH ys ⇒
+  MAP (λ(x,t). (x,f t)) (ZIP (xs,ys)) =
+  ZIP (xs, MAP f ys)`,
+  fs[LIST_EQ_REWRITE] >>rw[EL_MAP,EL_ZIP]);
+
+val ZIP_ID = Q.prove(`
+  ZIP(ls,ls) = MAP (λx. x,x) ls`,
+  fs[LIST_EQ_REWRITE,EL_ZIP,EL_MAP]);
+
+val MEM_ALOOKUP_APPEND = Q.prove(`
+  MEM x (MAP FST ls) ⇒
+  ALOOKUP (ls++xs) x = ALOOKUP (ls++ys) x`,
+  rw[ALOOKUP_APPEND]>>
+  TOP_CASE_TAC>>fs[ALOOKUP_NONE]);
+
+val MEM_ALOOKUP_APPEND_REV = Q.prove(`
+  ALL_DISTINCT (MAP FST ls) ∧
+  MEM x (MAP FST ls) ⇒
+  ALOOKUP (ls++xs) x = ALOOKUP (REVERSE ls++ys) x`,
+  rw[ALOOKUP_APPEND]>>
+  TOP_CASE_TAC>>fs[ALOOKUP_NONE]>>
+  simp[alookup_distinct_reverse]);
+
+val NOT_MEM_ALOOKUP_APPEND = Q.prove(`
+  ¬MEM x (MAP FST ls) ⇒
+  ALOOKUP (ls++xs) x = ALOOKUP xs x`,
+  rw[ALOOKUP_APPEND]>>
+  TOP_CASE_TAC>>fs[]>>
+  imp_res_tac ALOOKUP_MEM>>fs[MEM_MAP,FORALL_PROD]>>
+  metis_tac[]);
+
+val APPEND_ASSOC4 = Q.prove(`
+  (a ++ b ++ c ++ d):'a list =
+  (a++b) ++ (c++d)`,
+  fs[]);
+
+val no_overlap_APPEND = Q.prove(`
+  no_overlap ls (xs++ys) ⇔
+  no_overlap ls xs ∧ no_overlap ls ys`,
+  fs[no_overlap_def]>>
+  metis_tac[]);
+
+val state_rel_lookup_const = Q.prove(`
+  wf_config w.wc ∧
+  wf_mach w /\
+  MEM x w.wc.const_names ∧
+  state_rel w st ⇒
+  ALOOKUP
+  (ZIP (w.wc.sensor_names,MAP (λx. (x,x)) w.ws.sensor_vals) ++
+   ZIP (w.wc.const_names,MAP (λx. (x,x)) w.ws.const_vals)) x =
+  ALOOKUP st x`,
+  rw[]>>fs[state_rel_def,wf_config_def,wf_mach_def]>>
+  rfs[LIST_REL_APPEND_EQ]>>
+  fs[LIST_REL_EL_EQN,state_agree_def]>>
+  fs[MEM_EL]>>
+  pop_assum kall_tac>>
+  first_x_assum(qspec_then`n` assume_tac)>>rfs[]>>
+  dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+  CONJ_TAC>-
+    (fs[MAP_ZIP,no_overlap_def]>>
+    metis_tac[EL_MEM])>>
+  qmatch_goalsub_abbrev_tac`ALOOKUP ls`>>
+  Q.ISPECL_THEN [`ls`,`n`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
+  rfs[Abbr`ls`,MAP_ZIP,EL_ZIP]>>
+  fs[EL_MAP]);
+
+val state_rel_lookup_sensor = Q.prove(`
+  wf_config w.wc ∧
+  wf_mach w /\
+  MEM x w.wc.sensor_names ∧
+  state_rel w st ⇒
+  ALOOKUP
+  (ZIP (w.wc.sensor_names,MAP (λx. (x,x)) w.ws.sensor_vals) ++
+   ZIP (w.wc.const_names,MAP (λx. (x,x)) w.ws.const_vals)) x =
+  ALOOKUP st x`,
+  rw[]>>fs[state_rel_def,wf_config_def,wf_mach_def]>>
+  rfs[LIST_REL_APPEND_EQ]>>
+  fs[LIST_REL_EL_EQN,state_agree_def]>>
+  fs[MEM_EL]>>
+  first_x_assum(qspec_then`n` assume_tac)>>rfs[]>>
+  dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
+  simp[MAP_ZIP]>>fs[EL_MEM]>>
+  qmatch_goalsub_abbrev_tac`ALOOKUP ls`>>
+  Q.ISPECL_THEN [`ls`,`n`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
+  rfs[Abbr`ls`,MAP_ZIP,EL_ZIP]>>
+  fs[EL_MAP]);
+
+(* Relate body step to transitions of a particular HP *)
+val body_step_state_rel = Q.store_thm("body_step_state_rel",`
+  wf_config w.wc ∧
+  wf_mach w ∧
+  state_rel w st ∧
+  evaluate_default w.wc.const_names w.ws.const_vals w.wc.default = SOME defaults ∧
+  body_step flg defaults w w' ⇒
+  ∃st'.
+  hide flg (state_rel w' st') T ∧
+  wpsem (body_sandbox flg w.wc) st st'`,
+  rw[body_step_def,body_sandbox_def]>>
+  fs[wf_config_def]>>
+  simp[Once wpsem_cases]>>
+  simp[AssignAnyPar_sem]>>
+  simp[PULL_EXISTS]>>
+  CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
+  qexists_tac`MAP (λx. (x,x)) ctrlplus_ls`>>
+  simp[EVERY_MAP]>>
+  simp[Once wpsem_cases]>>
+  qmatch_goalsub_abbrev_tac`wpsem _ st1 _`>>
+  simp[PULL_EXISTS]>>
+  simp[AssignVarPar_sem]>>
+  simp[Once wpsem_cases]>>
+  simp[Once wpsem_cases]>>
+  simp[PULL_EXISTS]>>
+  simp[METIS_PROVE [] ``(A ∧ B ∧ (C ∨ D) ∧ E) ⇔ (A ∧ B ∧ C ∧ E) ∨ (A ∧ B ∧ D ∧ E)``]>>
+  simp[EXISTS_OR_THM]>>
+  (* Now we case split on the control choice made by the sandbox *)
+  qpat_x_assum`ffi_actuate _ _ _ = _` mp_tac>>
+  simp[ctrl_monitor_def,wfsem_bi_val_def]>>
+  reverse IF_CASES_TAC
+  >- (
+    (* Fallback to the defauls *)
+    rw[]>>DISJ2_TAC>>
+    simp[AssignPar_sem]>>
+    simp[Once wpsem_cases]>>
+    simp[AssignVarPar_sem]>>
+    simp[Once wpsem_cases]>>
+    simp[AssignAnyPar_sem,PULL_EXISTS]>>
+    fs[ffi_actuate_def]>>
+    rpt (pairarg_tac>>fs[])>>
+    rw[]>>fs[]>>
+    qmatch_goalsub_abbrev_tac`w.ws with sensor_vals := ls`>>
+    CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
+    qexists_tac`MAP (\x. (x,x)) ls`>>simp[]>>
+    `LENGTH ls = LENGTH w.wc.sensorplus_names` by
+      (fs[wf_mach_def,get_oracle_def,Abbr`ls`]>>
+      rpt(pairarg_tac>>fs[])>>
+      metis_tac[])>>
+    simp[EVERY_MEM,EVERY_MAP,WORD_LESS_EQ_REFL]>>
+    reverse (Cases_on`flg`)>>
+    simp[hide_def]
+    >-
+      (* plant monitor fails *)
+      simp[Once wpsem_cases]
+    >>
+    simp[Once wpsem_cases]>>
+    simp[Once wpsem_cases]>>
+    fs[no_overlap_APPEND]>>
+    simp[AssignVarPar_sem]>>
+    simp[state_rel_def]>>
+    simp[LIST_REL_APPEND_EQ]>>rw[]
+    >-
+      (PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac state_agree_append2>>
+      fs[MAP_REVERSE,MAP_ZIP]>>
+      rw[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
+      qmatch_goalsub_abbrev_tac`sensorplus ++ ctrl ++ ctrlplus++ctrlfixed++st1`>>
+      `EL x w.wc.sensorplus_names = FST (EL x (REVERSE sensorplus))` by
+        fs[Abbr`sensorplus`,EL_ZIP]>>
+      `ALOOKUP (REVERSE sensorplus) (EL x w.wc.sensorplus_names) = SOME (SND (EL x (REVERSE sensorplus)))` by
+        (fs[]>>
+        match_mp_tac ALOOKUP_ALL_DISTINCT_EL>>
+        fs[Abbr`sensorplus`,MAP_ZIP])>>
+      simp[ALOOKUP_APPEND,Abbr`sensorplus`,alookup_distinct_reverse]>>
+      rfs[EL_ZIP,EL_MAP,MAP_ZIP,alookup_distinct_reverse])
+    >-
+      (* constants unchanged *)
+      (simp[Abbr`st1`]>>
+      match_mp_tac state_agree_append>>
+      simp[MAP_MAP_o,o_DEF,UNCURRY,ETA_AX,MAP_ZIP,MAP_REVERSE]>>
+      rfs[LIST_REL_APPEND_EQ,state_rel_def]>>
+      fs[no_overlap_def]>>
+      fs[wf_mach_def]>>
+      metis_tac[LIST_REL_APPEND_EQ])
+    >>
+    fs[hide_def]>>
+    qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
+    simp[plant_monitor_def,wfsem_bi_val_def]>>
+    TOP_CASE_TAC>>rw[]>>
+    pop_assum sym_sub_tac>>
+    match_mp_tac fv_fml_coincide>>
+    fs[]>>
+    match_mp_tac EVERY_MEM_MONO>>
+    HINT_EXISTS_TAC>>fs[]>>
+    simp[ZIP_ID]>>
+    fs[ctrl_monitor_def,wfsem_bi_val_def]>>
+    qmatch_goalsub_abbrev_tac`sensorplus++ ctrl ++ ctrlplus++ ctrlfixed ++ st1`>>
+    fs[wf_mach_def]>>
+    fs[evaluate_default_def]>>rw[]
+    >- (
+      (* consts *)
+      simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+      qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+      `ALOOKUP ss x = NONE` by
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+      simp[ALOOKUP_APPEND]>>
+      rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+      simp[Once ALOOKUP_APPEND]>>
+      simp[option_case_eq]>> DISJ1_TAC>>rw[]
+      >-
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+      >>
+        match_mp_tac state_rel_lookup_const>>
+        fs[wf_config_def,wf_mach_def,no_overlap_def])
+    >- (
+      (* sensors *)
+      simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+      qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+      `ALOOKUP ss x = NONE` by
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+      simp[ALOOKUP_APPEND]>>
+      rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+      simp[Once ALOOKUP_APPEND]>>
+      simp[option_case_eq]>> DISJ1_TAC>>rw[]
+      >-
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+      >>
+        match_mp_tac state_rel_lookup_sensor>>
+        fs[wf_config_def,wf_mach_def,no_overlap_def])
+    >-
+      (rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      CONJ_TAC>- fs[MAP_ZIP,no_overlap_def,Abbr`sensorplus`,MAP_REVERSE]>>
+      qmatch_goalsub_abbrev_tac`(w.wc.ctrl_names, default2)`>>
+      match_mp_tac EQ_SYM>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      CONJ_TAC>- fs[MAP_ZIP,no_overlap_def]>>
+      simp[Abbr`ctrl`]>>
+      qmatch_goalsub_abbrev_tac`REVERSE(ZIP(w.wc.ctrl_names,default))`>>
+      (* need to prove that default = default2 *)
+      cheat)
+    >-
+      (fs[GSYM ZIP_APPEND,Abbr`sensorplus`]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      match_mp_tac EQ_SYM>>
+      match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+      fs[MAP_ZIP]))
+  >>
+    (* Normal control*)
+    rw[]>>DISJ1_TAC>>
+    simp[Once wpsem_cases]>>
+    simp[Once wpsem_cases]>>
+    simp[AssignVarPar_sem]>>
+    simp[Once wpsem_cases]>>
+    simp[AssignAnyPar_sem,PULL_EXISTS]>>
+    fs[ffi_actuate_def]>>
+    rpt (pairarg_tac>>fs[])>>
+    rw[]>>fs[]>>
+    qmatch_goalsub_abbrev_tac`w.ws with sensor_vals := ls`>>
+    CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
+    qexists_tac`MAP (\x. (x,x)) ls`>>simp[]>>
+    `LENGTH ls = LENGTH w.wc.sensorplus_names` by
+      (fs[wf_mach_def,get_oracle_def,Abbr`ls`]>>
+      rpt(pairarg_tac>>fs[])>>
+      metis_tac[])>>
+    simp[EVERY_MEM,EVERY_MAP,WORD_LESS_EQ_REFL]>>
+    qmatch_goalsub_abbrev_tac`wfsem w.wc.ctrl_monitor lss`>>
+    `wfsem w.wc.ctrl_monitor lss = SOME T` by
+      (fs[Abbr`lss`,wf_mach_def]>>
+      EVERY_CASE_TAC>>fs[]>>
+      qpat_x_assum`_ = SOME T` (sym_sub_tac)>>
+      match_mp_tac fv_fml_coincide>>
+      fs[]>>
+      match_mp_tac EVERY_MEM_MONO>>
+      HINT_EXISTS_TAC>>fs[]>>
+      simp[ZIP_ID]>>
+      fs[evaluate_default_def,lookup_fixed_def]>>rw[]
+      >- (
+        (* consts *)
+        simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+        qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+        `ALOOKUP ss x' = NONE` by
+          (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+          rfs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+        simp[ALOOKUP_APPEND,MAP_MAP_o]>>
+        rfs[GSYM ZIP_APPEND]>>
+        PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+        simp[Once ALOOKUP_APPEND]>>
+        simp[option_case_eq]>> DISJ1_TAC>>rw[]
+        >-
+          (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+          fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+        >>
+          match_mp_tac state_rel_lookup_const>>
+          fs[wf_config_def,wf_mach_def,no_overlap_def])
+      >- (
+        (* sensors *)
+        simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+        qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+        `ALOOKUP ss x' = NONE` by
+          (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+          fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+        simp[ALOOKUP_APPEND]>>
+        rfs[GSYM ZIP_APPEND]>>
+        PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+        simp[Once ALOOKUP_APPEND]>>
+        simp[option_case_eq]>> DISJ1_TAC>>rw[]
+        >-
+          (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+          fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+        >>
+          match_mp_tac state_rel_lookup_sensor>>
+          fs[wf_config_def,wf_mach_def,no_overlap_def])
+      >- (
+        (* ctrlplus *)
+        rfs[GSYM ZIP_APPEND]>>
+        dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+        CONJ_TAC>-
+          (fs[MAP_REVERSE,MAP_ZIP,no_overlap_def])>>
+        PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+        dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+        CONJ_TAC>-
+          (fs[MAP_REVERSE,MAP_ZIP,no_overlap_def])>>
+        match_mp_tac EQ_SYM>>
+        simp[Abbr`st1`]>>
+        PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+        match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+        fs[MAP_ZIP])
+      >>
+        (* ctrlfixed *)
+        simp[GSYM ZIP_APPEND]>>
+        PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+        dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
+        simp[MAP_ZIP,MAP_REVERSE]>>
+        PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+        dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
+        simp[MAP_ZIP,MAP_REVERSE]>>
+        dep_rewrite.DEP_REWRITE_TAC [alookup_distinct_reverse]>>
+        simp[MAP_ZIP,MAP_MAP_o,o_DEF]>>
+        AP_THM_TAC>>
+        rpt(AP_TERM_TAC)>>
+        simp[MAP_EQ_f,Abbr`st1`]>>rw[lookup_var_def]>>
+        dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+        simp[MAP_REVERSE,MAP_ZIP]>>
+        CONJ_TAC>-
+           cheat>>
+        cheat)>>
+    reverse (Cases_on`flg`)>>
+    simp[hide_def]
+    >-
+      (* plant monitor fails *)
+      simp[Once wpsem_cases]
+    >>
+    simp[Once wpsem_cases]>>
+    simp[Once wpsem_cases]>>
+    fs[no_overlap_APPEND]>>
+    simp[AssignVarPar_sem]>>
+    simp[state_rel_def]>>
+    simp[LIST_REL_APPEND_EQ]>>rw[]
+    >-
+      (PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac state_agree_append2>>
+      fs[MAP_REVERSE,MAP_ZIP]>>
+      rw[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
+      qmatch_goalsub_abbrev_tac`sensorplus ++ ctrl ++ ctrlfixed++st1`>>
+      `EL x w.wc.sensorplus_names = FST (EL x (REVERSE sensorplus))` by
+        fs[Abbr`sensorplus`,EL_ZIP]>>
+      `ALOOKUP (REVERSE sensorplus) (EL x w.wc.sensorplus_names) = SOME (SND (EL x (REVERSE sensorplus)))` by
+        (fs[]>>
+        match_mp_tac ALOOKUP_ALL_DISTINCT_EL>>
+        fs[Abbr`sensorplus`,MAP_ZIP])>>
+      simp[ALOOKUP_APPEND,Abbr`sensorplus`,alookup_distinct_reverse]>>
+      rfs[EL_ZIP,EL_MAP,MAP_ZIP,alookup_distinct_reverse])
+    >-
+      (* constants unchanged *)
+      (simp[Abbr`st1`]>>
+      match_mp_tac state_agree_append>>
+      simp[MAP_MAP_o,o_DEF,UNCURRY,ETA_AX,MAP_ZIP,MAP_REVERSE]>>
+      rfs[LIST_REL_APPEND_EQ,state_rel_def]>>
+      fs[no_overlap_def]>>
+      fs[wf_mach_def]>>
+      metis_tac[LIST_REL_APPEND_EQ])
+    >>
+    fs[hide_def]>>
+    qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
+    simp[plant_monitor_def,wfsem_bi_val_def]>>
+    TOP_CASE_TAC>>rw[]>>
+    pop_assum sym_sub_tac>>
+    match_mp_tac fv_fml_coincide>>
+    fs[]>>
+    match_mp_tac EVERY_MEM_MONO>>
+    HINT_EXISTS_TAC>>fs[]>>
+    simp[ZIP_ID]>>
+    fs[ctrl_monitor_def,wfsem_bi_val_def]>>
+    qmatch_goalsub_abbrev_tac`sensorplus++ ctrl ++ ctrlfixed ++ st1`>>
+    fs[wf_mach_def]>>
+    fs[evaluate_default_def]>>rw[]
+    >- (
+      (* consts *)
+      simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+      qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+      `ALOOKUP ss x = NONE` by
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+      simp[ALOOKUP_APPEND]>>
+      rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+      simp[Once ALOOKUP_APPEND]>>
+      simp[option_case_eq]>> DISJ1_TAC>>rw[]
+      >-
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+      >>
+        match_mp_tac state_rel_lookup_const>>
+        fs[wf_config_def,wf_mach_def,no_overlap_def])
+    >- (
+      (* sensors *)
+      simp[GSYM REVERSE_APPEND,Abbr`st1`]>>
+      qmatch_goalsub_abbrev_tac`ALOOKUP (ss ++ st)`>>
+      `ALOOKUP ss x = NONE` by
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])>>
+      simp[ALOOKUP_APPEND]>>
+      rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC [APPEND_ASSOC4]>>
+      simp[Once ALOOKUP_APPEND]>>
+      simp[option_case_eq]>> DISJ1_TAC>>rw[]
+      >-
+        (simp[ALOOKUP_NONE]>>unabbrev_all_tac>>
+        fs[MAP_ZIP,no_overlap_def,MAP_REVERSE])
+      >>
+        match_mp_tac state_rel_lookup_sensor>>
+        fs[wf_config_def,wf_mach_def,no_overlap_def])
+    >-
+      (rfs[GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      CONJ_TAC>- fs[MAP_ZIP,no_overlap_def,Abbr`sensorplus`,MAP_REVERSE]>>
+      match_mp_tac EQ_SYM>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      CONJ_TAC>- fs[MAP_ZIP,no_overlap_def]>>
+      qsuff_tac`ctrl = REVERSE(ZIP(w.wc.ctrl_names,MAP (\x.x,x) ctrlplus_ls))`
+      >-
+        (disch_then SUBST_ALL_TAC>>
+        match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+        fs[MAP_ZIP])
+      >>
+      simp[Abbr`ctrl`]>>
+      rpt(AP_TERM_TAC)>>
+      unabbrev_all_tac>>fs[]>>
+      rw[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_ZIP,MAP_REVERSE]>>
+      CONJ_TAC>- cheat>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
+      simp[MAP_ZIP,MAP_REVERSE]>>
+      CONJ_TAC>- metis_tac[EL_MEM]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [alookup_distinct_reverse]>>
+      fs[MAP_ZIP]>>
+      (* easy *)
+      cheat)
+    >-
+      (fs[GSYM ZIP_APPEND,Abbr`sensorplus`]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      match_mp_tac EQ_SYM>>
+      match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+      fs[MAP_ZIP]));
+
+(* Looping the body corresponds to the reflexive transitive closure *)
+val body_loop_state_rel = Q.store_thm("body_loop_state_rel",`
+  ∀w w'.
+  (body_step T defaults)^* w w' ⇒
+  ∀st.
+  wf_config w.wc ∧
+  wf_mach w ∧
+  state_rel w st ∧
+  evaluate_default w.wc.const_names w.ws.const_vals w.wc.default = SOME defaults ==>
+  ∃st'.
+  state_rel w' st' ∧
+  wpsem (Loop (body_sandbox T w.wc)) st st'`,
+  ho_match_mp_tac RTC_INDUCT>>
+  rw[]
+  >-
+    (qexists_tac`st`>>simp[Once wpsem_cases])
+  >>
+    drule (GEN_ALL body_step_state_rel)>>fs[]>>
+    disch_then drule>>
+    disch_then drule>>
+    rw[hide_def]>>
+    simp[Once wpsem_cases]>>
+    simp[METIS_PROVE [] ``(A ∧ (C ∨ D)) ⇔ (A ∧ C) ∨ (A ∧ D)``,EXISTS_OR_THM]>>
+    DISJ2_TAC>>
+    simp[PULL_EXISTS]>>
+  CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["u"]))>>
+  qexists_tac`st'`>>simp[]>>
+  fs[body_step_def,ffi_actuate_def]>>
+  rpt(pairarg_tac>>fs[])>>rw[]>>
+  fs[]>>
+  first_x_assum match_mp_tac>>
+  fs[state_rel_def,wf_mach_def,get_oracle_def]>>
+  rpt(pairarg_tac>>fs[])>>rw[]);
 
 val _ = translation_extends "MonitorProg";
 (*"*)
@@ -130,31 +766,7 @@ val unpack_w32_list_spec = Q.store_thm("unpack_w32_list_spec",`
     xlet_auto >- xsimpl>>
     xapp>> xsimpl);
 
-(* We can now specify each of the functions *)
-
-(*
-  These are syntactic well-formedness condition on mach_config
-*)
-val wf_config_def = Define`
-  wf_config wc ⇔
-  LENGTH wc.sensor_names = LENGTH wc.sensorplus_names ∧
-  LENGTH wc.ctrl_names = LENGTH wc.ctrlplus_names ∧
-  LENGTH wc.ctrl_names = LENGTH wc.default`
-
-(* Well-formed machs obey their config's lengths *)
-val wf_mach_def = Define`
-  wf_mach w ⇔
-  let constlen = LENGTH w.wc.const_names in
-  let sensorlen = LENGTH w.wc.sensor_names in
-  let ctrllen = LENGTH w.wc.ctrl_names in
-  LENGTH w.ws.const_vals = constlen ∧
-  LENGTH w.ws.sensor_vals = sensorlen ∧
-  (∀n inp.
-    (*LENGTH inp = clen + slen ⇒ -- we could restrict it more... *)
-    LENGTH (w.wo.ctrl_oracle n inp) = ctrllen) ∧
-  (∀n inp.
-    (* See above on the length restriction *)
-    LENGTH (w.wo.transition_oracle n inp) = sensorlen)`
+(* We now specify each of the functions *)
 
 val IOBOT_def = Define `
   IOBOT w = IOx bot_ffi_part w * &(wf_mach w)`
@@ -338,7 +950,6 @@ val actuate_spec = Q.store_thm("actuate_spec",`
 
 (*
   At this point, we have enough to specify our 1-shot controller.
-*)
 
 val get_fixed_def = Define`
   get_fixed wc ws ls =
@@ -353,11 +964,11 @@ val ctrl_sat_def = Define`
     (vars_to_state
     (wc.const_names ++ wc.sensor_names ++ wc.ctrlplus_names ++ wc.ctrlfixed_names)
     (ws.const_vals  ++ ws.sensor_vals  ++ ctrl              ++ get_fixed wc ws wc.ctrlfixed_rhs)) = SOME T`
+*)
 
 (* First we define what we means for a default controller to make sense with respect
    to a world w
    When looked up, its output satisfies the controller monitor
-*)
 val get_default_def = Define`
   get_default w =
     evaluate_default w.wc.const_names w.ws.const_vals w.wc.default`
@@ -465,6 +1076,8 @@ val good_mach_def = Define`
   good_default w ∧
   good_ctrl_trace w.wc w.tr`
 
+*)
+
 val has_next_spec = Q.store_thm("has_next_spec",`
     UNIT_TYPE u uv
     ⇒
@@ -509,7 +1122,7 @@ val eventually_def = Define`
   eventually P oracle ⇔
   ∃n.
     P(oracle n)`
-
+(*
 val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
   ∀w const_valsv sensor_valsv.
     (* These specify what the inputs should be *)
@@ -598,6 +1211,7 @@ val ctrl_monitor_loop_body_spec = Q.store_thm("ctrl_monitor_loop_body_spec",`
   rw[]>>TRY(metis_tac comp_eq)>>
   match_mp_tac good_ctrl_trace_SNOC>>
   metis_tac comp_eq);
+*)
 
 val violation_spec = Q.store_thm("violation_spec",`
   STRING_TYPE strng strngv
@@ -628,11 +1242,13 @@ val violation_spec = Q.store_thm("violation_spec",`
 
 val init_sat_def = Define`
   init_sat wc ws ⇔
-  wfsem wc.init
+  (wfsem wc.init
       (vars_to_state
       (wc.const_names ++ wc.sensor_names)
-      (ws.const_vals ++ ws.sensor_vals)) = SOME T`
+      (ws.const_vals ++ ws.sensor_vals)) = SOME T) ∧
+  ∃ls. evaluate_default wc.const_names ws.const_vals wc.default = SOME ls`
 
+(*
 (* Finally, we can specify the full control monitor loop *)
 val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   (* These specify what the inputs should be *)
@@ -682,6 +1298,7 @@ val ctrl_monitor_loop_spec = Q.store_thm("ctrl_monitor_loop_spec",`
   qexists_tac`w`>>fs[init_sat_def]>>
   fs[wfsem_bi_val_def]>>
   xsimpl>>every_case_tac>>fs[]);
+*)
 
 (* Finally, we add the plant monitor to get the full sandboxing monitor program *)
 (*
@@ -715,11 +1332,21 @@ val good_plant_trace_SNOC = Q.store_thm("good_plant_trace_SNOC",`
   ho_match_mp_tac (fetch "-" "good_plant_trace_ind")>>
   rw[good_plant_trace_def]);
 
+
+val mk_sandbox_loop_def = Define`
+  mk_sandbox_loop wc = Loop (read_vars wc.sensor_names)`
+
+val mk_sandbox_def = Define`
+  mk_sandbox wc =
+  Seq (read_vars wc.const_names) (mk_sandbox_loop wc)`
+
+
+
 val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
   ∀w const_valsv sensor_valsv.
     (* These specify what the inputs should be *)
-    MONITORPROG_FML_TYPE w.wc.plant_monitor plantfv ∧
-    MONITORPROG_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
+    INTERVALARITH_FML_TYPE w.wc.plant_monitor plantfv ∧
+    INTERVALARITH_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
     LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
@@ -731,6 +1358,7 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
     LIST_TYPE WORD32 w.ws.const_vals const_valsv ∧
     LIST_TYPE WORD32 w.ws.sensor_vals sensor_valsv ∧
     wf_config w.wc ∧
+    state_rel w.wc w.ws st ∧
     eventually ($~) w.wo.step_oracle
     ⇒
     app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop_body" bot_st)
@@ -738,12 +1366,14 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
       const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;
       ctrlfixed_namesv; ctrlfixed_rhsv; defaultv;
       const_valsv;sensor_valsv]
-    (IOBOT w * &(good_mach w ∧ good_plant_trace T w.wc w.tr w.ws) )
+    (IOBOT w * &(good_plant_trace T w.wc w.tr w.ws) )
     (POSTv uv.  &(UNIT_TYPE () uv) *
       SEP_EXISTS w'. IOBOT w' *
-      &(good_mach w' ∧
-        (* Either we step to the end, or we reach the first plant violation *)
-         (¬w'.wo.step_oracle 0 ∨
+      &((* Either we step to the end, or we reach the first plant violation *)
+         (¬w'.wo.step_oracle 0 ∧
+         (∃st'. state_rel w'.wc w'.ws st' ∧
+          wpsem (mk_sandbox_loop w.wc) st st')
+         ∨
          good_plant_trace F w'.wc w'.tr w'.ws) ∧
         w.wc = w'.wc))`,
   fs[eventually_def,PULL_EXISTS]>>
@@ -757,7 +1387,9 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
   >-
     (xcon>>xsimpl>>
     qexists_tac`w`>>simp[]>>
-    xsimpl)
+    xsimpl>>
+    simp[mk_sandbox_loop_def]
+    )
   >>
   reverse (Cases_on`wf_mach w`) >- (simp[IOBOT_def]>>xpull)>>
   fs[wf_config_def]>>
@@ -838,9 +1470,9 @@ val monitor_loop_body_spec = Q.store_thm("monitor_loop_body_spec",`
 (* specify the full monitor *)
 val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   (* These specify what the inputs should be *)
-  MONITORPROG_FML_TYPE w.wc.init iv ∧
-  MONITORPROG_FML_TYPE w.wc.plant_monitor plantfv ∧
-  MONITORPROG_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
+  INTERVALARITH_FML_TYPE w.wc.init iv ∧
+  INTERVALARITH_FML_TYPE w.wc.plant_monitor plantfv ∧
+  INTERVALARITH_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
@@ -848,29 +1480,47 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   LIST_TYPE CLSTRING_TYPE w.wc.sensorplus_names sensorplus_namesv ∧
   LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
   LIST_TYPE (SUM_TYPE WORD32 CLSTRING_TYPE) w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
-  LIST_TYPE MONITORPROG_TRM_TYPE w.wc.default defaultv ∧
+  LIST_TYPE INTERVALARITH_TRM_TYPE w.wc.default defaultv ∧
   wf_config w.wc ∧
   eventually ($~) w.wo.step_oracle ∧
-  good_default w ∧
+  state_rel w.wc w.ws st ∧
   (* Alternatively, if w.tr = [] then these two are true *)
-  good_ctrl_trace w.wc w.tr ∧
   good_plant_trace T w.wc w.tr w.ws
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
     [iv;plantfv;ctrlfv;const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;ctrlfixed_namesv;ctrlfixed_rhsv;defaultv]
   (IOBOT w)
-  (POSTv uv. &(UNIT_TYPE () uv) * SEP_EXISTS w'. IOBOT w' *
+  (POSTv uv. &(UNIT_TYPE () uv) *
+    SEP_EXISTS w'. IOBOT w' *
     &(
       (* Either the initial mach violates init immediately *)
       (w = w' ∧ (¬init_sat w.wc w.ws)) ∨
       (* Or we transition to a final mach,
          and good_mach guarantees that the actuation trace all
          satisfy the control monitor *)
-      good_mach w' ∧
-      (¬w'.wo.step_oracle 0 ∨
+      (* good_mach w' ∧ *)
+      (¬w'.wo.step_oracle 0 ∧
+      (∃st'. state_rel w'.wc w'.ws st' ∧
+      wpsem (mk_sandbox w.wc) st st') ∨
          good_plant_trace F w'.wc w'.tr w'.ws)))`,
   rw[]>>
   xcf"monitor_loop" bot_st>>
+  rpt(xlet_auto >- xsimpl)>>
+  pop_assum mp_tac>>
+  qmatch_goalsub_abbrev_tac`evaluate_default cn cv def`>>
+  Cases_on`evaluate_default cn cv def`>>
+  fs[OPTION_TYPE_def]>>strip_tac>>
+  xmatch
+  >-
+    (reverse (Cases_on`wf_mach w`)
+    >-
+      (simp[IOBOT_def]>>xpull)>>
+    xapp >> xsimpl>>
+    qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
+    rw[]>>xsimpl>>
+    qexists_tac`w`>>fs[init_sat_def]>>
+    xsimpl)
+  >>
   rpt(xlet_auto >- xsimpl)>>
   reverse xif
   >-

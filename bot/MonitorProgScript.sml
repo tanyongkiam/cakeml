@@ -1,229 +1,11 @@
 open preamble ml_progLib ml_translatorLib
 open blastLib cfTacticsLib
 open Word8ArrayProgTheory ml_translatorTheory basisFunctionsLib
+open intervalArithTheory
 
 val _ = new_theory "MonitorProg";
 
-(*
-  This first section defines a copy of the interpreter for formulas
-  from the Isabelle/HOL formalization
-*)
-
-val NEG_INF = (rconc o EVAL) ``((INT_MINw: 32 word) + 1w)``
-val POS_INF = (rconc o EVAL) ``((INT_MAXw: 32 word) )``
-
-val NEG_INF_def = Define`NEG_INF:word32 = ^NEG_INF`
-val POS_INF_def = Define`POS_INF:word32 = ^POS_INF`
-
-(*
-  Note: this includes the constant INT_MINw which is interpreted as the interval
-  (-INF,INF)
-  All other constants are interpreted as in the Isabelle formalization e.g.
-  -INF is interpreted as (-INF,-INF)
-*)
-val _ = Datatype`
-  trm = Const word32
-      | Var string (* TODO: this could also use the faster mlstring *)
-      | Plus trm trm
-      | Times trm trm
-      | Max trm trm
-      | Min trm trm
-      | Neg trm`
-
-val _ = Datatype`
-  fml = Le trm trm
-      | Leq trm trm
-      | Equals trm trm
-      | And fml fml
-      | Or fml fml
-      | Not fml`
-
-(* The discrete fragment of hybrid programs we need for sandboxes *)
-val _ = Datatype`
-   hp = Test fml
-      | Assign string (trm option)
-      | Seq hp hp
-      | Choice hp hp
-      | Loop hp`
-
-(*
-val _ = overload_on ("+",Term `Plus`)
-val _ = add_infix ("+", 580, HOLgrammars.LEFT)
-
-val _ = overload_on ("*",Term `Times`)
-val _ = add_infix ("*", 580, HOLgrammars.LEFT)
-
-val _ = overload_on ("&&", Term `And`)
-val _ = add_infix ("&&", 580, HOLgrammars.LEFT)
-
-val _ = overload_on ("||", Term `Or`)
-val _ = add_infix ("||", 440, HOLgrammars.LEFT)
-
-val _ = overload_on ("==", Term `Equals`)
-val _ = add_infix ("==", 450, HOLgrammars.NONASSOC)
-
-val _ = overload_on ("<", Term `Le`)
-val _ = add_infix ("<", 450, HOLgrammars.NONASSOC)
-
-val _ = overload_on ("<=", Term `Leq`)
-val _ = add_infix ("<=", 450, HOLgrammars.NONASSOC)
-*)
-
-val round_to_inf_def = Define`
-  round_to_inf (w:word64) =
-    if w ≤ sw2sw NEG_INF then NEG_INF
-    else if
-      sw2sw POS_INF ≤ w then POS_INF
-    else
-      w2w w`
-
-val pu_def = Define`
-  pu (w1:word32) (w2:word32) =
-  if w1 = POS_INF ∨ w2 = POS_INF
-  then POS_INF
-  else
-    let s:word64 = sw2sw w1 + sw2sw w2 in
-    round_to_inf s`
-
-val pl_def = Define`
-  pl (w1:word32) (w2:word32) =
-  if w1 = NEG_INF ∨ w2 = NEG_INF then NEG_INF
-  else
-  let s:word64 = sw2sw w1 + sw2sw w2 in
-  round_to_inf s`
-
-val wmax_def = Define`
-  wmax (w1:word32) (w2:word32) = if w1 < w2 then w2 else w1`
-
-val wtimes_def = Define`
-  wtimes (w1:word32) (w2:word32) =
-  let prod = sw2sw w1 * sw2sw w2 in round_to_inf prod`
-
-(* Checking the simplification
-EVAL``wtimes POS_INF POS_INF = POS_INF``
-EVAL``wtimes NEG_INF POS_INF = NEG_INF``
-EVAL``wtimes POS_INF NEG_INF = NEG_INF``
-EVAL``wtimes NEG_INF NEG_INF = POS_INF``
-
-EVAL``wtimes POS_INF (-1w) = NEG_INF``
-EVAL``wtimes POS_INF (1w) = POS_INF``
-EVAL``wtimes POS_INF 0w = 0w``
-EVAL``wtimes NEG_INF (-1w) = POS_INF``
-EVAL``wtimes NEG_INF (1w) = NEG_INF``
-EVAL``wtimes NEG_INF 0w = 0w``
-
-EVAL``wtimes (-1w) POS_INF = NEG_INF``
-EVAL``wtimes (1w) POS_INF = POS_INF``
-EVAL``wtimes 0w POS_INF = 0w``
-EVAL``wtimes (-1w) NEG_INF = POS_INF``
-EVAL``wtimes (1w) NEG_INF = NEG_INF``
-EVAL``wtimes 0w NEG_INF = 0w``
-*)
-
-val tu_def = Define`
-  tu w1l w1u w2l w2u =
-  wmax (wmax (wtimes w1l w2l) (wtimes w1u w2l))
-       (wmax (wtimes w1l w2u) (wtimes w1u w2u))`
-
-val wmin_def = Define`
-  wmin (w1:word32) (w2:word32) = if w1 < w2 then w1 else w2`
-
-val tl_def = Define`
-  tl w1l w1u w2l w2u =
-  wmin (wmin (wtimes w1l w2l) (wtimes w1u w2l))
-       (wmin (wtimes w1l w2u) (wtimes w1u w2u))`
-
-val wneg_def = Define`
-  wneg w =
-  if w = NEG_INF then POS_INF
-  else if w = POS_INF then NEG_INF
-  else -w`;
-
-(* States are represented as an association list of
-  strings -> (w32,w32) *)
-val _ = type_abbrev ("wstate",``:(string,word32 # word32) alist``)
-
-(* Differences from Isabelle formalization:
-   The state is a finite map -- when Var n is not in the map, we assume that
-   it is in the interval (-Inf,Inf)
-*)
-
-val wtsem_def = Define`
-  (wtsem (Const w) (s:wstate) =
-     if NEG_INF ≤ w ∧ w ≤ POS_INF then (w,w)
-     else (NEG_INF,POS_INF)) ∧
-  (wtsem (Var n) s =
-    case ALOOKUP s n of
-      NONE => (NEG_INF,POS_INF)
-    | SOME i => i) ∧
-  (wtsem (Plus t1 t2) s =
-    let (l1,u1) = wtsem t1 s in
-    let (l2,u2) = wtsem t2 s in
-    (pl l1 l2, pu u1 u2)) ∧
-  (wtsem (Times t1 t2) s =
-    let (l1,u1) = wtsem t1 s in
-    let (l2,u2) = wtsem t2 s in
-    (tl l1 u1 l2 u2, tu l1 u1 l2 u2)) ∧
-  (wtsem (Max t1 t2) s =
-    let (l1,u1) = wtsem t1 s in
-    let (l2,u2) = wtsem t2 s in
-    (wmax l1 l2, wmax u1 u2)) ∧
-  (wtsem (Min t1 t2) s =
-    let (l1,u1) = wtsem t1 s in
-    let (l2,u2) = wtsem t2 s in
-    (wmin l1 l2, wmin u1 u2)) ∧
-  (wtsem (Neg t) s =
-    let (l,u) = wtsem t s in
-    (wneg u, wneg l))`
-
-val wle_def = Define`
-  wle (w1:word32) w2 <=> w1 < w2`
-
-val wleq_def = Define`
-  wleq (w1:word32) w2 <=>
-  ¬ (w1 = NEG_INF ∧ w2 = NEG_INF) ∧
-  ¬ (w2 = POS_INF ∧ w2 = POS_INF) ∧
-  w1 <= w2`
-
-(* We use a tri-valued logic for wfsem instead of an underspecified relation *)
-
-val wfsem_def = Define`
-  (wfsem (Le t1 t2) (s:wstate) =
-  let (l1,u1) = wtsem t1 s in
-  let (l2,u2) = wtsem t2 s in
-  if wle u1 l2 then SOME T
-  else if wleq u2 l1 then SOME F
-  else NONE) ∧
-  (wfsem (Leq t1 t2) s =
-  let (l1,u1) = wtsem t1 s in
-  let (l2,u2) = wtsem t2 s in
-  if wleq u1 l2 then SOME T
-  else if wle u2 l1 then SOME F
-  else NONE) ∧
-  (wfsem (Equals t1 t2) s =
-  let (l1,u1) = wtsem t1 s in
-  let (l2,u2) = wtsem t2 s in
-  if l2 = u2 ∧ u2 = u1 ∧ u1 = l1 ∧ l2 ≠ NEG_INF ∧ l2 ≠ POS_INF then SOME T
-  else if wle u1 l2 then SOME F
-  else if wle u2 l1 then SOME F
-  else NONE) ∧
-  (wfsem (And f1 f2) s =
-  case (wfsem f1 s, wfsem f2 s) of
-    SOME T, SOME T => SOME T
-  | SOME F, _ => SOME F
-  | _, SOME F => SOME F
-  | _ => NONE) ∧
-  (wfsem (Or f1 f2) s =
-  case (wfsem f1 s, wfsem f2 s) of
-    SOME T, _ => SOME T
-  | _, SOME T => SOME T
-  | SOME F, SOME F => SOME F
-  | _ => NONE) ∧
-  (wfsem (Not f) s =
-  case wfsem f s of
-    SOME F => SOME T
-  | SOME T => SOME F
-  | _ => NONE)`
+(*"*)
 
 (* Return to the bivalued logic *)
 val wfsem_bi_val_def = Define`
@@ -232,8 +14,6 @@ val wfsem_bi_val_def = Define`
     NONE => F
   | SOME F => F
   | SOME T => T`
-
-(* End of pure monitor stuff *)
 
 (*
   Translation of the monitors into CML
@@ -270,6 +50,8 @@ val res = translate (integer_wordTheory.WORD_LEi |> spec64)
 val res = translate lookup_def;
 val res = translate (round_to_inf_def |> inlines |> econv);
 
+val res = translate (lookup_const_def |> inlines |> econv);
+val res = translate (lookup_var_def |> inlines |> econv);
 val res = translate (pl_def |> inlines |> econv);
 val res = translate (pu_def |> inlines |> econv);
 val res = translate (wmin_def |> inlines |> econv);
@@ -341,6 +123,7 @@ val _ = append_prog unpack_w32_list
 
 (* Helper function to handoff a state to the monitor *)
 
+(*
 val vars_to_state_aux_def = Define`
   (vars_to_state_aux [] [] = []:wstate) ∧
   (vars_to_state_aux (x::xs) (v:word32::vs) = ((x, (v,v))::vars_to_state_aux xs vs)) ∧
@@ -348,10 +131,11 @@ val vars_to_state_aux_def = Define`
   (vars_to_state_aux _ [] = [])`
 
 val vars_to_state_def = Define`
-  vars_to_state xs ys = REVERSE (vars_to_state_aux xs ys)`
+  vars_to_state xs ys = ZIP (xs,ys)`
 
 val res = translate vars_to_state_aux_def;
 val res = translate vars_to_state_def;
+*)
 
 (* Now we define the various monitoring wrappers *)
 
@@ -397,6 +181,7 @@ val _ = append_prog get_ctrl;
 
 (* The fixed controller vars are
    a list of (INL) word constants or (INR) constant/sensor names *)
+(*
 val lookup_fixed_aux_def = Define`
   (lookup_fixed_aux nls [] = []:word32 list) ∧
   (lookup_fixed_aux nls (INL w::xs) = w::lookup_fixed_aux nls xs) ∧
@@ -406,9 +191,11 @@ val lookup_fixed_aux_def = Define`
     | SOME v => v :: lookup_fixed_aux nls xs)`;
 
 val res = translate lookup_fixed_aux_def;
+*)
 
 val lookup_fixed_def = Define`
-  lookup_fixed nls ls = lookup_fixed_aux (REVERSE nls) ls`;
+  lookup_fixed nls ls =
+  MAP (λn. case ALOOKUP nls n of NONE => 0w:word32 | SOME v => v) ls`
 
 val res = translate lookup_fixed_def;
 
@@ -419,12 +206,12 @@ val ctrl_monitor_def = Define`
   ctrl_monitor ctrl_phi const_names sensor_names ctrlplus_names
                         const_ls    sensor_ls    ctrlplus_ls
                         ctrlfixed_names ctrlfixed_rhs  default_ls =
-  let params = ZIP (const_names++sensor_names,const_ls++sensor_ls) in
+  let params = ZIP (sensor_names ++ const_names, sensor_ls ++ const_ls) in
   let ctrlfixed_ls = lookup_fixed params ctrlfixed_rhs in
-  let st_ls = FLAT [const_ls; sensor_ls; ctrlplus_ls; ctrlfixed_ls] in
-  let names_ls = FLAT [const_names; sensor_names; ctrlplus_names; ctrlfixed_names] in
+  let st_ls    = FLAT [ctrlfixed_ls   ; ctrlplus_ls   ; sensor_ls   ; const_ls] in
+  let names_ls = FLAT [ctrlfixed_names; ctrlplus_names; sensor_names; const_names] in
     if
-      wfsem_bi_val ctrl_phi (vars_to_state names_ls st_ls)
+      wfsem_bi_val ctrl_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))
     then
       (strlit"OK",ctrlplus_ls)
     else
@@ -440,12 +227,27 @@ val actuate = process_topdecs`
 
 val _ = append_prog actuate;
 
+(* Do these need to be non-infinity? *)
+val is_point_def = Define`
+  is_point p ⇔
+  FST p = SND p`
+
+val _ = translate is_point_def;
+
 val evaluate_default_def = Define`
   evaluate_default const_names const_ls default =
-    MAP (λd. FST (wtsem d (vars_to_state const_names const_ls))) default`
+  let defaults =
+    MAP (λd. wtsem d (ZIP (const_names,ZIP(const_ls,const_ls)))) default
+  in
+    if (EVERY is_point defaults)
+    then
+      SOME (MAP FST defaults)
+    else
+      NONE`
 
 val _ = translate evaluate_default_def;
 
+(*
 val ctrl_monitor_1shot = process_topdecs`
   fun ctrl_monitor_1shot ctrl_phi const_names sensor_names ctrlplus_names
                          ctrlfixed_names ctrlfixed_rhs default =
@@ -464,6 +266,7 @@ val ctrl_monitor_1shot = process_topdecs`
   end`
 
 val _ = append_prog ctrl_monitor_1shot;
+*)
 
 (* Checks if there is a next transition *)
 val has_next = process_topdecs`
@@ -476,6 +279,7 @@ val has_next = process_topdecs`
 
 val _ = append_prog has_next;
 
+(*
 val ctrl_monitor_loop_body = process_topdecs`
   fun ctrl_monitor_loop_body ctrl_phi const_names sensor_names ctrlplus_names
                              ctrlfixed_names ctrlfixed_rhs default_ls
@@ -504,6 +308,7 @@ val ctrl_monitor_loop_body = process_topdecs`
     ()`
 
 val _ = append_prog ctrl_monitor_loop_body;
+*)
 
 val violation = process_topdecs`
   fun violation str =
@@ -514,6 +319,7 @@ val violation = process_topdecs`
 
 val _ = append_prog violation;
 
+(*
 val ctrl_monitor_loop = process_topdecs`
   fun ctrl_monitor_loop init_phi ctrl_phi
               const_names sensor_names ctrlplus_names
@@ -538,13 +344,14 @@ val ctrl_monitor_loop = process_topdecs`
   end`
 
 val _ = append_prog ctrl_monitor_loop;
+*)
 
 val plant_monitor_def = Define`
   plant_monitor plant_phi const_names sensor_names ctrl_names sensorplus_names
                           const_ls    sensor_ls    ctrl_ls    sensorplus_ls =
-  let names_ls = FLAT [const_names; sensor_names; ctrl_names; sensorplus_names] in
-  let st_ls    = FLAT [const_ls   ; sensor_ls   ; ctrl_ls   ; sensorplus_ls] in
-    wfsem_bi_val plant_phi (vars_to_state names_ls st_ls)`
+  let names_ls = FLAT [sensorplus_names; ctrl_names; sensor_names; const_names] in
+  let st_ls    = FLAT [sensorplus_ls   ; ctrl_ls   ; sensor_ls   ; const_ls] in
+    wfsem_bi_val plant_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
 
 val res = translate plant_monitor_def;
 
@@ -592,20 +399,26 @@ val monitor_loop = process_topdecs`
                    ctrlfixed_names ctrlfixed_rhs default =
   (* First read the constants and initial state *)
   let val const_ls = get_const const_names
-      val default_ls = evaluate_default const_names const_ls default
-      val sensor_ls = get_sensor sensor_names
-      val names_ls = const_names @ sensor_names
-      val st_ls = const_ls @ sensor_ls
+      val default_opt = evaluate_default const_names const_ls default
   in
-    if
-      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
-    then
-      monitor_loop_body plant_phi ctrl_phi
-                        const_names sensor_names ctrlplus_names ctrl_names sensorplus_names
-                        ctrlfixed_names ctrlfixed_rhs default_ls
-                        const_ls sensor_ls
-    else
-      violation "Init Violation"
+  case default_opt of
+    NONE => violation "Fallback Violation"
+  | SOME default_ls =>
+    let
+        val sensor_ls = get_sensor sensor_names
+        val names_ls = const_names @ sensor_names
+        val st_ls = const_ls @ sensor_ls
+    in
+      if
+        wfsem_bi_val init_phi (ZIP (names_ls,(st_ls,st_ls)))
+      then
+        monitor_loop_body plant_phi ctrl_phi
+                          const_names sensor_names ctrlplus_names ctrl_names sensorplus_names
+                          ctrlfixed_names ctrlfixed_rhs default_ls
+                          const_ls sensor_ls
+      else
+        violation "Init Violation"
+    end
   end`
 
 val _ = append_prog monitor_loop;

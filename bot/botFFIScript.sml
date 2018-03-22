@@ -4,7 +4,7 @@ open MonitorProgTheory
 val _ = new_theory"botFFI"
 
 (*
-  This is our logical state machine model for the control/plant model
+  This is our logical FFI state machine model for the control/plant model
   We don't need the full model for the 1shot controller monitor or loop controller monitor
   However, we have included everything into the mach model
 
@@ -25,7 +25,7 @@ val _ = Datatype`
     ctrl_monitor       : fml;
     plant_monitor      : fml;
     ctrlfixed_names    : string list;
-    ctrlfixed_rhs      : (word32 + string) list;
+    ctrlfixed_rhs      : string list;
     default            : trm list
   |>`
 
@@ -247,8 +247,8 @@ val encode_mach_config_def = Define`
    (Cons (encode_fml wc.init)
    (Cons (encode_fml wc.ctrl_monitor)
    (Cons (encode_fml wc.plant_monitor)
-   (Cons (List (MAP (Str) wc.ctrlfixed_names))
-   (Cons (encode_sum_list wc.ctrlfixed_rhs)
+   (Cons (List (MAP Str wc.ctrlfixed_names))
+   (Cons (List (MAP Str wc.ctrlfixed_rhs))
    (List (MAP encode_trm wc.default))
    )))))))))`
 

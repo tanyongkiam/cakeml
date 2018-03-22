@@ -42,7 +42,8 @@ val _ = Datatype`
       | Assign string (trm option)
       | Seq hp hp
       | Choice hp hp
-      | Loop hp`
+      | Loop hp
+      | Skip`
 
 val round_to_inf_def = Define`
   round_to_inf (w:word64) =
@@ -122,15 +123,20 @@ val _ = type_abbrev ("wstate",``:(string,word32 # word32) alist``)
    The state is a finite map -- when Var n is not in the map, we assume that
    it is in the interval (-Inf,Inf)
 *)
-
-val wtsem_def = Define`
-  (wtsem (Const w) (s:wstate) =
+val lookup_const_def = Define`
+  lookup_const w =
      if NEG_INF ≤ w ∧ w ≤ POS_INF then (w,w)
-     else (NEG_INF,POS_INF)) ∧
-  (wtsem (Var n) s =
+     else (NEG_INF,POS_INF)`
+
+val lookup_var_def = Define`
+  lookup_var s n =
     case ALOOKUP s n of
       NONE => (NEG_INF,POS_INF)
-    | SOME i => i) ∧
+    | SOME i => i`
+
+val wtsem_def = Define`
+  (wtsem (Const w) (s:wstate) = lookup_const w) ∧
+  (wtsem (Var n) s = lookup_var s n) ∧
   (wtsem (Plus t1 t2) s =
     let (l1,u1) = wtsem t1 s in
     let (l2,u2) = wtsem t2 s in
@@ -200,26 +206,17 @@ val wfsem_def = Define`
   | SOME T => SOME F
   | _ => NONE)`
 
-val _ = Datatype`
-   hp = Test fml
-      | Assign string (trm option)
-      | Seq hp hp
-      | Choice hp hp
-      | Loop hp`
-
 (* The non-deterministic big-step relational semantics of hybrid programs *)
 val (wpsem_rules,wpsem_ind, wpsem_cases) = Hol_reln`
+  (* skip *)
+  (∀w. wpsem Skip w w) ∧
   (* Non-deterministic assignment *)
-  (∀x a b w v.
-  wleq a b ∧
-  (∀y. ALOOKUP v y =
-    if y = x then SOME (a,b) else ALOOKUP w y) ⇒
-  wpsem (Assign x NONE) w v) ∧
+  (∀x a b w.
+  a ≤ b ⇒
+  wpsem (Assign x NONE) w ((x,(a,b))::w)) ∧
   (* Deterministic assignment *)
-  (∀x t w v.
-  (∀y. ALOOKUP v y =
-    if y = x then SOME (wtsem t w) else ALOOKUP w y) ⇒
-  wpsem (Assign x (SOME t)) w v) ∧
+  (∀x t w.
+  wpsem (Assign x (SOME t)) w ((x,(wtsem t w))::w)) ∧
   (∀f w.
     wfsem f w = SOME T ⇒
     wpsem (Test f) w w) ∧
@@ -263,7 +260,7 @@ val fv_trm_coincide = Q.store_thm("fv_trm_coincide",`
   ∀t w v.
   EVERY (λx. ALOOKUP w x = ALOOKUP v x) (fv_trm t) ⇒
   wtsem t w = wtsem t v`,
-  Induct>>fs[fv_trm_def,wtsem_def]>>rw[]>>
+  Induct>>fs[fv_trm_def,wtsem_def,lookup_var_def]>>rw[]>>
   rpt(pairarg_tac>>fs[])>>
   metis_tac[PAIR,FST,SND]);
 
@@ -275,5 +272,144 @@ val fv_fml_coincide = Q.store_thm("fv_fml_coincide",`
   Induct>>fs[fv_fml_def,wfsem_def]>>rw[]>>
   rpt(pairarg_tac>>fs[])>>rw[]>>
   metis_tac[PAIR,FST,SND,fv_trm_coincide]);
+
+(* Some abbreviations for convenience *)
+val AssignAnyPar_def = Define`
+  (AssignAnyPar [] = Skip) ∧
+  (AssignAnyPar (x::xs) = Seq (Assign x NONE) (AssignAnyPar xs))`
+
+val AssignAnyPar_sem = Q.store_thm("AssignAnyPar_sem",`
+  ∀xs ws w w'.
+  ALL_DISTINCT xs ==>
+  (wpsem (AssignAnyPar xs) w w' ⇔
+  ∃ws.
+  LENGTH ws = LENGTH xs ∧
+  EVERY (λ(a,b). a ≤ b) ws ∧
+  w' = (REVERSE (ZIP(xs,ws)) ++ w))`,
+  Induct>>rw[AssignAnyPar_def]>>
+  simp[Once wpsem_cases]>>
+  simp[Once wpsem_cases,PULL_EXISTS]>>
+  rw[EQ_IMP_THM]
+  >-
+    (qexists_tac`(a,b)::ws`>>simp[])
+  >>
+  Cases_on`ws`>>fs[]>>
+  pairarg_tac>>fs[]>>
+  asm_exists_tac>>fs[]);
+
+val AssignPar_def = Define`
+  (AssignPar (l::ls) (r::rs) =
+    Seq (Assign l (SOME r)) (AssignPar ls rs)) ∧
+  (AssignPar [] [] = Skip)`
+
+(* 1 directional non-overlap *)
+val no_overlap_def = Define`
+  no_overlap xs ys ⇔
+  (∀x. MEM x xs ⇒  ¬ MEM x ys)`
+
+val no_overlap_sym = Q.store_thm("no_overlap_sym",`
+  no_overlap xs ys ⇔ no_overlap ys xs`,
+  rw[no_overlap_def]>>
+  metis_tac[]);
+
+val AssignPar_sem = Q.store_thm("AssignPar_sem",`
+  ∀ls rs w w'.
+  ALL_DISTINCT ls ∧
+  no_overlap ls (FLAT (MAP fv_trm rs)) ∧
+  LENGTH ls = LENGTH rs ⇒
+  (wpsem (AssignPar ls rs) w w' ⇔
+  w' = REVERSE (ZIP(ls, MAP (λr. wtsem r w) rs)) ++ w)`,
+  simp[Once no_overlap_sym]>>
+  Induct>>rw[AssignPar_def]
+  >-
+    simp[Once wpsem_cases]
+  >>
+  Cases_on`rs`>>fs[AssignPar_def]>>
+  simp[Once wpsem_cases]>>
+  simp[Once wpsem_cases]>>
+  first_x_assum(qspec_then`t` mp_tac)>>
+  simp[]>>
+  disch_then(qspecl_then [`(h,wtsem h' w):: w`,`w'`] mp_tac)>>
+  impl_tac>-
+    fs[no_overlap_def]>>
+  rw[]>>
+  rpt(AP_TERM_TAC>>AP_THM_TAC)>>
+  rpt(AP_TERM_TAC)>>
+  simp[MAP_EQ_f]>>rw[]>>
+  match_mp_tac fv_trm_coincide>>
+  fs[ALOOKUP_def,EVERY_MEM,MEM_FLAT,MEM_MAP,PULL_EXISTS,no_overlap_def]>>
+  rw[]>>
+  metis_tac[]);
+
+val AssignVarPar_def = Define`
+  AssignVarPar lhs rhs = AssignPar lhs (MAP Var rhs)`
+
+val AssignVarPar_sem = Q.store_thm("AssignVarPar_sem",`
+  ∀ls rs w w'.
+  ALL_DISTINCT ls ∧
+  no_overlap ls rs ∧
+  LENGTH ls = LENGTH rs ⇒
+  (wpsem (AssignVarPar ls rs) w w' ⇔
+  w' = REVERSE (ZIP(ls, MAP (lookup_var w) rs)) ++ w)`,
+  rw[AssignVarPar_def]>>
+  `MAP (lookup_var w) rs = MAP (λr. wtsem r w) (MAP Var rs)` by
+     simp[MAP_EQ_f,MAP_MAP_o,wtsem_def]>>
+  rw[]>>
+  match_mp_tac AssignPar_sem>>
+  fs[MAP_MAP_o,fv_trm_def,o_DEF,FLAT_MAP_SING]);
+
+val AssignVarPar_imp = Q.store_thm("AssignVarPar_imp",`
+  ∀ls rs w.
+  ALL_DISTINCT ls ∧
+  no_overlap ls rs ∧
+  LENGTH ls = LENGTH rs ⇒
+  wpsem (AssignVarPar ls rs) w (REVERSE (ZIP(ls, MAP (lookup_var w) rs)) ++ w)`,
+  metis_tac[AssignVarPar_sem]);
+
+(*
+(*For convenience, we compile to hp_par which has
+  almost the same semantics
+  except assignments are now parallel *)
+val _ = Datatype`
+   hp_par = TestPar fml
+          | AssignAnyPar (string list)
+          | AssignPar ((string # trm) list)
+          | SeqPar hp_par hp_par
+          | ChoicePar hp_par hp_par
+          | LoopPar hp_par
+          | SkipPar`
+
+(* The non-deterministic big-step relational semantics of hybrid programs *)
+val (wparsem_rules,wparsem_ind, wparsem_cases) = Hol_reln`
+  (* skip *)
+  (∀w. wparsem SkipPar w w) ∧
+  (* Parallel non-deterministic assignment *)
+  (∀w xs ws.
+    LENGTH ws = LENGTH xs ∧
+    EVERY (λ(a,b). a ≤ b) ws ⇒
+    wparsem (AssignAnyPar xs) w (ZIP(xs,ws) ++ w)) ∧
+  (* Parallel deterministic assignment *)
+  (∀xts w.
+    wparsem (AssignPar xts) w (MAP (λ(x,t). (x,wtsem t w)) xts ++ w)) ∧
+  (∀f w.
+    wfsem f w = SOME T ⇒
+    wparsem (TestPar f) w w) ∧
+  (∀a b w u v.
+    wparsem a w u ∧
+    wparsem b u v ⇒
+    wparsem (SeqPar a b) w v) ∧
+  (∀a b w v.
+    wparsem a w v ⇒
+    wparsem (ChoicePar a b) w v) ∧
+  (∀a b w v.
+    wparsem b w v ⇒
+    wparsem (ChoicePar a b) w v) ∧
+  (∀a w.
+    wparsem (LoopPar a) w w) ∧
+  (∀a w.
+    wparsem a w u ∧
+    wparsem (LoopPar a) u v ⇒
+    wparsem (LoopPar a) w v)`
+*)
 
 val _ = export_theory();
