@@ -355,6 +355,15 @@ val plant_monitor_def = Define`
 
 val res = translate plant_monitor_def;
 
+val init_monitor_def = Define`
+  init_monitor init_phi const_names sensor_names
+                        const_ls    sensor_ls   =
+  let names_ls = FLAT [sensor_names; const_names] in
+  let st_ls    = FLAT [sensor_ls   ; const_ls] in
+    wfsem_bi_val init_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
+
+val res = translate init_monitor_def;
+
 val monitor_loop_body = process_topdecs`
   fun monitor_loop_body plant_phi ctrl_phi
                         const_names sensor_names ctrlplus_names ctrl_names sensorplus_names
@@ -406,11 +415,9 @@ val monitor_loop = process_topdecs`
   | SOME default_ls =>
     let
         val sensor_ls = get_sensor sensor_names
-        val names_ls = const_names @ sensor_names
-        val st_ls = const_ls @ sensor_ls
     in
       if
-        wfsem_bi_val init_phi (ZIP (names_ls,(st_ls,st_ls)))
+        init_monitor init_phi const_names sensor_names const_ls sensor_ls
       then
         monitor_loop_body plant_phi ctrl_phi
                           const_names sensor_names ctrlplus_names ctrl_names sensorplus_names

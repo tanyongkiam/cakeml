@@ -127,8 +127,9 @@ val wf_config_def = Define`
   no_overlap wc.ctrlplus_names wc.ctrlfixed_names ∧
   let default_deps = wc.const_names in
   EVERY (λx. MEM x default_deps) (FLAT (MAP fv_trm wc.default)) ∧
-  let fixed_deps = wc.const_names ++ wc.sensor_names in
-  EVERY (λx. MEM x fixed_deps) wc.ctrlfixed_rhs ∧
+  let init_fixed_deps = wc.const_names ++ wc.sensor_names in
+  EVERY (λx. MEM x init_fixed_deps) (fv_fml wc.init) ∧
+  EVERY (λx. MEM x init_fixed_deps) wc.ctrlfixed_rhs ∧
   let plant_deps = wc.const_names ++ wc.sensor_names ++ wc.ctrl_names ++ wc.sensorplus_names in
   EVERY (λx. MEM x plant_deps) (fv_fml wc.plant_monitor) ∧
   let ctrl_deps = wc.const_names ++ wc.sensor_names ++ wc.ctrlplus_names ++ wc.ctrlfixed_names in
@@ -770,38 +771,69 @@ val init_sandbox_def = Define`
   (Seq (AssignAnyPar wc.sensor_names)
        (Test (wc.init)))`
 
-(* The initial world is valid TODO: need extra assumptions for defaults*)
+val mk_state_def = Define`
+  mk_state w =
+  let names_ls = w.wc.sensor_names ++ w.wc.const_names in
+  let st_ls = w.ws.sensor_vals ++ w.ws.const_vals in
+ (ZIP(names_ls,ZIP(st_ls,st_ls)))`
+
+(* The initial world is valid TODO: need extra assumptions for defaults? *)
 val init_step_def = Define`
-  init_step w =<=>
-  let names_ls = w.wc.const_names ++ w.wc.sensor_names in
-  let st_ls = w.ws.const_vals ++ w.ws.sensor_vals in
-  wfsem_bi_val w.wc.init (ZIP(names_ls,ZIP(st_ls,st_ls))) ∧
-  evaluate_default w.wc.const_names w.ws.const_vals w.wc.default = SOME defaults`
+  init_step w =
+  if
+    wfsem_bi_val w.wc.init (mk_state w)
+  then
+    evaluate_default w.wc.const_names w.ws.const_vals w.wc.default
+  else NONE`
 
 val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
   wf_config w.wc ∧
-  init_step w ∧
-  state_rel w st ⇒
+  wf_mach w ∧
+  state_rel w st ∧
+  init_step w = SOME defaults ⇒
   ∃st'.
   state_rel w st' ∧
   wpsem (init_sandbox w.wc) st st'`,
-  rw[init_step_def,init_sandbox_def]>>
+  rw[init_step_def,init_sandbox_def,mk_state_def]>>
   fs[wf_config_def]>>
   simp[Once wpsem_cases]>>
   simp[AssignAnyPar_sem,PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
   qexists_tac`MAP (lookup_var st) w.wc.const_names` >>
-  simp[]>>
   simp[Once wpsem_cases]>>
   simp[AssignAnyPar_sem,PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
   qexists_tac`MAP (lookup_var st) w.wc.sensor_names` >>
-  `MAP (lookup_var st) w.wc.const_names = MAP (\x.(x,x)) w.ws.const_vals` by cheat>>
-  `MAP (lookup_var st) w.wc.sensor_names = MAP (\x.(x,x)) w.ws.sensor_vals` by cheat>>
-  simp[]>>
   simp[EVERY_MAP,WORD_LESS_EQ_REFL]>>
   simp[Once wpsem_cases]>>
-  cheat);
+  rw[]
+  >-
+    (simp[state_rel_def]>>
+    fs[wf_mach_def,LIST_REL_APPEND_EQ]>>
+    rw[]
+    >-
+      (PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      match_mp_tac state_agree_append2>>
+      fs[MAP_ZIP]>>
+      cheat)
+    >-
+      (PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      match_mp_tac state_agree_append>>
+      fs[no_overlap_def,MAP_REVERSE,MAP_ZIP]>>
+      match_mp_tac state_agree_append2>>
+      fs[MAP_ZIP]>>
+      cheat))
+  >-
+    (fs[EVERY_MEM,lookup_var_def]>>
+    cheat)
+  >-
+    cheat
+  >>
+    fs[wfsem_bi_val_def]>>EVERY_CASE_TAC>>fs[]>>
+    qpat_x_assum `_=SOME T` sym_sub_tac>>
+    match_mp_tac fv_fml_coincide>>
+    fs[EVERY_MEM]>>
+    cheat);
 
 (* Now, we prove the refinement from CakeML into the functional spec *)
 val _ = translation_extends "MonitorProg";
@@ -1326,11 +1358,11 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   (IOBOT w)
   (POSTv uv. &(UNIT_TYPE () uv) *
     SEP_EXISTS w'. IOBOT w' *
-    &(
+    & (
       (* Either the initial mach violates init immediately *)
-      (w = w' ∧ (¬init_step w)) ∨
-      init_step
-      evaluate_default w.wc.const_names w.ws.const_vals w.wc.default = SOME defaults ∧
+      (w = w' ∧ init_step w = NONE) ∨
+      ∃defaults.
+      init_step w = SOME defaults ∧
       (¬w'.wo.step_oracle 0 ∧ body_loop defaults w w' ∨
       ∃v.
         body_loop defaults w v ∧
@@ -1344,40 +1376,118 @@ val monitor_loop_spec = Q.store_thm("monitor_loop_spec",`
   fs[OPTION_TYPE_def]>>strip_tac>>
   xmatch
   >-
+    (* fallbacks not points *)
     (reverse (Cases_on`wf_mach w`)
     >-
       (simp[IOBOT_def]>>xpull)>>
     xapp >> xsimpl>>
     qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
     rw[]>>xsimpl>>
-    qexists_tac`w`>>fs[init_sat_def]>>
+    qexists_tac`w`>>simp[init_step_def]>>
     xsimpl)
   >>
-  rpt(xlet_auto >- xsimpl)>>
+  rpt(xlet_auto >- (TRY(xcon)>>xsimpl))>>
   reverse xif
   >-
     (* init violated *)
     (reverse (Cases_on`wf_mach w`)
     >-
       (simp[IOBOT_def]>>xpull)>>
-    rpt (xlet_auto >- (TRY(xcon)>>xsimpl))>>
     xapp >> xsimpl>>
     qexists_tac`emp`>>qexists_tac`w`>>xsimpl>>
     rw[]>>xsimpl>>
-    qexists_tac`w`>>fs[init_sat_def]>>
-    fs[wfsem_bi_val_def]>>
-    xsimpl>>every_case_tac>>fs[])
+    qexists_tac`w`>>simp[init_step_def]>>
+    xsimpl>>
+    fs[init_monitor_def,mk_state_def])
   >>
     xapp>>xsimpl>>
     asm_exists_tac>>simp[]>>
-    xsimpl>>fs[good_mach_def,get_default_def]>>
-    simp[good_ctrl_trace_def,good_plant_trace_def]>>
+    xsimpl>>
+    qexists_tac`x`>>fs[]>>CONJ_TAC>-
+      (fs[evaluate_default_def,wf_config_def,Abbr`def`]>>
+      rw[])>>
     rw[]
     >-
-      (fs[init_sat_def,wfsem_bi_val_def]>>
-      EVERY_CASE_TAC>>fs[]>>
-      asm_exists_tac>>xsimpl)
+      (qexists_tac`x'`>>
+      xsimpl>>
+      fs[init_step_def,init_monitor_def,mk_state_def])
     >>
-      qexists_tac`x`>>simp[]>>xsimpl);
+      (qexists_tac`x'`>>
+      xsimpl>>
+      fs[init_step_def,init_monitor_def,mk_state_def]>>
+      metis_tac[]));
+
+val full_sandbox_def = Define`
+  full_sandbox flg wc =
+  Seq (init_sandbox wc) (Loop (body_sandbox flg wc))`
+
+(* Rewriting the spec combined spec *)
+val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
+  (* These specify what the inputs should be *)
+  INTERVALARITH_FML_TYPE w.wc.init iv ∧
+  INTERVALARITH_FML_TYPE w.wc.plant_monitor plantfv ∧
+  INTERVALARITH_FML_TYPE w.wc.ctrl_monitor ctrlfv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.const_names const_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.sensor_names sensor_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrlplus_names ctrlplus_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrl_names ctrl_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.sensorplus_names sensorplus_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_names ctrlfixed_namesv ∧
+  LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
+  LIST_TYPE INTERVALARITH_TRM_TYPE w.wc.default defaultv ∧
+  wf_config w.wc ∧
+  state_rel w st ∧
+  eventually ($~) w.wo.step_oracle
+  ⇒
+  app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
+    [iv;plantfv;ctrlfv;const_namesv;sensor_namesv;ctrlplus_namesv;ctrl_namesv;sensorplus_namesv;ctrlfixed_namesv;ctrlfixed_rhsv;defaultv]
+  (IOBOT w)
+  (POSTv uv. &(UNIT_TYPE () uv) *
+    SEP_EXISTS w'. IOBOT w' *
+    & (
+      (* Either the initial mach violates init immediately *)
+      (w = w' ∧ init_step w = NONE) ∨
+      ∃defaults.
+      init_step w = SOME defaults ∧
+      (
+      (* Ran to completion *)
+      (¬w'.wo.step_oracle 0 ∧
+        ∃st'. wpsem (full_sandbox T w.wc) st st') ∨
+      (* Ran the loop to an intermediate state
+         then plant monitor violated *)
+      ∃v sti.
+        wpsem (full_sandbox T w.wc) st sti ∧
+        state_rel v sti ∧
+        (* this can also be mapped into a HP, but this step is more precise *)
+        body_step F defaults v w')))`,
+  rw[]>>
+  reverse (Cases_on`wf_mach w`)
+  >-
+    (simp[IOBOT_def]>>xpull)>>
+  drule monitor_loop_spec     >>
+  simp[]>>rw[]>>
+  xapp>>xsimpl>>
+  rw[]
+  >-
+    (qexists_tac`w`>>xsimpl>>metis_tac[])
+  >-
+    (qexists_tac`x`>>xsimpl>>
+    drule init_step_init_sandbox>>simp[]>>rw[]>>
+    drule body_loop_state_rel>>fs[init_step_def]>>
+    disch_then drule>>
+    rw[full_sandbox_def]>>
+    simp[Once wpsem_cases]>>
+    metis_tac[])
+  >>
+    qexists_tac`x`>>xsimpl>>
+    drule init_step_init_sandbox>>simp[]>>rw[]>>
+    drule body_loop_state_rel>>fs[init_step_def]>>
+    disch_then drule>>
+    rw[full_sandbox_def]>>
+    DISJ2_TAC>>
+    simp[Once wpsem_cases]>>
+    qexists_tac`v'`>>fs[]>>
+    qexists_tac`st''`>>fs[]>>
+    metis_tac[wpsem_cases]);
 
 val _ = export_theory();
