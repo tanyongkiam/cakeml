@@ -50,8 +50,7 @@ val _ = Datatype`
 val _ = Datatype`
   mach = <| wc : mach_config ;
             ws : mach_state  ;
-            wo : mach_oracle ;
-            tr : (mach_state # word32 list) list|>`
+            wo : mach_oracle |>`
 
 (* flatten 4 tuples *)
 val FLAT_TUP_def = Define`
@@ -127,7 +126,7 @@ val ffi_actuate_def = Define`
       let new_ws = ws with <|sensor_vals := cur_transition_oracle (ws,ctrl)|> in
       let new_wo = wo with <|transition_oracle := next_transition_oracle;
                              step_oracle       := next_step_oracle|> in
-        SOME(bytes, st with <|wo := new_wo ; ws := new_ws ; tr := SNOC (ws,ctrl) st.tr|>)
+        SOME(bytes, st with <|wo := new_wo ; ws := new_ws |>)
     else
        NONE
   else NONE`
@@ -401,22 +400,24 @@ val encode_def = Define`
   encode w =
    Cons (encode_mach_config w.wc)
   (Cons (encode_mach_state w.ws)
-  (Cons (encode_mach_oracle w.wo)
-  (List
-    (MAP (λ(st,ws). Cons (encode_mach_state st) (encode_word32_list ws)) w.tr))))`
+  (encode_mach_oracle w.wo))`
+
+(*  (List
+    (MAP (λ(st,ws). Cons (encode_mach_state st) (encode_word32_list ws)) w.tr))))` *)
 
 val encode_11 = Q.store_thm("encode_11",`
   ∀w w'.
   encode w' = encode w <=> w' = w`,
   fs[encode_def]>>
   rw[EQ_IMP_THM]>>fs comp_eq>>
-  fs[encode_mach_config_11,encode_mach_state_11,encode_mach_oracle_11]>>
+  fs[encode_mach_config_11,encode_mach_state_11,encode_mach_oracle_11])
+(*>>
   rfs[LIST_EQ_REWRITE,EL_MAP]>>rw[]>>
   fs[EL_MAP]>>
   res_tac>>fs[]>>
   pairarg_tac>>fs[]>>
   pairarg_tac>>fs[]>>
-  metis_tac[encode_mach_state_11,encode_word32_list_11]);
+  metis_tac[encode_mach_state_11,encode_word32_list_11]); *)
 
 val decode_encode = new_specification("decode_encode",["decode"],
   prove(``?decode. !cls. decode (encode cls) = SOME cls``,
