@@ -1,4 +1,5 @@
 open preamble MonitorProgTheory MonitorProofTheory botFFITheory botFFIProofTheory
+open intervalArithTheory
 open ml_progLib ml_translatorLib
 open basisFunctionsLib
 open cfTacticsLib cfLetAutoLib semanticsLib
@@ -11,9 +12,9 @@ fun bring_fwd_ctors ty =
       Parse.bring_to_front_overload Name {Name=Name,Thy=Thy}
     end)
 
-val _ = bring_fwd_ctors ``:MonitorProg$trm``
-val _ = bring_fwd_ctors ``:MonitorProg$fml``
-val _ = bring_fwd_ctors ``:MonitorProg$hp``
+val _ = bring_fwd_ctors ``:intervalArith$trm``
+val _ = bring_fwd_ctors ``:intervalArith$fml``
+val _ = bring_fwd_ctors ``:intervalArith$hp``
 
 (* This is the final step that produces a monitor
   Here, we concretely instantiate the monitors with
@@ -21,195 +22,149 @@ val _ = bring_fwd_ctors ``:MonitorProg$hp``
 
 val _ = new_theory "botProg"
 
-val _ = translation_extends "MonitorProg";
-
-(*"*)
-(* Helper functions for parsing the input sandbox *)
-
-(* Parses a sequence of (non-det) assignments to a list of names *)
-val parse_names_def = Define`
-  (parse_names (Assign x NONE) = SOME [x]) ∧
-  (parse_names (Seq p1 p2) =
-    case parse_names p1 of
+(* Invert AssignAnyPar *)
+val parse_AssignAnyPar_def = Define`
+  (parse_AssignAnyPar Skip = SOME []) ∧
+  (parse_AssignAnyPar (Seq (Assign x NONE) p2) =
+    case parse_AssignAnyPar p2 of
       NONE => NONE
-    | SOME xs =>
-    case parse_names p2 of
-      NONE => NONE
-    | SOME ys => SOME(xs++ys)) ∧
-  (parse_names _ = NONE)`
+    | SOME xs => SOME (x::xs)) ∧
+  (parse_AssignAnyPar _ = NONE)`
 
-(* Parses a sequence of (concrete) assignments to a list of (name,rhs) pairs *)
-val parse_namevals_def = Define`
-  (parse_namevals (Assign x (SOME e)) = SOME [(x,e)]) ∧
-  (parse_namevals (Seq p1 p2) =
-    case parse_namevals p1 of
-      NONE => NONE
-    | SOME xs =>
-    case parse_namevals p2 of
-      NONE => NONE
-    | SOME ys => SOME(xs++ys)) ∧
-  (parse_namevals _ = NONE)`
+val parse_AssignAnyPar_inv = Q.prove(`
+  ∀seq ls.
+  parse_AssignAnyPar seq = SOME ls ⇒
+  AssignAnyPar ls = seq`,
+  ho_match_mp_tac (fetch "-" "parse_AssignAnyPar_ind")>>
+  rw[]>>fs[parse_AssignAnyPar_def]>>
+  EVERY_CASE_TAC>>rw[]>>fs[AssignAnyPar_def]);
 
-(* Expects 3 seqs at the top-level
-  {Consts:=*};
-  {Sensors:=*};
-  {?Init}; ...
+(* Invert AssignPar *)
+val parse_AssignPar_def = Define`
+  (parse_AssignPar Skip = SOME ([],[])) ∧
+  (parse_AssignPar (Seq (Assign x (SOME t)) p2) =
+    case parse_AssignPar p2 of
+      NONE => NONE
+    | SOME (xs,ts) => SOME (x::xs,t::ts)) ∧
+  (parse_AssignPar _ = NONE)`
+
+val parse_AssignPar_inv = Q.prove(`
+  ∀seq ls ts.
+  parse_AssignPar seq = SOME (ls,ts) ⇒
+  AssignPar ls ts = seq`,
+  ho_match_mp_tac (fetch "-" "parse_AssignPar_ind")>>
+  rw[]>>fs[parse_AssignPar_def]>>
+  EVERY_CASE_TAC>>rw[]>>fs[AssignPar_def]);
+
+val parse_AssignVarPar_def = Define`
+  parse_AssignVarPar p =
+  OPTION_JOIN (lift ( λ(xs,ts).
+    lift (\vs.(xs,vs)) (OPT_MMAP (λt. case t of Var n => SOME n | _ => NONE) ts)
+  )
+  (parse_AssignPar p))`
+
+(* Invert AssignVarPar *)
+val parse_AssignVarPar_inv = Q.prove(`
+  ∀seq ls ts.
+  parse_AssignVarPar seq = SOME (ls,ts) ⇒
+  AssignVarPar ls ts = seq`,
+  rw[AssignVarPar_def,parse_AssignVarPar_def]>>
+  fs[OPTION_JOIN_EQ_SOME]>>
+  pairarg_tac>>fs[]>>
+  drule parse_AssignPar_inv>>
+  rw[]>>
+  AP_TERM_TAC>>
+  pop_assum mp_tac>>
+  qid_spec_tac`ts'`>>
+  qid_spec_tac`ts`>>
+  pop_assum kall_tac>>
+  Induct>>Cases_on`ts'`>>fs[]>>Cases_on`h`>>fs[OPT_MMAP_def]);
+
+(* Parses the initialization block
+  consts := *;
+  sensors := *;
+  ?Init;
 *)
 val parse_header_def = Define`
-  (parse_header (Seq c (Seq s (Seq (Test init) rest))) =
-    case (parse_names c, parse_names s) of
-      (SOME consts,SOME sensors) =>
-        SOME (consts,sensors,init,rest)
-    | _ => NONE) ∧
-  (parse_header _ = NONE)`
+  parse_header p =
+  case p of
+  (Seq c (Seq s (Test init))) =>
+    (case (parse_AssignAnyPar c, parse_AssignAnyPar s) of
+      (SOME consts, SOME sensors) =>
+      SOME (consts,sensors,init)
+    | _ => NONE)
+  | _ => NONE`
 
-(* Parses the RHS of fixed controls *)
-val parse_fixed_def = Define`
-  (parse_fixed [] = SOME []) ∧
-  (parse_fixed (Const w::xs) =
-    case parse_fixed xs of
-      NONE => NONE
-    | SOME vs => SOME(INL w :: vs)) ∧
-  (parse_fixed (Var x::xs) =
-    case parse_fixed xs of
-      NONE => NONE
-    | SOME vs => SOME(INR x :: vs)) ∧
-  (parse_fixed _ = NONE)`
+(* The body parsing is rather large, so we break it into two halves*)
+val parse_body1_def = Define`
+  parse_body1 p =
+  case p of
+    (Seq c (Seq c2 (Seq (Choice (Test ctrlmon) c3) rest))) =>
+     (case parse_AssignAnyPar c, parse_AssignVarPar c2, parse_AssignPar c3 of
+     (SOME ctrlplus, SOME (ctrlfixed,ctrlfixed_rhs), SOME(ctrldef,defaults)) =>
+     if ctrlplus = ctrldef then
+       SOME(ctrlplus,ctrlfixed,ctrlfixed_rhs,defaults,ctrlmon,rest)
+     else NONE
+     | _ => NONE)
+  | _ => NONE`
 
-(* Parses the controller monitor and default
-   We require the pattern
-   {?ctrlmon; ctrl := ctrl+}
-   U
-   {?~ctrlmon;ctrl := defs}
+val parse_body2_def = Define`
+  parse_body2 p =
+  case p of
+    (Seq c (Seq c2 (Seq (Test plantmon) c3))) =>
+     (case parse_AssignVarPar c, parse_AssignAnyPar c2, parse_AssignVarPar c3 of
+     (SOME (ctrl,ctrlplus), SOME sensorplus, SOME(sensors,sensorplus2)) =>
+     if sensorplus = sensorplus2 then
+       SOME(ctrl,ctrlplus,sensorplus,sensors,plantmon)
+     else NONE
+     | _ => NONE)
+  | _ => NONE`
 
-  return (ctrl,ctrl+,defs,rest)
-*)
+val parse_body_def = Define`
+  parse_body p =
+  case parse_body1 p of
+    SOME(ctrlplus,ctrlfixed,ctrlfixed_rhs,defaults,ctrlmon,rest) =>
+  (case parse_body2 rest of
+    SOME(ctrl,ctrlplus2,sensorplus,sensors,plantmon) =>
+      if ctrlplus=ctrlplus2 then
+        SOME(ctrl,ctrlplus,ctrlfixed,ctrlfixed_rhs,sensors,sensorplus,ctrlmon,plantmon,defaults)
+      else NONE
+    | NONE => NONE)
+  | NONE => NONE`
 
-val parse_choice_def = Define`
-  (parse_choice (Choice (Seq (Test f) c) (Seq (Test nf) def)) =
-  if Not(f) ≠ nf then NONE
-  else
-  case parse_namevals c of
-    NONE => NONE
-  | SOME ctrls =>
-  case parse_namevals def of
-    NONE => NONE
-  | SOME defs =>
-  (* Sanity check *)
-  if MAP FST ctrls = MAP FST defs then
-    SOME (MAP FST ctrls,MAP SND ctrls,MAP SND defs,f)
-  else
-    NONE) ∧
-  (parse_choice _ = NONE)`
+val parse_sandbox_def = Define`
+  (parse_sandbox p =
+  case p of (Seq header (Loop body)) =>
+  (case (parse_header header, parse_body body) of
+    SOME(consts,sensors,init),SOME(ctrl,ctrlplus,ctrlfixed,ctrlfixed_rhs,sensors2,sensorplus,ctrlmon,plantmon,defaults) =>
+    if sensors = sensors2 then
+      SOME(consts,sensors,sensorplus,ctrl,ctrlplus,ctrlfixed,ctrlfixed_rhs,defaults,init,ctrlmon,plantmon)
+    else NONE
+    | _ => NONE)
+  | _ => NONE)`
 
-(* Parse the first part of the sandboxing loop
-  {Ctrl+:=*}
-  {CtrlFixed:=*}
-  {?...} U {? ...}
-*)
-val parse_loop1_def = Define`
-  (parse_loop1 (Seq c (Seq c2 (Seq (ctrlmonchoice) rest))) =
-  case parse_names c of
-     NONE => NONE
-  |  SOME ctrlplus =>
-  case parse_namevals c2 of
-     NONE => NONE
-  |  SOME ctrlfixed =>
-  case parse_fixed (MAP SND ctrlfixed) of
-     NONE => NONE
-  |  SOME ctrlfixed_rhs =>
-  case parse_choice ctrlmonchoice of
-     NONE => NONE
-  |  SOME (ctrl,cplus,default,ctrlmon) =>
-    if MAP Var ctrlplus = cplus then
-      SOME(ctrl,ctrlplus,MAP FST ctrlfixed,ctrlfixed_rhs,default,ctrlmon,rest)
-    else NONE) ∧
-  (parse_loop1 _ = NONE)`
+val mk_config_def = Define`
+  mk_config (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =
+  <|  const_names      := const_vars;
+      sensor_names     := sensor_vars;
+      sensorplus_names := sensorplus_vars;
+      ctrl_names       := ctrl_vars;
+      ctrlplus_names   := ctrlplus_vars;
+      init             := init_fml;
+      ctrl_monitor     := ctrl_fml;
+      plant_monitor    := plant_fml;
+      ctrlfixed_names  := ctrlfixed_vars;
+      ctrlfixed_rhs    := ctrlfixed_rhs;
+      default          := default;
+  |>`
 
-(* Parse the second part of the sandboxing loop *)
-val parse_loop2_def = Define`
-  (parse_loop2 (Seq s (Seq (Test plantmon) rest)) =
-  case parse_names s of
-     NONE => NONE
-  |  SOME sensorplus =>
-  case parse_namevals rest of
-    NONE => NONE
-  | SOME svals =>
-  if MAP Var sensorplus = MAP SND svals then
-     SOME(MAP FST svals, sensorplus,plantmon)
-  else NONE) ∧
-  (parse_loop2 _ = NONE)`
-
-(* More sanity checks on the input *)
-val fv_trm_def = Define`
-  (fv_trm (Const _) = []) ∧
-  (fv_trm (Var x) = [x]) ∧
-  (fv_trm (Plus t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_trm (Times t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_trm (Max t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_trm (Min t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_trm (Neg t) = fv_trm t)`
-
-val fv_fml_def = Define`
-  (fv_fml (Le t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_fml (Leq t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_fml (Equals t1 t2) = fv_trm t1 ++ fv_trm t2) ∧
-  (fv_fml (And f1 f2) = fv_fml f1 ++ fv_fml f2) ∧
-  (fv_fml (Or f1 f2) = fv_fml f1 ++ fv_fml f2) ∧
-  (fv_fml (Not f) = fv_fml f)`
-
-val fv_ls_def = Define`
-  (fv_ls [] = []) ∧
-  (fv_ls (INR v :: xs) = v :: fv_ls xs) ∧
-  (fv_ls (INL _ :: xs) = fv_ls xs)`
-
-(* The sandbox pattern *)
-val parse_hp_def = Define`
-  parse_hp hp =
-  (* Extract the header *)
-  case parse_header hp of
-    NONE => NONE
-  | SOME (consts,sensors,init,hp) =>
-  (case hp of
-    Loop hp =>
-      (case parse_loop1 hp of
-      NONE => NONE
-      | SOME (ctrl,ctrlplus,ctrlfixed,ctrlfixedrhs,default,ctrlmon,hp) =>
-      (case parse_loop2 hp of
-      NONE => NONE
-      | SOME (ss,sensorplus,plantmon)=>
-        if ss = sensors then
-          if EVERY (λx. MEM x (consts++sensors)) (fv_fml init) ∧
-             EVERY (λx. MEM x (consts++sensors++ctrlplus++ctrlfixed)) (fv_fml ctrlmon) ∧
-             EVERY (λx. MEM x (consts++sensors++ctrl++sensorplus)) (fv_fml plantmon) ∧
-             EVERY (λx. MEM x (consts)) (FLAT(MAP fv_trm default)) ∧
-             EVERY (λx. MEM x (consts++sensors)) (fv_ls ctrlfixedrhs)
-          then
-            SOME(consts,sensors,sensorplus,ctrl,ctrlplus,ctrlfixed,ctrlfixedrhs,default,init,ctrlmon,plantmon)
-          else
-            NONE
-        else NONE))
-    | _ => NONE)`
-
-(* Sanity Checks
-EVAL ``parse_choice
-  (Choice (Seq (Test cmon) (Assign "ctrl1" (SOME (Var "ctrlplus1"))))
-          (Seq (Test (Not(cmon))) (Assign "ctrl1" (SOME (Const 0w)))))``
-
-EVAL ``parse_loop1
-  (Seq (Assign "ctrlplus1" NONE)
-  (Seq (Assign "ctrlfixed1" (SOME (Const 0w)))
-  (Seq
-  (Choice (Seq (Test cmon) (Assign "ctrl1" (SOME (Var "ctrlplus1"))))
-          (Seq (Test (Not(cmon))) (Assign "ctrl1" (SOME (Const 0w)))))
-  foo)))``
-
-EVAL ``parse_loop2
-  (Seq (Assign "sensorplus1" NONE)
-  (Seq
-  (Test pmon)
-  (Assign "sensor1" (SOME (Var "sensorplus1")))))``
-   *)
+val parse_sandbox_inv = Q.prove(`
+  parse_sandbox p = SOME res ⇒
+  p = full_sandbox T (mk_config res)`,
+  fs[parse_sandbox_def,parse_header_def,parse_body_def,parse_body1_def,parse_body2_def]>>
+  EVERY_CASE_TAC>>rw[]>>
+  fs[mk_config_def,full_sandbox_def,init_sandbox_def,body_sandbox_def,hide_def]>>
+  metis_tac[parse_AssignAnyPar_inv,parse_AssignPar_inv,parse_AssignVarPar_inv]);
 
 fun check_fv trm =
   let val fvs = free_vars trm  in
@@ -219,7 +174,7 @@ fun check_fv trm =
     ()
   end;
 
-val parse_hp_tm = ``parse_hp``;
+val parse_hp_tm = ``parse_sandbox``;
 val hp_ty = ``:hp``;
 
 fun check_hp_type trm =
@@ -239,11 +194,12 @@ fun read_configuration config_filename  =
     let val trm = (Term ([QUOTE str])) handle (HOL_ERR _) => raise ERR "read_config" ("Failed to parse input as a HOL term: "^str)
         val _ = check_fv trm
         val _ = check_hp_type trm
-        val opt = (rhs o concl o EVAL) (mk_comb (parse_hp_tm,trm))
+        val th = EVAL (mk_comb (parse_hp_tm,trm))
+        val opt = (rhs o concl) th
     in
       if optionLib.is_some opt
       then
-        split11 (pairSyntax.strip_pair (optionLib.dest_some opt))
+        (th,trm,optionLib.dest_some opt)
       else
         raise ERR "read_config" ("Input HP is not of expected shape: "^(term_to_string trm))
     end
@@ -419,10 +375,14 @@ val folder_str =
   Option.valOf (OS.Process.getEnv "SANDBOX_FOLDER")
   handle _ => ".";
 
+val _ = translation_extends "MonitorProg";
+
 val sandbox_str = "sandbox.hol";
 
-(* Copy the sandbox file into the appropriate folder *)
-val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) =  read_configuration sandbox_str;
+val (parse_th, sandbox_tm, parse_opt) = read_configuration sandbox_str;
+
+(* Split up the arguments for easier handling *)
+val (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml) = (split11 o pairSyntax.strip_pair) parse_opt;
 
 val template_str = write_template (folder_str^"/bot_ffi.c") const_vars sensor_vars ctrl_vars;
 
@@ -487,32 +447,32 @@ val comp_eq = [mach_component_equality,
 
 (* The sandbox configuration *)
 val init_wc_def = Define`
-  init_wc =
-  <|  const_names      := const_vars;
-      sensor_names     := sensor_vars;
-      sensorplus_names := sensorplus_vars;
-      ctrl_names       := ctrl_vars;
-      ctrlplus_names   := ctrlplus_vars;
-      init             := init_fml;
-      ctrl_monitor     := ctrl_fml;
-      plant_monitor    := plant_fml;
-      ctrlfixed_names  := ctrlfixed_vars;
-      ctrlfixed_rhs    := ctrlfixed_rhs;
-      default          := default;
-  |>`
+  init_wc = mk_config (const_vars,sensor_vars,sensorplus_vars,ctrl_vars,ctrlplus_vars,ctrlfixed_vars,ctrlfixed_rhs,default,init_fml,ctrl_fml,plant_fml)`
 
-val init_wf = EVAL ``wf_config init_wc``
+val init_wf = EVAL ``wf_config init_wc``;
 
-(* Define the possible initial states w.r.t. to our formulas *)
+(* The input sandbox program *)
+val sandbox_hp_def = Define`
+  sandbox_hp = ^sandbox_tm`
+
+(* Define the possible initial FFI states w.r.t. to our formulas *)
 val init_state_def = Define`
   init_state w <=>
   (w.wc = init_wc ∧
-  w.tr = [] ∧
-  good_default w ∧
   eventually $~ w.wo.step_oracle)`
 
+val init_state_imp_sandbox_hp = Q.prove(`
+  init_state w ⇒
+  sandbox_hp = full_sandbox T w.wc`,
+  rw[init_state_def]>>
+  simp[init_wc_def]>>
+  match_mp_tac parse_sandbox_inv>>
+  fs[sandbox_hp_def,parse_th]>>
+  EVAL_TAC);
+
 val bot_main_spec = Q.store_thm("bot_main_spec",`
-  init_state w ==>
+  init_state w ∧
+  state_rel w st ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "bot_main" st)
     [u]
   (IOBOT w)
@@ -520,22 +480,31 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
     &UNIT_TYPE () uv * (
     (SEP_EXISTS w'. IOBOT w' *
      &(
-      (* Either the initial machine violates init immediately *)
-      (w = w' ∧ (¬init_sat w.wc w.ws) ) ∨
-      (* Or we transition to a final machine,
-         and good_mach guarantees that the actuation trace all
-         satisfy the control monitor *)
-      good_mach w' ∧
-      (¬w'.wo.step_oracle 0 ∨
-         good_plant_trace F w'.wc w'.tr w'.ws)))))`,
+      (* Case 1: the initial mach violates init immediately *)
+      (w = w' ∧ init_step w = NONE) ∨
+      ∃defaults.
+      init_step w = SOME defaults ∧
+      (
+      (* Case 2: ran to completion, w' is obtained from w by RTC of body_step,
+         and they correspond to a step of the full sandbox *)
+      (¬w'.wo.step_oracle 0 ∧ body_loop defaults w w' ∧
+        ∃st'. state_rel w' st' ∧ wpsem sandbox_hp st st') ∨
+      (* Case 3: ran the loop up until an intermediate state, but which
+         then fails the body_step transition in the plant step *)
+      ∃v sti.
+        body_loop defaults w v ∧
+        state_rel v sti ∧
+        wpsem sandbox_hp st sti ∧
+        (* this can also be mapped into a HP, but this step is more precise *)
+        body_step F defaults v w')))))`,
   rw[]>>
+  imp_res_tac init_state_imp_sandbox_hp>>
   xcf "bot_main" st>>
   fs[init_state_def]>>
   xapp>>
-  qexists_tac`emp`>>qexists_tac`w`>>
-  xsimpl>>fs[init_state_def,init_wf]>>
-  fs[init_wc_def]>>fs trans_th>>
-  fs[good_ctrl_trace_def,good_plant_trace_def]);
+  qexists_tac`emp`>>qexists_tac`w`>>qexists_tac`st`>>
+  xsimpl>>
+  fs[init_wf,init_wc_def,mk_config_def]>>fs trans_th);
 
 (* The rest of this automation produces a top-level theorem for CakeML semantics *)
 val (ML_code (ss,envs,vs,th)) = get_ml_prog_state ();
