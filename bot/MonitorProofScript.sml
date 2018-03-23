@@ -296,6 +296,17 @@ val MAP_lookup_var = Q.prove(`
   Q.ISPECL_THEN [`ZIP(vars,vals)`,`x`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
   rfs[MAP_ZIP,EL_ZIP]);
 
+val state_rel_MAP_lookup_var = Q.prove(`
+  wf_config w.wc ∧
+  wf_mach w ∧
+  state_rel w st ⇒
+  MAP (lookup_var st) w.wc.const_names = MAP (λx. (x,x)) w.ws.const_vals ∧
+  MAP (lookup_var st) w.wc.sensor_names = MAP (λx. (x,x)) w.ws.sensor_vals`,
+  rw[]>>fs[LIST_EQ_REWRITE,wf_config_def,wf_mach_def,state_rel_def]>>
+  rfs[LIST_REL_APPEND_EQ]>>
+  fs[LIST_REL_EL_EQN,state_agree_def]>>
+  fs[MEM_EL,EL_MAP,lookup_var_def]);
+
 val is_point_MAP_cancel = Q.prove(`
   EVERY is_point ls ⇒
   MAP (λx. (x,x))
@@ -777,7 +788,7 @@ val mk_state_def = Define`
   let st_ls = w.ws.sensor_vals ++ w.ws.const_vals in
  (ZIP(names_ls,ZIP(st_ls,st_ls)))`
 
-(* The initial world is valid TODO: need extra assumptions for defaults? *)
+(* The initial world is valid *)
 val init_step_def = Define`
   init_step w =
   if
@@ -806,34 +817,55 @@ val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
   qexists_tac`MAP (lookup_var st) w.wc.sensor_names` >>
   simp[EVERY_MAP,WORD_LESS_EQ_REFL]>>
   simp[Once wpsem_cases]>>
+  imp_res_tac state_rel_MAP_lookup_var>>rfs[wf_config_def]>>
   rw[]
-  >-
-    (simp[state_rel_def]>>
-    fs[wf_mach_def,LIST_REL_APPEND_EQ]>>
-    rw[]
-    >-
-      (PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+  >- (
+    simp[state_rel_def]>>
+    fs[LIST_REL_APPEND_EQ,wf_mach_def]>>CONJ_TAC
+    >-(
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
       match_mp_tac state_agree_append2>>
-      fs[MAP_ZIP]>>
-      cheat)
-    >-
-      (PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      fs[wf_mach_def,MAP_ZIP,ZIP_ID])
+    >>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
       match_mp_tac state_agree_append>>
-      fs[no_overlap_def,MAP_REVERSE,MAP_ZIP]>>
+      fs[wf_mach_def,MAP_ZIP,ZIP_ID,no_overlap_def,MAP_REVERSE]>>
       match_mp_tac state_agree_append2>>
-      fs[MAP_ZIP]>>
-      cheat))
+      fs[wf_mach_def,MAP_ZIP,ZIP_ID])
   >-
-    (fs[EVERY_MEM,lookup_var_def]>>
-    cheat)
+    (simp[GSYM EVERY_MAP]>>
+    `(\x.lookup_var st x) = lookup_var st` by fs[FUN_EQ_THM]>>
+    simp[]>>
+    simp[EVERY_MAP,WORD_LESS_EQ_REFL])
   >-
-    cheat
+    (simp[GSYM EVERY_MAP]>>
+    `(\x.lookup_var st x) = lookup_var st` by fs[FUN_EQ_THM]>>
+    simp[]>>
+    simp[EVERY_MAP,WORD_LESS_EQ_REFL])
   >>
     fs[wfsem_bi_val_def]>>EVERY_CASE_TAC>>fs[]>>
     qpat_x_assum `_=SOME T` sym_sub_tac>>
     match_mp_tac fv_fml_coincide>>
     fs[EVERY_MEM]>>
-    cheat);
+    simp[ZIP_ID]>>
+    rw[]>>
+    first_x_assum drule>> rw[]
+    >- (
+      fs[wf_mach_def,GSYM ZIP_APPEND,no_overlap_def]>>
+      PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_REVERSE,MAP_ZIP]>>
+      match_mp_tac EQ_SYM>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_REVERSE,MAP_ZIP]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND_REV)]>>
+      simp[MAP_REVERSE,MAP_ZIP])
+    >>
+      match_mp_tac EQ_SYM>>
+      fs[wf_mach_def,GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+      fs[MAP_ZIP]);
 
 (* Now, we prove the refinement from CakeML into the functional spec *)
 val _ = translation_extends "MonitorProg";
@@ -1445,19 +1477,21 @@ val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
   (POSTv uv. &(UNIT_TYPE () uv) *
     SEP_EXISTS w'. IOBOT w' *
     & (
-      (* Either the initial mach violates init immediately *)
+      (* Case 1: the initial mach violates init immediately *)
       (w = w' ∧ init_step w = NONE) ∨
       ∃defaults.
       init_step w = SOME defaults ∧
       (
-      (* Ran to completion *)
-      (¬w'.wo.step_oracle 0 ∧
-        ∃st'. wpsem (full_sandbox T w.wc) st st') ∨
-      (* Ran the loop to an intermediate state
-         then plant monitor violated *)
+      (* Case 2: ran to completion, w' is obtained from w by RTC of body_step,
+         and they correspond to a step of the full sandbox *)
+      (¬w'.wo.step_oracle 0 ∧ body_loop defaults w w' ∧
+        ∃st'. state_rel w' st' ∧ wpsem (full_sandbox T w.wc) st st') ∨
+      (* Case 3: ran the loop up until an intermediate state, but which
+         then fails the body_step transition in the plant step *)
       ∃v sti.
-        wpsem (full_sandbox T w.wc) st sti ∧
+        body_loop defaults w v ∧
         state_rel v sti ∧
+        wpsem (full_sandbox T w.wc) st sti ∧
         (* this can also be mapped into a HP, but this step is more precise *)
         body_step F defaults v w')))`,
   rw[]>>
