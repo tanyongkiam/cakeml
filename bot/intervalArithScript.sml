@@ -302,14 +302,21 @@ val AssignPar_def = Define`
     Seq (Assign l (SOME r)) (AssignPar ls rs)) ∧
   (AssignPar [] [] = Skip)`
 
-(* 1 directional non-overlap *)
+(* EVAL-able non-overlap *)
 val no_overlap_def = Define`
+  (no_overlap [] ys ⇔ T) ∧
+  (no_overlap (x::xs) ys ⇔ ¬MEMBER x ys ∧ no_overlap xs ys)`
+
+val no_overlap_thm = Q.store_thm("no_overlap_thm",`
+  ∀xs ys.
   no_overlap xs ys ⇔
-  (∀x. MEM x xs ⇒  ¬ MEM x ys)`
+  (∀x. MEM x xs ⇒  ¬ MEM x ys)`,
+  Induct>>rw[no_overlap_def,GSYM ml_translatorTheory.MEMBER_INTRO]>>
+  metis_tac[]);
 
 val no_overlap_sym = Q.store_thm("no_overlap_sym",`
   no_overlap xs ys ⇔ no_overlap ys xs`,
-  rw[no_overlap_def]>>
+  rw[no_overlap_thm]>>
   metis_tac[]);
 
 val AssignPar_sem = Q.store_thm("AssignPar_sem",`
@@ -331,13 +338,13 @@ val AssignPar_sem = Q.store_thm("AssignPar_sem",`
   simp[]>>
   disch_then(qspecl_then [`(h,wtsem h' w):: w`,`w'`] mp_tac)>>
   impl_tac>-
-    fs[no_overlap_def]>>
+    fs[no_overlap_thm]>>
   rw[]>>
   rpt(AP_TERM_TAC>>AP_THM_TAC)>>
   rpt(AP_TERM_TAC)>>
   simp[MAP_EQ_f]>>rw[]>>
   match_mp_tac fv_trm_coincide>>
-  fs[ALOOKUP_def,EVERY_MEM,MEM_FLAT,MEM_MAP,PULL_EXISTS,no_overlap_def]>>
+  fs[ALOOKUP_def,EVERY_MEM,MEM_FLAT,MEM_MAP,PULL_EXISTS,no_overlap_thm]>>
   rw[]>>
   metis_tac[]);
 
@@ -366,50 +373,5 @@ val AssignVarPar_imp = Q.store_thm("AssignVarPar_imp",`
   wpsem (AssignVarPar ls rs) w (REVERSE (ZIP(ls, MAP (lookup_var w) rs)) ++ w)`,
   metis_tac[AssignVarPar_sem]);
 
-(*
-(*For convenience, we compile to hp_par which has
-  almost the same semantics
-  except assignments are now parallel *)
-val _ = Datatype`
-   hp_par = TestPar fml
-          | AssignAnyPar (string list)
-          | AssignPar ((string # trm) list)
-          | SeqPar hp_par hp_par
-          | ChoicePar hp_par hp_par
-          | LoopPar hp_par
-          | SkipPar`
-
-(* The non-deterministic big-step relational semantics of hybrid programs *)
-val (wparsem_rules,wparsem_ind, wparsem_cases) = Hol_reln`
-  (* skip *)
-  (∀w. wparsem SkipPar w w) ∧
-  (* Parallel non-deterministic assignment *)
-  (∀w xs ws.
-    LENGTH ws = LENGTH xs ∧
-    EVERY (λ(a,b). a ≤ b) ws ⇒
-    wparsem (AssignAnyPar xs) w (ZIP(xs,ws) ++ w)) ∧
-  (* Parallel deterministic assignment *)
-  (∀xts w.
-    wparsem (AssignPar xts) w (MAP (λ(x,t). (x,wtsem t w)) xts ++ w)) ∧
-  (∀f w.
-    wfsem f w = SOME T ⇒
-    wparsem (TestPar f) w w) ∧
-  (∀a b w u v.
-    wparsem a w u ∧
-    wparsem b u v ⇒
-    wparsem (SeqPar a b) w v) ∧
-  (∀a b w v.
-    wparsem a w v ⇒
-    wparsem (ChoicePar a b) w v) ∧
-  (∀a b w v.
-    wparsem b w v ⇒
-    wparsem (ChoicePar a b) w v) ∧
-  (∀a w.
-    wparsem (LoopPar a) w w) ∧
-  (∀a w.
-    wparsem a w u ∧
-    wparsem (LoopPar a) u v ⇒
-    wparsem (LoopPar a) w v)`
-*)
 
 val _ = export_theory();
