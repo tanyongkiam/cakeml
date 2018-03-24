@@ -59,7 +59,7 @@ val state_agree_def = Define`
   state_agree hp_w n v ⇔ ALOOKUP hp_w n = SOME (v,v)`
 
 val state_rel_def = Define`
-  state_rel w (hp_w:wstate) ⇔
+  state_rel w (hp_w:cwstate) ⇔
   let names =  w.wc.sensor_names ++ w.wc.const_names in
   let vals  =  w.ws.sensor_vals  ++ w.ws.const_vals  in
     LIST_REL (state_agree hp_w) names vals`
@@ -337,27 +337,27 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
   body_step flg defaults w w' ⇒
   ∃st'.
   hide flg (state_rel w' st') T ∧
-  wpsem (body_sandbox flg w.wc) st st'`,
+  cwpsem (body_sandbox flg w.wc) st st'`,
   rw[body_step_def,body_sandbox_def]>>
   fs[wf_config_def]>>
-  simp[Once wpsem_cases]>>
+  simp[Once cwpsem_cases]>>
   simp[AssignAnyPar_sem]>>
   simp[PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
   qexists_tac`MAP (λx. (x,x)) ctrlplus_ls`>>
   simp[EVERY_MAP]>>
-  simp[Once wpsem_cases]>>
-  qmatch_goalsub_abbrev_tac`wpsem _ st1 _`>>
+  simp[Once cwpsem_cases]>>
+  qmatch_goalsub_abbrev_tac`cwpsem _ st1 _`>>
   simp[PULL_EXISTS]>>
   simp[AssignVarPar_sem]>>
-  simp[Once wpsem_cases]>>
-  simp[Once wpsem_cases]>>
+  simp[Once cwpsem_cases]>>
+  simp[Once cwpsem_cases]>>
   simp[PULL_EXISTS]>>
   simp[METIS_PROVE [] ``(A ∧ B ∧ (C ∨ D) ∧ E) ⇔ (A ∧ B ∧ C ∧ E) ∨ (A ∧ B ∧ D ∧ E)``]>>
   simp[EXISTS_OR_THM]>>
   (* Now we case split on the control choice made by the sandbox *)
   qpat_x_assum`ffi_actuate _ _ _ = _` mp_tac>>
-  simp[ctrl_monitor_def,wfsem_bi_val_def]>>
+  simp[ctrl_monitor_def,cwfsem_bi_val_def]>>
   reverse IF_CASES_TAC
   >- (
     (* Fallback to the defauls *)
@@ -366,9 +366,9 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
       (fs[no_overlap_thm,MEM_FLAT,MEM_MAP,EVERY_MEM]>>
       metis_tac[])>>
     simp[AssignPar_sem]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     simp[AssignVarPar_sem]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     simp[AssignAnyPar_sem,PULL_EXISTS]>>
     fs[ffi_actuate_def]>>
     rpt (pairarg_tac>>fs[])>>
@@ -385,10 +385,10 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     simp[hide_def]
     >-
       (* plant monitor fails *)
-      simp[Once wpsem_cases]
+      simp[Once cwpsem_cases]
     >>
-    simp[Once wpsem_cases]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     fs[no_overlap_APPEND]>>
     simp[AssignVarPar_sem]>>
     simp[state_rel_def]>>
@@ -412,7 +412,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     >>
     fs[hide_def]>>
     qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
-    simp[plant_monitor_def,wfsem_bi_val_def]>>
+    simp[plant_monitor_def,cwfsem_bi_val_def]>>
     TOP_CASE_TAC>>rw[]>>
     pop_assum sym_sub_tac>>
     match_mp_tac fv_fml_coincide>>
@@ -420,7 +420,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     match_mp_tac EVERY_MEM_MONO>>
     HINT_EXISTS_TAC>>fs[]>>
     simp[ZIP_ID]>>
-    fs[ctrl_monitor_def,wfsem_bi_val_def]>>
+    fs[ctrl_monitor_def,cwfsem_bi_val_def]>>
     qmatch_goalsub_abbrev_tac`sensorplus++ ctrl ++ ctrlplus++ ctrlfixed ++ st1`>>
     fs[wf_mach_def,evaluate_default_def]>>
     `LENGTH w.wc.ctrl_names = LENGTH defaults` by rw[]>>
@@ -505,10 +505,10 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
   >>
     (* Normal control*)
     rw[]>>DISJ1_TAC>>
-    simp[Once wpsem_cases]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     simp[AssignVarPar_sem]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     simp[AssignAnyPar_sem,PULL_EXISTS]>>
     fs[ffi_actuate_def]>>
     rpt (pairarg_tac>>fs[])>>
@@ -521,8 +521,8 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
       rpt(pairarg_tac>>fs[])>>
       metis_tac[])>>
     simp[EVERY_MEM,EVERY_MAP,WORD_LESS_EQ_REFL]>>
-    qmatch_goalsub_abbrev_tac`wfsem w.wc.ctrl_monitor lss`>>
-    `wfsem w.wc.ctrl_monitor lss = SOME T` by
+    qmatch_goalsub_abbrev_tac`cwfsem w.wc.ctrl_monitor lss`>>
+    `cwfsem w.wc.ctrl_monitor lss = SOME T` by
       (fs[Abbr`lss`,wf_mach_def]>>
       EVERY_CASE_TAC>>fs[]>>
       qpat_x_assum`_ = SOME T` (sym_sub_tac)>>
@@ -601,10 +601,10 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     simp[hide_def]
     >-
       (* plant monitor fails *)
-      simp[Once wpsem_cases]
+      simp[Once cwpsem_cases]
     >>
-    simp[Once wpsem_cases]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     fs[no_overlap_APPEND]>>
     simp[AssignVarPar_sem]>>
     simp[state_rel_def]>>
@@ -635,7 +635,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     >>
     fs[hide_def]>>
     qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
-    simp[plant_monitor_def,wfsem_bi_val_def]>>
+    simp[plant_monitor_def,cwfsem_bi_val_def]>>
     TOP_CASE_TAC>>rw[]>>
     pop_assum sym_sub_tac>>
     match_mp_tac fv_fml_coincide>>
@@ -643,7 +643,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     match_mp_tac EVERY_MEM_MONO>>
     HINT_EXISTS_TAC>>fs[]>>
     simp[ZIP_ID]>>
-    fs[ctrl_monitor_def,wfsem_bi_val_def]>>
+    fs[ctrl_monitor_def,cwfsem_bi_val_def]>>
     qmatch_goalsub_abbrev_tac`sensorplus++ ctrl ++ ctrlfixed ++ st1`>>
     fs[wf_mach_def,evaluate_default_def]>>
     rfs[GSYM ZIP_APPEND]>>
@@ -732,18 +732,18 @@ val body_loop_state_rel = Q.store_thm("body_loop_state_rel",`
   evaluate_default w.wc.const_names w.ws.const_vals w.wc.default = SOME defaults ==>
   ∃st'.
   state_rel w' st' ∧
-  wpsem (Loop (body_sandbox T w.wc)) st st'`,
+  cwpsem (Loop (body_sandbox T w.wc)) st st'`,
   simp[body_loop_def]>>
   ho_match_mp_tac RTC_INDUCT>>
   rw[]
   >-
-    (qexists_tac`st`>>simp[Once wpsem_cases])
+    (qexists_tac`st`>>simp[Once cwpsem_cases])
   >>
     drule (GEN_ALL body_step_state_rel)>>fs[]>>
     disch_then drule>>
     disch_then drule>>
     rw[hide_def]>>
-    simp[Once wpsem_cases]>>
+    simp[Once cwpsem_cases]>>
     simp[METIS_PROVE [] ``(A ∧ (C ∨ D)) ⇔ (A ∧ C) ∨ (A ∧ D)``,EXISTS_OR_THM]>>
     DISJ2_TAC>>
     simp[PULL_EXISTS]>>
@@ -772,7 +772,7 @@ val mk_state_def = Define`
 val init_step_def = Define`
   init_step w =
   if
-    wfsem_bi_val w.wc.init (mk_state w)
+    cwfsem_bi_val w.wc.init (mk_state w)
   then
     evaluate_default w.wc.const_names w.ws.const_vals w.wc.default
   else NONE`
@@ -784,19 +784,19 @@ val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
   init_step w = SOME defaults ⇒
   ∃st'.
   state_rel w st' ∧
-  wpsem (init_sandbox w.wc) st st'`,
+  cwpsem (init_sandbox w.wc) st st'`,
   rw[init_step_def,init_sandbox_def,mk_state_def]>>
   fs[wf_config_def]>>
-  simp[Once wpsem_cases]>>
+  simp[Once cwpsem_cases]>>
   simp[AssignAnyPar_sem,PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
   qexists_tac`MAP (lookup_var st) w.wc.const_names` >>
-  simp[Once wpsem_cases]>>
+  simp[Once cwpsem_cases]>>
   simp[AssignAnyPar_sem,PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["ws"]))>>
   qexists_tac`MAP (lookup_var st) w.wc.sensor_names` >>
   simp[EVERY_MAP,WORD_LESS_EQ_REFL]>>
-  simp[Once wpsem_cases]>>
+  simp[Once cwpsem_cases]>>
   imp_res_tac state_rel_MAP_lookup_var>>rfs[wf_config_def]>>
   rw[]
   >- (
@@ -823,7 +823,7 @@ val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
     simp[]>>
     simp[EVERY_MAP,WORD_LESS_EQ_REFL])
   >>
-    fs[wfsem_bi_val_def]>>EVERY_CASE_TAC>>fs[]>>
+    fs[cwfsem_bi_val_def]>>EVERY_CASE_TAC>>fs[]>>
     qpat_x_assum `_=SOME T` sym_sub_tac>>
     match_mp_tac fv_fml_coincide>>
     fs[EVERY_MEM]>>
@@ -1433,7 +1433,15 @@ val full_sandbox_def = Define`
   full_sandbox flg wc =
   Seq (init_sandbox wc) (Loop (body_sandbox flg wc))`
 
-(* Rewriting the spec combined spec *)
+(* relating w to an abstract state via an intermediate
+   concrete state *)
+val state_rel_abs_def = Define`
+  state_rel_abs w (st:wstate) ⇔
+  ∃cst.
+    state_rel w cst ∧
+    st = abs_state cst`
+
+(* Rewriting with the combined spec *)
 val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
   (* These specify what the inputs should be *)
   INTERVALARITH_FML_TYPE w.wc.init iv ∧
@@ -1448,7 +1456,7 @@ val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
   LIST_TYPE CLSTRING_TYPE w.wc.ctrlfixed_rhs ctrlfixed_rhsv ∧
   LIST_TYPE INTERVALARITH_TRM_TYPE w.wc.default defaultv ∧
   wf_config w.wc ∧
-  state_rel w st ∧
+  state_rel_abs w st ∧
   eventually ($~) w.wo.step_oracle
   ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "monitor_loop" bot_st)
@@ -1465,16 +1473,17 @@ val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
       (* Case 2: ran to completion, w' is obtained from w by RTC of body_step,
          and they correspond to a step of the full sandbox *)
       (¬w'.wo.step_oracle 0 ∧ body_loop defaults w w' ∧
-        ∃st'. state_rel w' st' ∧ wpsem (full_sandbox T w.wc) st st') ∨
+        ∃st'. state_rel_abs w' st' ∧ wpsem (full_sandbox T w.wc) st st') ∨
       (* Case 3: ran the loop up until an intermediate state, but which
          then fails the body_step transition in the plant step *)
       ∃v sti.
         body_loop defaults w v ∧
-        state_rel v sti ∧
+        state_rel_abs v sti ∧
         wpsem (full_sandbox T w.wc) st sti ∧
         (* this can also be mapped into a HP, but this step is more precise *)
         body_step F defaults v w')))`,
   rw[]>>
+  fs[state_rel_abs_def]>>
   reverse (Cases_on`wf_mach w`)
   >-
     (simp[IOBOT_def]>>xpull)>>
@@ -1486,22 +1495,26 @@ val monitor_loop_full_spec = Q.store_thm("monitor_loop_full_spec",`
     (qexists_tac`w`>>xsimpl>>metis_tac[])
   >-
     (qexists_tac`x`>>xsimpl>>
-    drule init_step_init_sandbox>>simp[]>>rw[]>>
+    drule (GEN_ALL init_step_init_sandbox)>>
+    simp[]>> disch_then drule>>rw[]>>
     drule body_loop_state_rel>>fs[init_step_def]>>
     disch_then drule>>
     rw[full_sandbox_def]>>
-    simp[Once wpsem_cases]>>
+    DISJ1_TAC>> asm_exists_tac>>simp[]>>
+    match_mp_tac cwpsem_wpsem>>
+    simp[Once cwpsem_cases]>>
     metis_tac[])
   >>
     qexists_tac`x`>>xsimpl>>
-    drule init_step_init_sandbox>>simp[]>>rw[]>>
+    drule (GEN_ALL init_step_init_sandbox)>>
+    simp[] >> disch_then drule >> rw[]>>
     drule body_loop_state_rel>>fs[init_step_def]>>
     disch_then drule>>
     rw[full_sandbox_def]>>
-    DISJ2_TAC>>
-    simp[Once wpsem_cases]>>
-    qexists_tac`v'`>>fs[]>>
-    qexists_tac`st''`>>fs[]>>
-    metis_tac[wpsem_cases]);
+    DISJ2_TAC>> asm_exists_tac >> simp[]>>
+    asm_exists_tac>>simp[]>>
+    match_mp_tac cwpsem_wpsem>>
+    simp[Once cwpsem_cases]>>
+    metis_tac[]);
 
 val _ = export_theory();

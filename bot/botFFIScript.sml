@@ -189,7 +189,8 @@ val encode_trm_def = Define`
   (encode_trm (Times t1 t2) = Cons (Num 3) (Cons (encode_trm t1) (encode_trm t2))) ∧
   (encode_trm (Max t1 t2) = Cons (Num 4) (Cons (encode_trm t1) (encode_trm t2))) ∧
   (encode_trm (Min t1 t2) = Cons (Num 5) (Cons (encode_trm t1) (encode_trm t2))) ∧
-  (encode_trm (Neg t) = Cons (Num 6) (encode_trm t))`
+  (encode_trm (Neg t) = Cons (Num 6) (encode_trm t)) ∧
+  (encode_trm (Abs t) = Cons (Num 7) (encode_trm t))`
 
 val encode_trm_11 = Q.store_thm("encode_trm_11",`
   ∀x y. encode_trm x = encode_trm y <=> x = y`,

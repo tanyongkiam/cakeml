@@ -8,9 +8,9 @@ val _ = new_theory "MonitorProg";
 (*"*)
 
 (* Return to the bivalued logic *)
-val wfsem_bi_val_def = Define`
-  wfsem_bi_val f s =
-  case wfsem f s of
+val cwfsem_bi_val_def = Define`
+  cwfsem_bi_val f s =
+  case cwfsem f s of
     NONE => F
   | SOME F => F
   | SOME T => T`
@@ -50,21 +50,20 @@ val res = translate (integer_wordTheory.WORD_LEi |> spec64)
 val res = translate lookup_def;
 val res = translate (round_to_inf_def |> inlines |> econv);
 
-val res = translate (lookup_const_def |> inlines |> econv);
 val res = translate (lookup_var_def |> inlines |> econv);
-val res = translate (pl_def |> inlines |> econv);
-val res = translate (pu_def |> inlines |> econv);
+val res = translate (pl_compute |> inlines |> econv);
+val res = translate (pu_compute |> inlines |> econv);
 val res = translate (wmin_def |> inlines |> econv);
 val res = translate (wmax_def |> inlines |> econv);
-val res = translate (wtimes_def |> inlines |> econv);
+val res = translate (wtimes_compute |> inlines |> econv);
 val res = translate (tl_def |> inlines |> econv);
 val res = translate (tu_def |> inlines |> econv);
 val res = translate (wneg_def |> inlines |> econv);
-val res = translate (wtsem_def |> inlines);
+val res = translate (cwtsem_def |> inlines);
 val res = translate (wle_def |> inlines);
 val res = translate (wleq_def |> inlines);
-val res = translate (wfsem_def|>inlines);
-val res = translate (wfsem_bi_val_def|>inlines);
+val res = translate (cwfsem_def|>inlines);
+val res = translate (cwfsem_bi_val_def|>inlines);
 
 (* The rest of these are wrappers around the monitors *)
 
@@ -211,7 +210,7 @@ val ctrl_monitor_def = Define`
   let st_ls    = FLAT [ctrlfixed_ls   ; ctrlplus_ls   ; sensor_ls   ; const_ls] in
   let names_ls = FLAT [ctrlfixed_names; ctrlplus_names; sensor_names; const_names] in
     if
-      wfsem_bi_val ctrl_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))
+      cwfsem_bi_val ctrl_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))
     then
       (strlit"OK",ctrlplus_ls)
     else
@@ -237,7 +236,7 @@ val _ = translate is_point_def;
 val evaluate_default_def = Define`
   evaluate_default const_names const_ls default =
   let defaults =
-    MAP (λd. wtsem d (ZIP (const_names,ZIP(const_ls,const_ls)))) default
+    MAP (λd. cwtsem d (ZIP (const_names,ZIP(const_ls,const_ls)))) default
   in
     if (EVERY is_point defaults)
     then
@@ -332,7 +331,7 @@ val ctrl_monitor_loop = process_topdecs`
       val st_ls = const_ls @ sensor_ls
   in
     if
-      wfsem_bi_val init_phi (vars_to_state names_ls st_ls)
+      cwfsem_bi_val init_phi (vars_to_state names_ls st_ls)
     then
       (* Enter the loop body proper *)
       ctrl_monitor_loop_body ctrl_phi
@@ -351,7 +350,7 @@ val plant_monitor_def = Define`
                           const_ls    sensor_ls    ctrl_ls    sensorplus_ls =
   let names_ls = FLAT [sensorplus_names; ctrl_names; sensor_names; const_names] in
   let st_ls    = FLAT [sensorplus_ls   ; ctrl_ls   ; sensor_ls   ; const_ls] in
-    wfsem_bi_val plant_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
+    cwfsem_bi_val plant_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
 
 val res = translate plant_monitor_def;
 
@@ -360,7 +359,7 @@ val init_monitor_def = Define`
                         const_ls    sensor_ls   =
   let names_ls = FLAT [sensor_names; const_names] in
   let st_ls    = FLAT [sensor_ls   ; const_ls] in
-    wfsem_bi_val init_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
+    cwfsem_bi_val init_phi (ZIP (names_ls,ZIP(st_ls,st_ls)))`
 
 val res = translate init_monitor_def;
 
