@@ -5,7 +5,7 @@ open preamble
 val _ = new_theory"bot_x64Proof";
 
 val bot_io_events_def = new_specification("bot_io_events_def",["bot_io_events"],
-  bot_semantics_thm |> Q.GENL[`w`]
+  bot_semantics_thm |> Q.GENL[`w`,`st`]
   |> SIMP_RULE bool_ss [SKOLEM_THM,Once(GSYM RIGHT_EXISTS_IMP_THM),RIGHT_EXISTS_AND_THM]);
 
 val (bot_sem,bot_output) = bot_io_events_def |> SPEC_ALL |> UNDISCH_ALL |> CONJ_PAIR
