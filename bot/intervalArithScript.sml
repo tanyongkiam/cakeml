@@ -40,8 +40,7 @@ val _ = Datatype`
       | Assign string (trm option)
       | Seq hp hp
       | Choice hp hp
-      | Loop hp
-      | Skip`
+      | Loop hp`
 
 (* First, define the helper functions following Isabelle formalization
   We will simplify these later *)
@@ -250,8 +249,6 @@ val (wpsem_rules,wpsem_ind, wpsem_cases) = Hol_reln`
   (∀a b w v.
     wpsem b v w ⇒
     wpsem (Choice a b) v w) ∧
-  (* TODO: add these *)
-  (∀w. wpsem Skip w w) ∧
   (* Non-deterministic assignment *)
   (∀x a b w v.
   a ≤ b ∧
@@ -368,8 +365,6 @@ val cwfsem_wfsem = Q.store_thm("cwfsem_wfsem",`
 
 (* The non-deterministic big-step relational semantics of hybrid programs *)
 val (cwpsem_rules,cwpsem_ind, cwpsem_cases) = Hol_reln`
-  (* skip *)
-  (∀w. cwpsem Skip w w) ∧
   (* Non-deterministic assignment *)
   (∀x a b w.
   a ≤ b ⇒
@@ -392,7 +387,7 @@ val (cwpsem_rules,cwpsem_ind, cwpsem_cases) = Hol_reln`
     cwpsem (Choice a b) w v) ∧
   (∀a w.
     cwpsem (Loop a) w w) ∧
-  (∀a w.
+  (∀a w u v.
     cwpsem a w u ∧
     cwpsem (Loop a) u v ⇒
     cwpsem (Loop a) w v)`
@@ -490,6 +485,18 @@ val fv_fml_coincide = Q.store_thm("fv_fml_coincide",`
   metis_tac[PAIR,FST,SND,fv_trm_coincide]);
 
 (* Some abbreviations for convenience *)
+val True_def = Define`
+  True = Leq (Const 0w) (Const 0w)`
+
+val Skip_def = Define`
+  Skip = Test True`
+
+val Skip_sem = Q.store_thm("Skip_sem",`
+  cwpsem Skip w w' ⇔ w' = w`,
+  EVAL_TAC>>
+  simp[Once cwpsem_cases,cwfsem_def,cwtsem_def]>>
+  EVAL_TAC);
+
 val AssignAnyPar_def = Define`
   (AssignAnyPar [] = Skip) ∧
   (AssignAnyPar (x::xs) = Seq (Assign x NONE) (AssignAnyPar xs))`
@@ -502,7 +509,7 @@ val AssignAnyPar_sem = Q.store_thm("AssignAnyPar_sem",`
   LENGTH ws = LENGTH xs ∧
   EVERY (λ(a,b). a ≤ b) ws ∧
   w' = (REVERSE (ZIP(xs,ws)) ++ w))`,
-  Induct>>rw[AssignAnyPar_def]>>
+  Induct>>rw[AssignAnyPar_def,Skip_sem]>>
   simp[Once cwpsem_cases]>>
   simp[Once cwpsem_cases,PULL_EXISTS]>>
   rw[EQ_IMP_THM]
@@ -545,7 +552,7 @@ val AssignPar_sem = Q.store_thm("AssignPar_sem",`
   simp[Once no_overlap_sym]>>
   Induct>>rw[AssignPar_def]
   >-
-    simp[Once cwpsem_cases]
+    simp[Skip_sem]
   >>
   Cases_on`rs`>>fs[AssignPar_def]>>
   simp[Once cwpsem_cases]>>

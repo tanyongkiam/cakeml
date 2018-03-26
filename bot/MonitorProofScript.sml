@@ -385,7 +385,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     simp[hide_def]
     >-
       (* plant monitor fails *)
-      simp[Once cwpsem_cases]
+      simp[Skip_sem]
     >>
     simp[Once cwpsem_cases]>>
     simp[Once cwpsem_cases]>>
@@ -601,7 +601,7 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     simp[hide_def]
     >-
       (* plant monitor fails *)
-      simp[Once cwpsem_cases]
+      simp[Skip_sem]
     >>
     simp[Once cwpsem_cases]>>
     simp[Once cwpsem_cases]>>

@@ -24,12 +24,13 @@ val _ = new_theory "botProg"
 
 (* Invert AssignAnyPar *)
 val parse_AssignAnyPar_def = Define`
-  (parse_AssignAnyPar Skip = SOME []) ∧
   (parse_AssignAnyPar (Seq (Assign x NONE) p2) =
     case parse_AssignAnyPar p2 of
       NONE => NONE
     | SOME xs => SOME (x::xs)) ∧
-  (parse_AssignAnyPar _ = NONE)`
+  (parse_AssignAnyPar p =
+    if p = Skip then SOME []
+    else NONE)`
 
 val parse_AssignAnyPar_inv = Q.prove(`
   ∀seq ls.
@@ -41,12 +42,13 @@ val parse_AssignAnyPar_inv = Q.prove(`
 
 (* Invert AssignPar *)
 val parse_AssignPar_def = Define`
-  (parse_AssignPar Skip = SOME ([],[])) ∧
   (parse_AssignPar (Seq (Assign x (SOME t)) p2) =
     case parse_AssignPar p2 of
       NONE => NONE
     | SOME (xs,ts) => SOME (x::xs,t::ts)) ∧
-  (parse_AssignPar _ = NONE)`
+  (parse_AssignPar p =
+    if p = Skip then SOME ([],[])
+    else NONE)`
 
 val parse_AssignPar_inv = Q.prove(`
   ∀seq ls ts.
@@ -472,7 +474,7 @@ val init_state_imp_sandbox_hp = Q.prove(`
 
 val bot_main_spec = Q.store_thm("bot_main_spec",`
   init_state w ∧
-  state_rel w st ⇒
+  state_rel_abs w st ⇒
   app (p:'ffi ffi_proj) ^(fetch_v "bot_main" st)
     [u]
   (IOBOT w)
@@ -488,12 +490,12 @@ val bot_main_spec = Q.store_thm("bot_main_spec",`
       (* Case 2: ran to completion, w' is obtained from w by RTC of body_step,
          and they correspond to a step of the full sandbox *)
       (¬w'.wo.step_oracle 0 ∧ body_loop defaults w w' ∧
-        ∃st'. state_rel w' st' ∧ wpsem sandbox_hp st st') ∨
+        ∃st'. state_rel_abs w' st' ∧ wpsem sandbox_hp st st') ∨
       (* Case 3: ran the loop up until an intermediate state, but which
          then fails the body_step transition in the plant step *)
       ∃v sti.
         body_loop defaults w v ∧
-        state_rel v sti ∧
+        state_rel_abs v sti ∧
         wpsem sandbox_hp st sti ∧
         (* this can also be mapped into a HP, but this step is more precise *)
         body_step F defaults v w')))))`,
