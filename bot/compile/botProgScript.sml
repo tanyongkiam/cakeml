@@ -29,7 +29,7 @@ val parse_AssignAnyPar_def = Define`
       NONE => NONE
     | SOME xs => SOME (x::xs)) ∧
   (parse_AssignAnyPar p =
-    if p = Skip then SOME []
+    if p = Test True then SOME []
     else NONE)`
 
 val parse_AssignAnyPar_inv = Q.prove(`
@@ -38,7 +38,7 @@ val parse_AssignAnyPar_inv = Q.prove(`
   AssignAnyPar ls = seq`,
   ho_match_mp_tac (fetch "-" "parse_AssignAnyPar_ind")>>
   rw[]>>fs[parse_AssignAnyPar_def]>>
-  EVERY_CASE_TAC>>rw[]>>fs[AssignAnyPar_def]);
+  EVERY_CASE_TAC>>rw[]>>fs[AssignAnyPar_def,Skip_def]);
 
 (* Invert AssignPar *)
 val parse_AssignPar_def = Define`
@@ -47,7 +47,7 @@ val parse_AssignPar_def = Define`
       NONE => NONE
     | SOME (xs,ts) => SOME (x::xs,t::ts)) ∧
   (parse_AssignPar p =
-    if p = Skip then SOME ([],[])
+    if p = Test True then SOME ([],[])
     else NONE)`
 
 val parse_AssignPar_inv = Q.prove(`
@@ -56,7 +56,7 @@ val parse_AssignPar_inv = Q.prove(`
   AssignPar ls ts = seq`,
   ho_match_mp_tac (fetch "-" "parse_AssignPar_ind")>>
   rw[]>>fs[parse_AssignPar_def]>>
-  EVERY_CASE_TAC>>rw[]>>fs[AssignPar_def]);
+  EVERY_CASE_TAC>>rw[]>>fs[AssignPar_def,Skip_def]);
 
 val parse_AssignVarPar_def = Define`
   parse_AssignVarPar p =
