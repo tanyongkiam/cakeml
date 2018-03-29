@@ -37,7 +37,8 @@ val _ = Datatype`
 
 val _ = Datatype`
    hp = Test fml
-      | Assign string (trm option)
+      | Assign string trm
+      | AssignAny string
       | Seq hp hp
       | Choice hp hp
       | Loop hp`
@@ -240,7 +241,7 @@ val (wpsem_rules,wpsem_ind, wpsem_cases) = Hol_reln`
     (w = λy. if y = INR x then SND (wtsem t v)
             else if y = INL x then FST (wtsem t v)
             else v y) ⇒
-    wpsem (Assign x (SOME t)) v w) ∧
+    wpsem (Assign x t) v w) ∧
   (* wChoice1 *)
   (∀a b w v.
     wpsem a v w ⇒
@@ -255,7 +256,7 @@ val (wpsem_rules,wpsem_ind, wpsem_cases) = Hol_reln`
   (w = λy. if y = INR x then b
             else if y = INL x then a
             else v y) ⇒
-  wpsem (Assign x NONE) v w) ∧
+  wpsem (AssignAny x) v w) ∧
   (∀a w.
     wpsem (Loop a) w w) ∧
   (∀a w v u.
@@ -368,10 +369,10 @@ val (cwpsem_rules,cwpsem_ind, cwpsem_cases) = Hol_reln`
   (* Non-deterministic assignment *)
   (∀x a b w.
   a ≤ b ⇒
-  cwpsem (Assign x NONE) w ((x,(a,b))::w)) ∧
+  cwpsem (AssignAny x) w ((x,(a,b))::w)) ∧
   (* Deterministic assignment *)
   (∀x t w.
-  cwpsem (Assign x (SOME t)) w ((x,(cwtsem t w))::w)) ∧
+  cwpsem (Assign x t) w ((x,(cwtsem t w))::w)) ∧
   (∀f w.
     cwfsem f w = SOME T ⇒
     cwpsem (Test f) w w) ∧
@@ -499,7 +500,7 @@ val Skip_sem = Q.store_thm("Skip_sem",`
 
 val AssignAnyPar_def = Define`
   (AssignAnyPar [] = Skip) ∧
-  (AssignAnyPar (x::xs) = Seq (Assign x NONE) (AssignAnyPar xs))`
+  (AssignAnyPar (x::xs) = Seq (AssignAny x) (AssignAnyPar xs))`
 
 val AssignAnyPar_sem = Q.store_thm("AssignAnyPar_sem",`
   ∀xs ws w w'.
@@ -522,7 +523,7 @@ val AssignAnyPar_sem = Q.store_thm("AssignAnyPar_sem",`
 
 val AssignPar_def = Define`
   (AssignPar (l::ls) (r::rs) =
-    Seq (Assign l (SOME r)) (AssignPar ls rs)) ∧
+    Seq (Assign l r) (AssignPar ls rs)) ∧
   (AssignPar [] [] = Skip)`
 
 (* EVAL-able non-overlap *)

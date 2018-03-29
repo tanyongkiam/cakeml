@@ -32,6 +32,7 @@ val _ = Datatype`
 val _ = Datatype`
   mach_state = <|
     const_vals   : word32 list; (* Fixed constants *)
+    ctrl_vals   : word32 list;
     sensor_vals  : word32 list;
     |>`
 
@@ -123,7 +124,7 @@ val ffi_actuate_def = Define`
     if cur_step_oracle
     then
       (* Transition to the new mach state *)
-      let new_ws = ws with <|sensor_vals := cur_transition_oracle (ws,ctrl)|> in
+      let new_ws = ws with <|sensor_vals := cur_transition_oracle (ws,ctrl); ctrl_vals := ctrl|> in
       let new_wo = wo with <|transition_oracle := next_transition_oracle;
                              step_oracle       := next_step_oracle|> in
         SOME(bytes, st with <|wo := new_wo ; ws := new_ws |>)
@@ -279,13 +280,15 @@ val encode_word32_list_inner_def = Define`
 val encode_mach_state_def = Define`
   encode_mach_state ws =
   Cons (encode_word32_list ws.const_vals)
-  (encode_word32_list ws.sensor_vals)`
+  (Cons (encode_word32_list ws.ctrl_vals)
+  (encode_word32_list ws.sensor_vals))`
 
 (* This is a bit special: we will use the inner type as well *)
 val encode_mach_state_inner_def = Define`
   encode_mach_state_inner ws =
   iCons (encode_word32_list_inner ws.const_vals)
-  (encode_word32_list_inner ws.sensor_vals)`
+  (iCons (encode_word32_list_inner ws.ctrl_vals)
+  (encode_word32_list_inner ws.sensor_vals))`
 
 val encode_mach_state_11 = Q.prove(`
   encode_mach_state x = encode_mach_state y ⇔
