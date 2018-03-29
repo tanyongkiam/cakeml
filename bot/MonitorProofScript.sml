@@ -65,44 +65,6 @@ val state_rel_def = Define`
     ALOOKUP ffi_st x = ALOOKUP hp_w x`
 
 (*
-val state_agree_append = Q.store_thm("state_agree_append",`
-  ALL_DISTINCT names ∧
-  no_overlap names (MAP FST y) ∧
-  LIST_REL (state_agree x) names vals
-  ⇒
-  LIST_REL
-    (state_agree (y++x)) names vals`,
-  fs[state_agree_def,LIST_REL_EL_EQN,no_overlap_thm]>>
-  rw[]>>
-  simp[ALOOKUP_APPEND]>>
-  imp_res_tac ALOOKUP_ALL_DISTINCT_EL>>
-  TOP_CASE_TAC>>fs[]>>
-  imp_res_tac ALOOKUP_MEM>>fs[MEM_EL]>>
-  pop_assum (assume_tac o SYM)>>
-  fs[PULL_EXISTS]>>
-  last_x_assum drule>>fs[]>>
-  disch_then(qspec_then`n'` assume_tac)>>
-  rfs[EL_MAP]);
-
-val state_agree_append2 = Q.store_thm("state_agree_append2",`
-  ALL_DISTINCT names ∧
-  LENGTH names = LENGTH vals ∧
-  MAP FST y = names ∧
-  MAP SND y = ZIP(vals,vals)
-  ⇒
-  LIST_REL
-    (state_agree (REVERSE y++x)) names vals`,
-  rw[]>>
-  fs[state_agree_def,LIST_REL_EL_EQN]>>rw[]>>
-  simp[ALOOKUP_APPEND,EL_MAP]>>
-  simp[alookup_distinct_reverse]>>
-  imp_res_tac ALOOKUP_ALL_DISTINCT_EL>>
-  pop_assum(qspec_then`n` assume_tac)>>rfs[]>>
-  rfs[LIST_EQ_REWRITE,EL_ZIP]>>
-  metis_tac[EL_MAP]);
-*)
-
-(*
   These are syntactic well-formedness condition on mach_config
 
 *)
@@ -258,27 +220,6 @@ val state_rel_lookup_const2 = Q.prove(`
   simp[ALOOKUP_EXISTS_IFF,MEM_ZIP]>>
   metis_tac[MEM_EL]);
 
-val state_rel_lookup_sensor = Q.prove(`
-  wf_config w.wc ∧
-  wf_mach w /\
-  MEM x w.wc.sensor_names ∧
-  state_rel w st ⇒
-  ALOOKUP
-  (ZIP (w.wc.sensor_names,MAP (λx. (x,x)) w.ws.sensor_vals) ++
-   ZIP (w.wc.const_names,MAP (λx. (x,x)) w.ws.const_vals)) x =
-  ALOOKUP st x`,
-  rw[]>>fs[state_rel_def,wf_config_def,wf_mach_def]>>
-  rfs[LIST_REL_APPEND_EQ]>>
-  fs[LIST_REL_EL_EQN,state_agree_def]>>
-  fs[MEM_EL]>>
-  first_x_assum(qspec_then`n` assume_tac)>>rfs[]>>
-  dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
-  simp[MAP_ZIP]>>fs[EL_MEM]>>
-  qmatch_goalsub_abbrev_tac`ALOOKUP ls`>>
-  Q.ISPECL_THEN [`ls`,`n`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
-  rfs[Abbr`ls`,MAP_ZIP,EL_ZIP]>>
-  fs[EL_MAP]);
-
 val state_rel_lookup_sensor2 = Q.prove(`
   wf_config w.wc ∧
   wf_mach w /\
@@ -316,20 +257,6 @@ val MAP_lookup_var = Q.prove(`
   simp[MAP_ZIP]>>
   Q.ISPECL_THEN [`ZIP(vars,vals)`,`x`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
   rfs[MAP_ZIP,EL_ZIP]);
-
-(*
-val state_rel_MAP_lookup_var = Q.prove(`
-  wf_config w.wc ∧
-  wf_mach w ∧
-  state_rel w st ⇒
-  MAP (lookup_var st) w.wc.const_names = MAP (λx. (x,x)) w.ws.const_vals ∧
-  MAP (lookup_var st) w.wc.ctrl_names = MAP (λx. (x,x)) w.ws.ctrl_vals ∧
-  MAP (lookup_var st) w.wc.sensor_names = MAP (λx. (x,x)) w.ws.sensor_vals`,
-  rw[]>>fs[LIST_EQ_REWRITE,wf_config_def,wf_mach_def,state_rel_def]>>
-  rfs[LIST_REL_APPEND_EQ]>>
-  fs[LIST_REL_EL_EQN,state_agree_def]>>
-  fs[MEM_EL,EL_MAP,lookup_var_def]);
-*)
 
 val is_point_MAP_cancel = Q.prove(`
   EVERY is_point ls ⇒
@@ -657,50 +584,16 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
     fs[no_overlap_APPEND]>>
     simp[AssignVarPar_sem]>>
     simp[state_rel_def]>>
-    cheat
-    (* restructure like prev case *)
-    simp[LIST_REL_APPEND_EQ]>>rw[]
-    >-
-      (PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
-      match_mp_tac state_agree_append2>>
-      fs[MAP_REVERSE,MAP_ZIP]>>
-      rw[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
-      qmatch_goalsub_abbrev_tac`sensorplus ++ ctrl ++ ctrlfixed++st1`>>
-      `EL x w.wc.sensorplus_names = FST (EL x (REVERSE sensorplus))` by
-        fs[Abbr`sensorplus`,EL_ZIP]>>
-      `ALOOKUP (REVERSE sensorplus) (EL x w.wc.sensorplus_names) = SOME (SND (EL x (REVERSE sensorplus)))` by
-        (fs[]>>
-        match_mp_tac ALOOKUP_ALL_DISTINCT_EL>>
-        fs[Abbr`sensorplus`,MAP_ZIP])>>
-      simp[ALOOKUP_APPEND,Abbr`sensorplus`,alookup_distinct_reverse]>>
-      rfs[EL_ZIP,EL_MAP,MAP_ZIP,alookup_distinct_reverse])
-    >-
-      (* constants unchanged *)
-      (simp[Abbr`st1`]>>
-      match_mp_tac state_agree_append>>
-      simp[MAP_MAP_o,o_DEF,UNCURRY,ETA_AX,MAP_ZIP,MAP_REVERSE]>>
-      rfs[LIST_REL_APPEND_EQ,state_rel_def]>>
-      fs[no_overlap_thm]>>
-      fs[wf_mach_def]>>
-      metis_tac[LIST_REL_APPEND_EQ])
-    >>
-    fs[hide_def]>>
-    qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
-    simp[plant_monitor_def,cwfsem_bi_val_def]>>
-    TOP_CASE_TAC>>rw[]>>
-    pop_assum sym_sub_tac>>
-    match_mp_tac fv_fml_coincide>>
-    fs[]>>
-    match_mp_tac EVERY_MEM_MONO>>
-    HINT_EXISTS_TAC>>fs[]>>
-    simp[ZIP_ID]>>
-    fs[ctrl_monitor_def,cwfsem_bi_val_def]>>
-    qmatch_goalsub_abbrev_tac`sensorplus++ ctrl ++ ctrlfixed ++ st1`>>
+    qmatch_goalsub_abbrev_tac`sensors ++ sensorplus ++ ctrl ++ ctrlfixed ++ st1`>>
+    simp[ZIP_ID,w8_to_w32_w32_to_w8]>>
     fs[wf_mach_def,evaluate_default_def]>>
     rfs[GSYM ZIP_APPEND]>>
-    qmatch_goalsub_abbrev_tac`_ = ALOOKUP (sensorplus1 ++ ctrl1 ++ sensors ++ consts) _`>>
-    `sensorplus = REVERSE sensorplus1` by
-      (unabbrev_all_tac>> fs[])>>
+    qmatch_goalsub_abbrev_tac`sensors1 ++ ctrl1 ++ const`>>
+    `sensors = REVERSE sensors1` by
+      (unabbrev_all_tac>>fs[]>>
+      PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_REWRITE_TAC [MAP_lookup_var]>>
+      fs[get_oracle_def])>>
     `ctrl = REVERSE ctrl1` by
       (unabbrev_all_tac>>fs[]>>
       rpt(AP_TERM_TAC)>>
@@ -720,24 +613,64 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
       Q.ISPECL_THEN [`ls`,`x`] assume_tac ALOOKUP_ALL_DISTINCT_EL>>
       rfs[Abbr`ls`,MAP_ZIP]>>
       rfs[EL_ZIP,EL_MAP])>>
+    simp[]>>rw[]
+    >-
+      (* sensors *)
+      (PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+      unabbrev_all_tac>>fs[MAP_ZIP])
+    >- (* ctrl *)
+      (PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac EQ_SYM>>
+      match_mp_tac ALOOKUP_REV_SAME_SKIP>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[CONJ_ASSOC]>>CONJ_TAC>-
+        (unabbrev_all_tac>>fs[MAP_ZIP,MAP_REVERSE,no_overlap_thm])>>
+      strip_tac>>
+      PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
+      match_mp_tac EQ_SYM>>
+      match_mp_tac MEM_ALOOKUP_APPEND_REV>>
+      unabbrev_all_tac>>fs[MAP_ZIP])
+    >- (* consts *)
+      (simp[Abbr`st1`]>>
+      dep_rewrite.DEP_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      CONJ_TAC>-
+        (unabbrev_all_tac>>fs[MAP_ZIP,MAP_REVERSE,no_overlap_thm])>>
+      match_mp_tac EQ_SYM>>unabbrev_all_tac>>
+      match_mp_tac state_rel_lookup_const>>
+      fs[wf_config_def,wf_mach_def,no_overlap_thm])
+    >>
+    fs[hide_def]>>
+    qpat_x_assum`plant_monitor _ _ _ _ _ _ _ _ _` mp_tac>>
+    simp[plant_monitor_def,cwfsem_bi_val_def]>>
+    TOP_CASE_TAC>>rw[]>>
+    pop_assum sym_sub_tac>>
+    match_mp_tac fv_fml_coincide>>
+    rfs[ZIP_ID]>>
+    match_mp_tac EVERY_MEM_MONO>>
+    HINT_EXISTS_TAC>>fs[]>>
+    fs[wf_mach_def,evaluate_default_def]>>
+    rfs[ctrl_monitor_def,cwfsem_bi_val_def]>>
+    qpat_x_assum`case cwfsem _ _ of NONE => F | SOME v => v` mp_tac>>
+    TOP_CASE_TAC>>simp[]>>
+    strip_tac>>
+    rfs[ZIP_ID,ZIP_APPEND]>>
+    simp[GSYM ZIP_APPEND]>>
     rw[]
     >- (
       (* consts *)
       simp[Abbr`st1`]>>
-      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      dep_rewrite.DEP_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
       unabbrev_all_tac>>fs[MAP_ZIP,no_overlap_thm,MAP_REVERSE]>>
-      PURE_REWRITE_TAC [APPEND_ASSOC4]>>
-      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
-      fs[MAP_ZIP,no_overlap_thm,MAP_REVERSE]>>
-      match_mp_tac EQ_SYM>>
       match_mp_tac state_rel_lookup_const>>
       fs[wf_config_def,wf_mach_def,no_overlap_thm])
     >- (
       (* sensors *)
+      simp[Abbr`sensorplus`]>>
       PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
       match_mp_tac ALOOKUP_REV_SAME_SKIP>>
       CONJ_TAC>-
-        simp[Abbr`sensorplus1`,MAP_ZIP]>>
+        simp[MAP_ZIP]>>
       strip_tac>>
       match_mp_tac ALOOKUP_REV_SAME_SKIP>>
       CONJ_TAC>-
@@ -748,20 +681,21 @@ val body_step_state_rel = Q.store_thm("body_step_state_rel",`
       dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
       CONJ_TAC>-
         (unabbrev_all_tac>> fs[MAP_ZIP,no_overlap_thm,MAP_REVERSE])>>
-      match_mp_tac EQ_SYM>>
       unabbrev_all_tac>>
       match_mp_tac state_rel_lookup_sensor>>
       fs[wf_config_def,wf_mach_def,no_overlap_thm])
     >- (
       (* ctrl*)
+      simp[Abbr`sensorplus`]>>
       PURE_REWRITE_TAC [GSYM APPEND_ASSOC]>>
       match_mp_tac ALOOKUP_REV_SAME_SKIP>>
-      CONJ_TAC>- simp[Abbr`sensorplus1`,MAP_ZIP]>>
+      CONJ_TAC>- simp[MAP_ZIP]>>
       strip_tac>>
       match_mp_tac EQ_SYM>>
       match_mp_tac MEM_ALOOKUP_APPEND_REV>>
       unabbrev_all_tac>>fs[MAP_ZIP])
     >>
+      simp[Abbr`sensorplus`]>>
       PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
       match_mp_tac EQ_SYM>>
       match_mp_tac MEM_ALOOKUP_APPEND_REV>>
@@ -790,22 +724,23 @@ val body_loop_state_rel = Q.store_thm("body_loop_state_rel",`
   >-
     (qexists_tac`st`>>simp[Once cwpsem_cases])
   >>
-    drule (GEN_ALL body_step_state_rel)>>fs[]>>
-    disch_then drule>>
-    disch_then drule>>
-    rw[hide_def]>>
-    simp[Once cwpsem_cases]>>
-    simp[METIS_PROVE [] ``(A ∧ (C ∨ D)) ⇔ (A ∧ C) ∨ (A ∧ D)``,EXISTS_OR_THM]>>
-    DISJ2_TAC>>
-    simp[PULL_EXISTS]>>
+  drule (GEN_ALL body_step_state_rel)>>fs[]>>
+  disch_then drule>>
+  disch_then drule>>
+  rw[hide_def]>>
+  simp[Once cwpsem_cases]>>
+  simp[METIS_PROVE [] ``(A ∧ (C ∨ D)) ⇔ (A ∧ C) ∨ (A ∧ D)``,EXISTS_OR_THM]>>
+  DISJ2_TAC>>
+  simp[PULL_EXISTS]>>
   CONV_TAC (RESORT_EXISTS_CONV (sort_vars ["u"]))>>
   qexists_tac`st'`>>simp[]>>
   fs[body_step_def,ffi_actuate_def]>>
   rpt(pairarg_tac>>fs[])>>rw[]>>
   fs[]>>
   first_x_assum match_mp_tac>>
-  fs[state_rel_def,wf_mach_def,get_oracle_def]>>
-  rpt(pairarg_tac>>fs[])>>rw[]);
+  fs[state_rel_def,wf_mach_def,get_oracle_def,w8_to_w32_w32_to_w8,LENGTH_w32_to_w8]>>
+  rpt(pairarg_tac>>fs[])>>rw[]>>
+  metis_tac[]);
 
 val init_sandbox_def = Define`
   init_sandbox wc =
@@ -827,6 +762,46 @@ val init_step_def = Define`
   then
     evaluate_default w.wc.const_names w.ws.const_vals w.wc.default
   else NONE`
+
+val state_rel_MAP_lookup_var = Q.prove(`
+  wf_config w.wc ∧
+  wf_mach w ∧
+  state_rel w st ⇒
+  MAP (lookup_var st) w.wc.const_names = MAP (λx. (x,x)) w.ws.const_vals ∧
+  MAP (lookup_var st) w.wc.sensor_names = MAP (λx. (x,x)) w.ws.sensor_vals`,
+  rw[]>>fs[wf_config_def,wf_mach_def]
+  >-
+    (simp[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
+    rw[]>>
+    imp_res_tac state_rel_lookup_const2>>
+    pop_assum (qspec_then `EL x w.wc.const_names` mp_tac)>>
+    impl_keep_tac>-
+      rfs[EL_MEM]>>
+    simp[wf_mach_def,wf_config_def]>>
+    strip_tac>>
+    qpat_x_assum`_ = SOME v` mp_tac>>
+    dep_rewrite.DEP_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+    fs[MAP_ZIP]>>
+    CONJ_TAC>-
+      fs[no_overlap_thm]>>
+    qmatch_goalsub_abbrev_tac`ALOOKUP ls _`>>
+    Q.ISPECL_THEN [`ls`,`x`] mp_tac ALOOKUP_ALL_DISTINCT_EL>>
+    rfs[Abbr`ls`,MAP_ZIP,EL_ZIP])
+  >>
+    simp[LIST_EQ_REWRITE,EL_MAP,lookup_var_def]>>
+    rw[]>>
+    imp_res_tac state_rel_lookup_sensor2>>
+    pop_assum (qspec_then `EL x w.wc.sensor_names` mp_tac)>>
+    impl_keep_tac>-
+      rfs[EL_MEM]>>
+    simp[wf_mach_def,wf_config_def]>>
+    strip_tac>>
+    qpat_x_assum`_ = SOME v` mp_tac>>
+    dep_rewrite.DEP_ONCE_REWRITE_TAC [Q.SPEC `[]` (GEN_ALL MEM_ALOOKUP_APPEND)]>>
+    fs[MAP_ZIP]>>
+    qmatch_goalsub_abbrev_tac`ALOOKUP ls _`>>
+    Q.ISPECL_THEN [`ls`,`x`] mp_tac ALOOKUP_ALL_DISTINCT_EL>>
+    rfs[Abbr`ls`,MAP_ZIP,EL_ZIP]);
 
 val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
   wf_config w.wc ∧
@@ -852,17 +827,47 @@ val init_step_init_sandbox = Q.store_thm("init_step_init_sandbox",`
   rw[]
   >- (
     simp[state_rel_def]>>
-    fs[LIST_REL_APPEND_EQ,wf_mach_def]>>CONJ_TAC
+    rw[]
     >-(
+      fs[wf_mach_def]>>
+      simp[ZIP_ID,GSYM ZIP_APPEND]>>
+      match_mp_tac EQ_SYM>>
       PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
-      match_mp_tac state_agree_append2>>
-      fs[wf_mach_def,MAP_ZIP,ZIP_ID])
+      match_mp_tac ALOOKUP_REV_SAME_SKIP>>
+      simp[MAP_ZIP])
+    >- (
+      fs[wf_mach_def]>>
+      simp[ZIP_ID,GSYM ZIP_APPEND]>>
+      match_mp_tac EQ_SYM>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      match_mp_tac ALOOKUP_REV_SAME_SKIP>>
+      simp[MAP_ZIP]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_REVERSE,MAP_ZIP]>>
+      CONJ_TAC>-
+        (fs[no_overlap_thm]>>
+        metis_tac[])>>
+      rw[]>>fs[state_rel_def]>>
+      first_x_assum(qspec_then`x` assume_tac)>>rfs[]>>
+      pop_assum sym_sub_tac>>
+      simp[ZIP_ID,GSYM ZIP_APPEND]>>
+      PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      fs[MAP_ZIP])
     >>
+      fs[wf_mach_def]>>
+      simp[ZIP_ID,GSYM ZIP_APPEND]>>
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_REVERSE,MAP_ZIP]>>
+      CONJ_TAC>-
+        fs[no_overlap_thm]>>
       PURE_REWRITE_TAC[GSYM APPEND_ASSOC]>>
-      match_mp_tac state_agree_append>>
-      fs[wf_mach_def,MAP_ZIP,ZIP_ID,no_overlap_thm,MAP_REVERSE]>>
-      match_mp_tac state_agree_append2>>
-      fs[wf_mach_def,MAP_ZIP,ZIP_ID])
+      dep_rewrite.DEP_ONCE_REWRITE_TAC [NOT_MEM_ALOOKUP_APPEND]>>
+      simp[MAP_ZIP,MAP_REVERSE]>>
+      CONJ_TAC>-
+        fs[no_overlap_thm]>>
+      match_mp_tac (Q.SPEC `[]` (Q.GEN `xs` MEM_ALOOKUP_APPEND_REV)|>SIMP_RULE (srw_ss()) [])>>
+      simp[MAP_ZIP])
   >-
     (simp[GSYM EVERY_MAP]>>
     `(\x.lookup_var st x) = lookup_var st` by fs[FUN_EQ_THM]>>

@@ -32,8 +32,8 @@ val _ = Datatype`
 val _ = Datatype`
   mach_state = <|
     const_vals   : word32 list; (* Fixed constants *)
-    ctrl_vals   : word32 list;
-    sensor_vals  : word32 list;
+    ctrl_vals    : word32 list; (* Values of ctrl *)
+    sensor_vals  : word32 list; (* Values of sensors *)
     |>`
 
 val _ = Datatype`
