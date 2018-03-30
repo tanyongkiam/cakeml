@@ -24,7 +24,7 @@ val _ = new_theory "botProg"
 
 (* Invert AssignAnyPar *)
 val parse_AssignAnyPar_def = Define`
-  (parse_AssignAnyPar (Seq (Assign x NONE) p2) =
+  (parse_AssignAnyPar (Seq (AssignAny x) p2) =
     case parse_AssignAnyPar p2 of
       NONE => NONE
     | SOME xs => SOME (x::xs)) ∧
@@ -42,7 +42,7 @@ val parse_AssignAnyPar_inv = Q.prove(`
 
 (* Invert AssignPar *)
 val parse_AssignPar_def = Define`
-  (parse_AssignPar (Seq (Assign x (SOME t)) p2) =
+  (parse_AssignPar (Seq (Assign x t) p2) =
     case parse_AssignPar p2 of
       NONE => NONE
     | SOME (xs,ts) => SOME (x::xs,t::ts)) ∧
