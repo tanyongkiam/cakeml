@@ -33,6 +33,28 @@ val _ = Datatype`
 val varls_def = Define`
   varls = [i1;i2;i3;i4;i5;i6;i7;i8;i9;i10;i11;i12;i13;i14;i15;i16;i17;i18;i19;i20]`
 
+val var_to_el_def = Define`
+  (var_to_el i1 = 0n) ∧
+  (var_to_el i2 = 1) ∧
+  (var_to_el i3 = 2) ∧
+  (var_to_el i4 = 3) ∧
+  (var_to_el i5 = 4) ∧
+  (var_to_el i6 = 5) ∧
+  (var_to_el i7 = 6) ∧
+  (var_to_el i8 = 7) ∧
+  (var_to_el i9 = 8) ∧
+  (var_to_el i10 = 9) ∧
+  (var_to_el i11 = 10) ∧
+  (var_to_el i12 = 11) ∧
+  (var_to_el i13 = 12) ∧
+  (var_to_el i14 = 13) ∧
+  (var_to_el i15 = 14) ∧
+  (var_to_el i16 = 15) ∧
+  (var_to_el i17 = 16) ∧
+  (var_to_el i18 = 17) ∧
+  (var_to_el i19 = 18) ∧
+  (var_to_el i20 = 19)`
+
 (* Technically, the Isabelle/HOL formalization excludes one word from word32 *)
 val _ = type_abbrev ("word",``:word32``);
 
@@ -154,6 +176,11 @@ val singleton_def = Define`
 
 val empty_def = Define`
   empty = MAP (λv. Const 0w) varls`
+
+val oprod_def = Define`
+  (oprod (OSing x t) ODE2 = (OProd (OSing x t) ODE2)) ∧
+  (oprod (OVar c d) ODE2 = (OProd (OVar c d) ODE2)) ∧
+  (oprod (OProd ll lr) ODE2 = oprod ll (oprod lr ODE2))`
 
 (* Substitutions *)
 val _ = Datatype`
@@ -306,6 +333,49 @@ val fsafe_def = Define`
   (fsafe (InContext C f)⇔fsafe f)`
 
 (* Static Semantics.thy *)
+val SIGT_def = tDefine "SIGT_def" `
+  (SIGT (Var var) = []) ∧
+  (SIGT (Const r) = []) ∧
+  (SIGT (Function var f) = [var] ++ FLAT (MAP SIGT f)) ∧
+  (SIGT (Functional var) = [var]) ∧
+  (SIGT (Neg t1) = SIGT t1) ∧
+  (SIGT (Plus t1 t2) = SIGT t1 ++ SIGT t2) ∧
+  (SIGT (Times t1 t2) = SIGT t1 ++ SIGT t2) ∧
+  (SIGT (Max t1 t2) = SIGT t1 ++ SIGT t2) ∧
+  (SIGT (Min t1 t2) = SIGT t1 ++ SIGT t2) ∧
+  (SIGT (Abs t1) = SIGT t1) ∧
+  (SIGT (DiffVar x) = []) ∧
+  (SIGT (Differential t) = SIGT t)`
+  (WF_REL_TAC `measure (trm_size ARB)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val SIGO_def = Define`
+  (SIGO (OVar c _) = [INR c]) ∧
+  (SIGO (OSing x theta) =  MAP INL (SIGT theta)) ∧
+  (SIGO (OProd ODE1 ODE2) = SIGO ODE1 ++ SIGO ODE2)`
+
+val SIGP_def = Define`
+  (SIGP (Pvar var) = [INR (INR var)]) ∧
+  (SIGP (Assign var t) = MAP INL (SIGT t)) ∧
+  (SIGP (AssignAny var) = []) ∧
+  (SIGP (DiffAssign var t) = MAP INL (SIGT t)) ∧
+  (SIGP (Test p) = SIGF p) ∧
+  (SIGP (EvolveODE ODE p) = SIGF p ++
+    MAP (λv.
+      case v of INL x => INL x | INR x => INR (INR x)) (SIGO ODE)) ∧
+  (SIGP (Choice a b) = SIGP a ++ SIGP b) ∧
+  (SIGP (Sequence a b) = SIGP a ++ SIGP b) ∧
+  (SIGP (Loop a) = SIGP a) ∧
+  (SIGF (Geq t1 t2) = MAP INL (SIGT t1 ++ SIGT t2)) ∧
+  (SIGF (Prop var args) = [INR (INR var)] ++ MAP INL (FLAT (MAP SIGT args))) ∧
+  (SIGF (Not p) = SIGF p) ∧
+  (SIGF (And p1 p2) = SIGF p1 ++ SIGF p2) ∧
+  (SIGF (Exists var p) = SIGF p) ∧
+  (SIGF (Diamond a p) = SIGP a ++ SIGF p) ∧
+  (SIGF (InContext var p) = [INR (INL var)] ++ SIGF p)`
+
 val primify_def = Define`
   (primify (INL x) = [INL x;INR x]) ∧
   (primify (INR x) = [INL x;INR x])`
@@ -501,6 +571,413 @@ val FBrename_def = Define`
     else (Forall z  f))) ∧
   (FBrename x y f = f)`
 
+(* USubst_Lemma.thy*)
+val _ = Datatype`
+  fin_univ = <|
+    als : 'a list;
+    bls : 'b list |>`
+
+val pair_varls_space = rconc (EVAL``FLAT (MAP (λx. (x,NONE) :: MAP (λy. (x,SOME y)) varls) varls)``);
+
+val pair_varls = rconc (EVAL``FLAT (MAP (λx. MAP (λy. (x,y)) varls) varls)``);
+
+val pair_varls_space_def = Define`
+  pair_varls_space = ^pair_varls_space`
+
+val pair_varls_def = Define`
+  pair_varls = ^pair_varls`
+
+val ssafe_def = Define`
+  ssafe fu sigma <=>
+  EVERY (λx. case sigma.SFunctions x of SOME f => dfree f | NONE => T) fu.als ∧
+  EVERY (λx. case sigma.SPredicates x of SOME f => fsafe f | NONE => T) varls ∧
+  EVERY (λx. case sigma.SFunls x of SOME f => dsafe f | NONE => T) fu.als ∧
+  EVERY (λx. case sigma.SPrograms x of SOME f => hpsafe f | NONE => T) varls ∧
+  EVERY (λ(f,sp). case sigma.SODEs f sp of SOME f => osafe f | NONE => T) pair_varls_space ∧
+  EVERY (λ(f,x). case sigma.SODEs f (SOME x) of SOME f => ¬ MEM (INL x) (BVO f) | NONE =>T) pair_varls ∧
+  EVERY (λx. case sigma.SContexts x of SOME f => fsafe f | NONE => T) fu.bls`
+
+(* USubst.thy *)
+val SFV_def = Define`
+  (SFV sigma (INL i) =
+    (case sigma.SFunctions i of SOME f' => FVT f' | NONE => []) ++ (case sigma.SFunls i of SOME f' => FVT f' | NONE => [])) ∧
+  (SFV sigma (INR (INL i)) = []) ∧
+  (SFV sigma (INR (INR i)) = (case sigma.SPredicates i of SOME p' => FVF p' | NONE => []))`
+
+val SDom_def = Define`
+  SDom (fu:('a,'b) fin_univ) sigma =
+  MAP INL (FILTER (IS_SOME o sigma.SFunctions) fu.als) ++
+  MAP INL (FILTER (IS_SOME o sigma.SFunls) fu.als) ++
+  MAP (INR o INL) (FILTER (IS_SOME o sigma.SContexts) fu.bls) ++
+  MAP (INR o INR) (FILTER (IS_SOME o sigma.SPredicates) varls) ++
+  MAP (INR o INR) (FILTER (IS_SOME o sigma.SPrograms) varls)`
+
+val TsubstFO_def = tDefine "TsubstFO_def"`
+  (TsubstFO (Var v) sigma = Var v) ∧
+  (TsubstFO (DiffVar v) sigma = DiffVar v) ∧
+  (TsubstFO (Const r) sigma = Const r) ∧
+  (TsubstFO (%%F f) sigma = (case f of INL ff => (%%F ff) | INR ff => EL (var_to_el ff) sigma)) ∧
+  (TsubstFO (Function f args) sigma =
+      (case f of
+        INL f' => Function f' (MAP (λi. TsubstFO i sigma) args)
+      | INR f' => EL (var_to_el f') sigma )) ∧
+  (TsubstFO (Neg theta1) sigma = Neg (TsubstFO theta1 sigma)) ∧
+  (TsubstFO (Plus theta1 theta2) sigma = Plus (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
+  (TsubstFO (Times theta1 theta2) sigma = Times (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
+  (TsubstFO (Max theta1 theta2) sigma = Max (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
+  (TsubstFO (Min theta1 theta2) sigma = Min (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
+  (TsubstFO (Abs theta1) sigma = Abs (TsubstFO theta1 sigma)) ∧
+  (TsubstFO (Differential theta) sigma = Differential (TsubstFO theta sigma))`
+  (WF_REL_TAC `measure (trm_size ARB o FST)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val Tsubst_def = tDefine "Tsubst_def"`
+  (Tsubst (Var x) sigma = Var x) ∧
+  (Tsubst (DiffVar x) sigma = DiffVar x) ∧
+  (Tsubst (Const r) sigma = Const r) ∧
+  (Tsubst (Function f args) sigma =
+    (case sigma.SFunctions f of
+      SOME f' => TsubstFO f'
+    | NONE => Function f) (MAP (λi. Tsubst i sigma) args)) ∧
+  (Tsubst (%%F f) sigma = (case sigma.SFunls f of SOME f' =>  f' | NONE =>  (%%F f))) ∧
+  (Tsubst (Neg theta1) sigma = Neg (Tsubst theta1 sigma)) ∧
+  (Tsubst (Plus theta1 theta2) sigma = Plus (Tsubst theta1 sigma) (Tsubst theta2 sigma)) ∧
+  (Tsubst (Times theta1 theta2) sigma = Times (Tsubst theta1 sigma) (Tsubst theta2 sigma)) ∧
+  (Tsubst (Max theta1 theta2) sigma = Max (Tsubst theta1 sigma) (Tsubst theta2 sigma)) ∧
+  (Tsubst (Min theta1 theta2) sigma = Min (Tsubst theta1 sigma) (Tsubst theta2 sigma)) ∧
+  (Tsubst (Abs theta1) sigma = Abs (Tsubst theta1 sigma) ) ∧
+  (Tsubst (Differential theta) sigma = Differential (Tsubst theta sigma))`
+  (WF_REL_TAC `measure (trm_size ARB o FST)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val OsubstFO_def = Define`
+  (OsubstFO (OVar c sp) sigma = OVar c sp) ∧
+  (OsubstFO (OSing x theta) sigma = OSing x (TsubstFO theta sigma)) ∧
+  (OsubstFO (OProd ODE1 ODE2) sigma = oprod (OsubstFO ODE1 sigma) (OsubstFO ODE2 sigma))`
+
+val Osubst_def = Define`
+  (Osubst (OVar c sp) sigma = (case sigma.SODEs c sp of SOME c' => c' | NONE => OVar c sp)) ∧
+  (Osubst (OSing x theta) sigma = OSing x (Tsubst theta sigma)) ∧
+  (Osubst (OProd ODE1 ODE2) sigma = oprod (Osubst ODE1 sigma) (Osubst ODE2 sigma))`
+
+val PsubstFO_def = Define`
+  (PsubstFO (Pvar a) sigma = Pvar a) ∧
+  (PsubstFO (Assign x theta) sigma = Assign x (TsubstFO theta sigma)) ∧
+  (PsubstFO (AssignAny x) sigma = AssignAny x) ∧
+  (PsubstFO (DiffAssign x theta) sigma = DiffAssign x (TsubstFO theta sigma)) ∧
+  (PsubstFO (Test phi) sigma = Test (FsubstFO phi sigma)) ∧
+  (PsubstFO (EvolveODE ODE phi) sigma = EvolveODE (OsubstFO ODE sigma) (FsubstFO phi sigma)) ∧
+  (PsubstFO (Choice alpha beta) sigma = Choice (PsubstFO alpha sigma) (PsubstFO beta sigma)) ∧
+  (PsubstFO (Sequence alpha beta) sigma = Sequence (PsubstFO alpha sigma) (PsubstFO beta sigma)) ∧
+  (PsubstFO (Loop alpha) sigma = Loop (PsubstFO alpha sigma)) ∧
+  (FsubstFO (Geq theta1 theta2) sigma = Geq (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
+  (FsubstFO (Prop p args) sigma = Prop p (MAP (λi. TsubstFO i sigma) args)) ∧
+  (FsubstFO (Not phi) sigma = Not (FsubstFO phi sigma)) ∧
+  (FsubstFO (And phi psi) sigma = And (FsubstFO phi sigma) (FsubstFO psi sigma)) ∧
+  (FsubstFO (Exists x phi) sigma = Exists x (FsubstFO phi sigma)) ∧
+  (FsubstFO (Diamond alpha phi) sigma = Diamond (PsubstFO alpha sigma) (FsubstFO phi sigma)) ∧
+  (FsubstFO (InContext C phi) sigma = InContext C (FsubstFO phi sigma))`;
+
+val PPsubst_def = Define`
+  (PPsubst (Pvar a) sigma = Pvar a) ∧
+  (PPsubst (Assign x theta) sigma = Assign x theta) ∧
+  (PPsubst (AssignAny x) sigma = AssignAny x) ∧
+  (PPsubst (DiffAssign x theta) sigma = DiffAssign x theta) ∧
+  (PPsubst (Test phi) sigma = Test (PFsubst phi sigma)) ∧
+  (PPsubst (EvolveODE ODE phi) sigma = EvolveODE ODE (PFsubst phi sigma)) ∧
+  (PPsubst (Choice alpha beta) sigma = Choice (PPsubst alpha sigma) (PPsubst beta sigma)) ∧
+  (PPsubst (Sequence alpha beta) sigma = Sequence (PPsubst alpha sigma) (PPsubst beta sigma)) ∧
+  (PPsubst (Loop alpha) sigma = Loop (PPsubst alpha sigma)) ∧
+  (PFsubst (Geq theta1 theta2) sigma = (Geq theta1 theta2)) ∧
+  (PFsubst (Prop p args) sigma = Prop p args) ∧
+  (PFsubst (Not phi) sigma = Not (PFsubst phi sigma)) ∧
+  (PFsubst (And phi psi) sigma = And (PFsubst phi sigma) (PFsubst psi sigma)) ∧
+  (PFsubst (Exists x phi) sigma = Exists x (PFsubst phi sigma)) ∧
+  (PFsubst (Diamond alpha phi) sigma = Diamond (PPsubst alpha sigma) (PFsubst phi sigma)) ∧
+  (PFsubst (InContext C phi) sigma = (case C of INL C' => InContext C' (PFsubst phi sigma) | INR p' => sigma))`
+
+val Psubst_def = Define`
+  (Psubst (Pvar a) sigma = (case sigma.SPrograms a of SOME a' => a' | NONE => Pvar a)) ∧
+  (Psubst (Assign x theta) sigma = Assign x (Tsubst theta sigma)) ∧
+  (Psubst (AssignAny x) sigma = AssignAny x) ∧
+  (Psubst (DiffAssign x theta) sigma = DiffAssign x (Tsubst theta sigma)) ∧
+  (Psubst (Test phi) sigma = Test (Fsubst phi sigma)) ∧
+  (Psubst (EvolveODE ODE phi) sigma = EvolveODE (Osubst ODE sigma) (Fsubst phi sigma)) ∧
+  (Psubst (Choice alpha beta) sigma = Choice (Psubst alpha sigma) (Psubst beta sigma)) ∧
+  (Psubst (Sequence alpha beta) sigma = Sequence (Psubst alpha sigma) (Psubst beta sigma)) ∧
+  (Psubst (Loop alpha) sigma = Loop (Psubst alpha sigma)) ∧
+  (Fsubst (Geq theta1 theta2) sigma = Geq (Tsubst theta1 sigma) (Tsubst theta2 sigma)) ∧
+  (Fsubst (Prop p args) sigma = (case sigma.SPredicates p of SOME p' => FsubstFO p' (MAP (λi. Tsubst i sigma) args) | NONE => Prop p (MAP (λi. Tsubst i sigma) args))) ∧
+  (Fsubst (Not phi) sigma = Not (Fsubst phi sigma)) ∧
+  (Fsubst (And phi psi) sigma = And (Fsubst phi sigma) (Fsubst psi sigma)) ∧
+  (Fsubst (Exists x phi) sigma = Exists x (Fsubst phi sigma)) ∧
+  (Fsubst (Diamond alpha phi) sigma = Diamond (Psubst alpha sigma) (Fsubst phi sigma)) ∧
+  (Fsubst (InContext C phi) sigma = (case sigma.SContexts C of SOME C' => PFsubst C' (Fsubst phi sigma) | NONE =>  InContext C (Fsubst phi sigma)))`
+
+val SFV_def = Define`
+  (SFV sigma (INL i) =
+    (case sigma.SFunctions i of SOME f' => FVT f' | None => []) ++
+    (case sigma.SFunls i of SOME f' => FVT f' | None => [])) ∧
+  (SFV sigma (INR (INL i)) = []) ∧
+  (SFV sigma (INR (INR i)) = (case sigma.SPredicates i of SOME p' => FVF p' | NONE => []))`
+
+val FVS_def = Define`
+  FVS fu sigma =
+  MAP (SFV sigma) (MAP INL fu.als ++ MAP (INR o INL) fu.bls ++ MAP (INR o INR) varls)`
+
+val TUadmit_def = Define`
+  TUadmit sigma theta U ⇔
+  list_inter
+  (FLAT (
+    MAP (λi. (case sigma.SFunctions i of SOME f' => FVT f' | NONE => []) ++
+              (case sigma.SFunls i of SOME f' => FVT f' | NONE => []))
+     (SIGT theta))) U = []`
+
+val NTUadmit_def = Define`
+  NTUadmit sigma theta U ⇔
+  list_inter
+  (FLAT (MAP (λi. case i of INR i => FVT ( EL (var_to_el i) sigma) | INL i => []) (SIGT theta)))
+  U = []`
+
+val PUadmit_def = Define`
+  PUadmit fu sigma theta U ⇔
+  list_inter (FLAT (MAP (SFV sigma) (list_inter (SDom fu sigma) (SIGP theta)))) U = []`
+
+val FUadmit_def = Define`
+  FUadmit fu sigma theta U ⇔
+  list_inter (FLAT (MAP (SFV sigma) (list_inter (SDom fu sigma) (SIGF theta)))) U = []`
+
+val TadmitFFO_def = tDefine "TadmitFFO_def"`
+  (TadmitFFO sigma (Differential theta) ⇔ TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls) ∧
+  (TadmitFFO sigma (Function (INL f) args) ⇔ EVERY (TadmitFFO sigma) args) ∧
+  (TadmitFFO sigma (Function (INR f) args) ⇔ EVERY (TadmitFFO sigma) args ∧ dfree (EL (var_to_el f) sigma)) ∧
+  (TadmitFFO sigma (Plus theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
+  (TadmitFFO sigma (Times theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
+  (TadmitFFO sigma (Max theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
+  (TadmitFFO sigma (Min theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
+  (TadmitFFO sigma (Abs theta1) ⇔ TadmitFFO sigma theta1) ∧
+  (TadmitFFO sigma (Neg theta1) ⇔ TadmitFFO sigma theta1) ∧
+  (TadmitFFO sigma (Var x) ⇔ T) ∧
+  (TadmitFFO sigma (Const r) ⇔ T)`
+  (WF_REL_TAC `measure (trm_size ARB o SND)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val TadmitFO_def = tDefine "TadmitFO_def"`
+  (TadmitFO sigma (Differential theta) ⇔
+    TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls ∧ dfree (TsubstFO theta sigma)) ∧
+  (TadmitFO sigma (Function f args) ⇔
+    EVERY (TadmitFO sigma) args) ∧
+  (TadmitFO sigma (%%F (INL f)) ⇔ T) ∧
+  (TadmitFO sigma (Neg theta1) ⇔ TadmitFO sigma theta1) ∧
+  (TadmitFO sigma (Plus theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
+  (TadmitFO sigma (Times theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
+  (TadmitFO sigma (Max theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
+  (TadmitFO sigma (Min theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
+  (TadmitFO sigma (Abs theta1) ⇔ TadmitFO sigma theta1) ∧
+  (TadmitFO sigma (DiffVar x) ⇔ T) ∧
+  (TadmitFO sigma (Var x) ⇔ T) ∧
+  (TadmitFO sigma (Const r) ⇔ T)`
+  (WF_REL_TAC `measure (trm_size ARB o SND)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val TadmitF_def = tDefine "TadmitF_def"`
+  (TadmitF sigma (Differential theta) ⇔
+    TadmitF sigma theta ∧ TUadmit sigma theta UNIVls) ∧
+  (TadmitF sigma (Function f args) ⇔
+    EVERY (TadmitF sigma) args ∧
+    case sigma.SFunctions f of
+      SOME f' =>
+        EVERY (λi. dfree (Tsubst i sigma)) args ∧
+        TadmitFFO (MAP (λ i. Tsubst i sigma) args) f'
+    | NONE => T) ∧
+  (TadmitF sigma (Neg theta1) ⇔ TadmitF sigma theta1) ∧
+  (TadmitF sigma (Plus theta1 theta2) ⇔ TadmitF sigma theta1 ∧ TadmitF sigma theta2) ∧
+  (TadmitF sigma (Times theta1 theta2) ⇔ TadmitF sigma theta1 ∧ TadmitF sigma theta2) ∧
+  (TadmitF sigma (Max theta1 theta2) ⇔ TadmitF sigma theta1 ∧ TadmitF sigma theta2) ∧
+  (TadmitF sigma (Min theta1 theta2) ⇔ TadmitF sigma theta1 ∧ TadmitF sigma theta2) ∧
+  (TadmitF sigma (Abs theta1) ⇔ TadmitF sigma theta1) ∧
+  (TadmitF sigma (DiffVar x) ⇔ T) ∧
+  (TadmitF sigma (Var x) ⇔ T) ∧
+  (TadmitF sigma (Const r) ⇔ T)`
+  (WF_REL_TAC `measure (trm_size ARB o SND)`>>fs[]>>
+  rw[]>>
+  imp_res_tac MEM_trm_size>>
+  pop_assum (qspec_then `ARB` assume_tac)>>fs[])
+
+val Tadmit_def = tDefine "Tadmit_def"`
+  (Tadmit sigma (Differential theta) ⇔
+    Tadmit sigma theta ∧ TUadmit sigma theta UNIVls) ∧
+  (Tadmit sigma (Function f args) ⇔
+    EVERY (Tadmit sigma) args ∧
+    case sigma.SFunctions f of
+      SOME f' =>
+        TadmitFO (MAP (λ i. Tsubst i sigma) args) f'
+    | NONE => T) ∧
+  (Tadmit sigma (%%F f) ⇔ (*NOTE: this is partial!*)
+    case sigma.SFunls f of
+      SOME f' => Tadmit sigma f'
+    | NONE => F)  ∧
+  (Tadmit sigma (Neg theta1) ⇔ Tadmit sigma theta1) ∧
+  (Tadmit sigma (Plus theta1 theta2) ⇔ Tadmit sigma theta1 ∧ Tadmit sigma theta2) ∧
+  (Tadmit sigma (Times theta1 theta2) ⇔ Tadmit sigma theta1 ∧ Tadmit sigma theta2) ∧
+  (Tadmit sigma (Max theta1 theta2) ⇔ Tadmit sigma theta1 ∧ Tadmit sigma theta2) ∧
+  (Tadmit sigma (Min theta1 theta2) ⇔ Tadmit sigma theta1 ∧ Tadmit sigma theta2) ∧
+  (Tadmit sigma (Abs theta1) ⇔ Tadmit sigma theta1) ∧
+  (Tadmit sigma (DiffVar x) ⇔ T) ∧
+  (Tadmit sigma (Var x) ⇔ T) ∧
+  (Tadmit sigma (Const r) ⇔ T)`
+  cheat;
+
+val Oadmit_def = Define`
+  (Oadmit sigma (OVar c NONE) U ⇔ T) ∧
+  (Oadmit sigma (OVar c (SOME x)) U ⇔
+    (case sigma.SODEs c (SOME x) of SOME ode => ¬ MEM (INL x) (BVO ode) | NONE => F)) ∧
+  (Oadmit sigma (OSing x theta) U ⇔
+    TUadmit sigma theta U ∧ TadmitF sigma theta)  ∧
+  (Oadmit sigma (OProd ODE1 ODE2) U ⇔
+    Oadmit sigma ODE1 U ∧ Oadmit sigma ODE2 U ∧ list_inter (ODE_dom (Osubst ODE1 sigma)) (ODE_dom (Osubst ODE2 sigma)) = [])`
+
+val PUadmitFO_def = Define`
+  PUadmitFO sigma theta U ⇔
+  list_inter
+  (FLAT (MAP
+  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+       | _ => []) (SIGP theta))) U = []`
+
+val OUadmitFO_def = Define`
+  OUadmitFO sigma theta U ⇔
+  list_inter
+  (FLAT (MAP
+  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+       | _ => []) (SIGO theta))) U = []`
+
+val OadmitFO_def = Define`
+  (OadmitFO sigma (OSing x theta) U ⇔
+    OUadmitFO sigma (OSing x theta) U ∧ TadmitFFO sigma theta) ∧
+  (OadmitFO sigma (OProd ODE1 ODE2) U ⇔
+    OadmitFO sigma ODE1 U ∧ OadmitFO sigma ODE2 U) ∧
+  (OadmitFO sigma as U ⇔ OUadmitFO sigma as U)`
+
+val FUadmitFO_def = Define`
+  FUadmitFO sigma theta U ⇔
+  list_inter
+  (FLAT (MAP
+  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+       | _ => []) (SIGF theta))) U = []`
+
+val NPadmit_def = Define`
+  (NPadmit sigma (Pvar a) ⇔ T) ∧
+  (NPadmit sigma (Sequence a b) ⇔
+    NPadmit sigma a ∧ NPadmit sigma b ∧ PUadmitFO sigma b (BVP (PsubstFO a sigma))∧ hpsafe (PsubstFO a sigma)) ∧
+  (NPadmit sigma (Loop a) ⇔
+    NPadmit sigma a ∧ PUadmitFO sigma a (BVP (PsubstFO a sigma)) ∧ hpsafe (PsubstFO a sigma)) ∧
+  (NPadmit sigma (EvolveODE ODE phi) ⇔
+    OadmitFO sigma ODE (BVO ODE) ∧ NFadmit sigma phi ∧ FUadmitFO sigma phi (BVO ODE) ∧fsafe (FsubstFO phi sigma) ∧ osafe (OsubstFO ODE sigma)) ∧
+  (NPadmit sigma (Choice a b) ⇔ NPadmit sigma a ∧ NPadmit sigma b) ∧
+  (NPadmit sigma (Assign x theta) ⇔ TadmitFO sigma theta) ∧
+  (NPadmit sigma (AssignAny x) ⇔ T) ∧
+  (NPadmit sigma (DiffAssign x theta) ⇔ TadmitFO sigma theta) ∧
+  (NPadmit sigma (Test phi) ⇔ NFadmit sigma phi) ∧
+  (NFadmit sigma (Geq theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
+  (NFadmit sigma (Prop f args) ⇔ EVERY (TadmitFO sigma) args) ∧
+  (NFadmit sigma (Not phi) ⇔ NFadmit sigma phi) ∧
+  (NFadmit sigma (And phi psi) ⇔ NFadmit sigma phi ∧NFadmit sigma psi) ∧
+  (NFadmit sigma (Exists x phi) ⇔ NFadmit sigma phi ∧ FUadmitFO sigma phi [INL x]) ∧
+  (NFadmit sigma (Diamond a phi) ⇔ NFadmit sigma phi ∧ NPadmit sigma a ∧ FUadmitFO sigma phi (BVP (PsubstFO a sigma)) ∧ hpsafe (PsubstFO a sigma)) ∧
+  (NFadmit sigma (InContext C phi) ⇔ NFadmit sigma phi ∧ FUadmitFO sigma phi UNIVls)`
+
+val PFUadmit_def = Define`
+  PFUadmit sigma theta U ⇔ T`
+
+val PPUadmit_def = Define`
+  PPUadmit sigma theta U ⇔
+  list_inter (FVF sigma) U = []`
+
+val PPadmit_def = Define`
+  (PPadmit sigma (Pvar a) ⇔ T) ∧
+  (PPadmit sigma (Sequence a b) ⇔
+    PPadmit sigma a ∧ PPadmit sigma b ∧ PPUadmit sigma b (BVP (PPsubst a sigma)) ∧ hpsafe (PPsubst a sigma )) ∧
+  (PPadmit sigma (Loop a) ⇔
+    PPadmit sigma a ∧ PPUadmit sigma a (BVP (PPsubst a sigma)) ∧ hpsafe (PPsubst a sigma)) ∧
+  (PPadmit sigma (EvolveODE ODE phi) ⇔ PFadmit sigma phi (*∧ PFUadmit sigma phi (BVO ODE)*)) ∧
+  (PPadmit sigma (Choice a b) ⇔ PPadmit sigma a ∧ PPadmit sigma b) ∧
+  (PPadmit sigma (Assign x theta) ⇔ T) ∧
+  (PPadmit sigma (AssignAny x) ⇔ T) ∧
+  (PPadmit sigma (DiffAssign x theta) ⇔ T) ∧
+  (PPadmit sigma (Test phi) ⇔ PFadmit sigma phi) ∧
+  (PFadmit sigma (Geq theta1 theta2) ⇔ T) ∧
+  (PFadmit sigma (Prop f args) ⇔ T) ∧
+  (PFadmit sigma (Not phi) ⇔ PFadmit sigma phi) ∧
+  (PFadmit sigma (And phi psi) ⇔ PFadmit sigma phi ∧ PFadmit sigma psi) ∧
+  (PFadmit sigma (Exists x phi) ⇔ PFadmit sigma phi (*∧ PFUadmit sigma phi [INL x]*)) ∧
+  (PFadmit sigma (Diamond a phi) ⇔ PFadmit sigma phi ∧ PPadmit sigma a ∧ PFUadmit sigma phi (BVP (PPsubst a sigma))) ∧
+  (PFadmit sigma (InContext C phi) ⇔ PFadmit sigma phi (*∧ PFUadmit sigma phi UNIV*))`
+
+val Padmit_def = Define`
+  (Padmit fu sigma (Pvar a) ⇔ T) ∧
+  (Padmit fu sigma (Sequence a b) ⇔
+    Padmit fu sigma a ∧ Padmit fu sigma b ∧ PUadmit fu sigma b (BVP (Psubst a sigma)) ∧
+    hpsafe (Psubst a sigma)) ∧
+  (Padmit fu sigma (Loop a) ⇔
+  Padmit fu sigma a ∧ PUadmit fu sigma a (BVP (Psubst a sigma)) ∧ hpsafe (Psubst a sigma)) ∧
+  (Padmit fu sigma (EvolveODE ODE phi) ⇔
+    Oadmit sigma ODE (BVO ODE) ∧ Fadmit fu sigma phi ∧ FUadmit fu sigma phi (BVO ODE)) ∧
+  (Padmit fu sigma (Choice a b) ⇔ Padmit fu sigma a ∧ Padmit fu sigma b) ∧
+  (Padmit fu sigma (Assign x theta) ⇔ Tadmit sigma theta) ∧
+  (Padmit fu sigma (AssignAny x) ⇔ T) ∧
+  (Padmit fu sigma (DiffAssign x theta) ⇔ Tadmit sigma theta) ∧
+  (Padmit fu sigma (Test phi) ⇔ Fadmit fu sigma phi) ∧
+  (Fadmit fu sigma (Geq theta1 theta2) ⇔ Tadmit sigma theta1 ∧ Tadmit sigma theta2) ∧
+  (Fadmit fu sigma (Prop p args) ⇔
+    EVERY (Tadmit sigma) args ∧
+    case sigma.SPredicates p of
+      SOME p' => NFadmit (MAP (λ i. Tsubst i sigma) args) p' ∧
+                 (EVERY (λi. dsafe (Tsubst i sigma)) args)
+    | NONE => T) ∧
+  (Fadmit fu sigma (Not phi) ⇔ Fadmit fu sigma phi) ∧
+  (Fadmit fu sigma (And phi psi) ⇔ Fadmit fu sigma phi ∧ Fadmit fu sigma psi) ∧
+  (Fadmit fu sigma (Exists x phi) ⇔ Fadmit fu sigma phi ∧ FUadmit fu sigma phi [INL x]) ∧
+  (Fadmit fu sigma (Diamond a phi) ⇔ Fadmit fu sigma phi ∧ Padmit fu sigma a ∧ FUadmit fu sigma phi (BVP (Psubst a sigma)) ∧ hpsafe (Psubst a sigma)) ∧
+  (Fadmit fu sigma (InContext C phi) ⇔
+    Fadmit fu sigma phi ∧ FUadmit fu sigma phi UNIVls ∧
+    case sigma.SContexts C of
+      SOME C' => PFadmit (Fsubst phi sigma) C' ∧ fsafe(Fsubst phi sigma)
+    | NONE => T)`
+
+val Ssubst_def = Define`
+  Ssubst (Gamma,Delta) sigma =
+   (MAP (λp. Fsubst p sigma) Gamma, MAP (λp. Fsubst p sigma) Delta)`
+
+val Rsubst_def = Define`
+  Rsubst (SG,C) sigma = (MAP (λp. Ssubst p sigma) SG, Ssubst C sigma)`
+
+val Sadmit_def = Define`
+ Sadmit fu sigma (A,S) ⇔
+ EVERY (Fadmit fu sigma) A ∧
+ EVERY (Fadmit fu sigma) S`
+
+val Radmit_def = Define`
+  Radmit fu sigma R ⇔
+  EVERY (Sadmit fu sigma) (FST R) ∧ Sadmit fu sigma (SND R)`
+
+val Ssafe_def = Define`
+  Ssafe (A,S) ⇔
+  EVERY fsafe A ∧ EVERY fsafe S`
+
+val Rsafe_def = Define`
+  Rsafe R ⇔
+  Ssafe (SND R) ∧ EVERY Ssafe (FST R)`
+ fun Rsafe::"('sf,'sc,'sz) rule ⇒ bool"
+
+(* --- *)
 
 val loop_iterate_axiom_def = Define`
   loop_iterate_axiom ids =
@@ -826,32 +1303,40 @@ val pro_def = Define`
   pro r1 r2 = merge_rules r2 r1 0`
 
 val pt_result_def = Define`
-  (pt_result ids (FOLRConstant f) = SOME ([], ([],[f]))) ∧
-  (pt_result ids (RuleApplication pt ra i) =
-    case pt_result ids pt of
+  (pt_result fu ids (FOLRConstant f) = SOME ([], ([],[f]))) ∧
+  (pt_result fu ids (RuleApplication pt ra i) =
+    case pt_result fu ids pt of
     SOME res => if i ≥ LENGTH (FST res) then NONE else rule_result ids res (i,ra)
   | NONE => NONE) ∧
-  (pt_result ids (AxiomaticRule ar) = SOME(get_axrule ids ar)) ∧
-  (*(pt_result (PrUSubst pt sub) = NONE) ∧ *)
-  (pt_result ids (Ax a) = SOME ([],([],[get_axiom ids a]))) ∧
-  (pt_result ids (FNC pt s ra) =
-    case pt_result ids pt of
+  (pt_result fu ids (AxiomaticRule ar) = SOME(get_axrule ids ar)) ∧
+  (pt_result fu ids (PrUSubst pt sub) =
+    case pt_result fu ids pt of
+    SOME res =>
+      if ssafe fu sub ∧ Radmit fu sub res ∧ Rsafe res ∧
+        (FVS fu sub = [] ∨ FST res = [] ∨ res = CQaxrule ids)
+      then
+        SOME (Rsubst res sub)
+      else NONE
+  | NONE => NONE) ∧
+  (pt_result fu ids (Ax a) = SOME ([],([],[get_axiom ids a]))) ∧
+  (pt_result fu ids (FNC pt s ra) =
+    case pt_result fu ids pt of
       SOME res => fnc ids res s ra
       | NONE => NONE) ∧
-  (pt_result ids (Pro pt1 pt2) =
-    case pt_result ids pt2 of
+  (pt_result fu ids (Pro pt1 pt2) =
+    case pt_result fu ids pt2 of
       SOME res2 =>
       if LENGTH (FST res2) ≠ 1 then NONE else
-      (case pt_result ids pt1 of
+      (case pt_result fu ids pt1 of
         SOME res1 => pro res1 res2
       | NONE => NONE)
     | NONE => NONE) ∧
-  (pt_result ids (Start f) = SOME (start_proof f)) ∧
-  (pt_result ids (Sub pt1 pt2 i) =
-    case pt_result ids pt1 of
+  (pt_result fu ids (Start f) = SOME (start_proof f)) ∧
+  (pt_result fu ids (Sub pt1 pt2 i) =
+    case pt_result fu ids pt1 of
       SOME res1 =>
       if (i ≥ LENGTH (FST res1)) then NONE else
-      (case pt_result ids pt2 of
+      (case pt_result fu ids pt2 of
         SOME res2 => merge_rules res1 res2 i
       | NONE => NONE)
     | NONE => NONE)`
