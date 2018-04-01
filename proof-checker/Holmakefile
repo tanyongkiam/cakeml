@@ -1,4 +1,4 @@
-INCLUDES = ../characteristic ../basis ../translator ../misc $(HOLDIR)/examples/formal-languages/regular ../semantics
+INCLUDES = ../characteristic ../basis ../translator ../misc $(HOLDIR)/examples/formal-languages/regular ../semantics ../compiler
 
 OPTIONS = QUIT_ON_FAILURE
 

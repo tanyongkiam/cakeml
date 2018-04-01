@@ -686,6 +686,7 @@ val _=add_astPP ("arrayAallocrealprint", ``App Aalloc ls``,genPrint (prefixargsP
 val _=add_astPP ("arrayAsubrealprint", ``App Asub ls``,genPrint (prefixargsPrint "Array.sub"));
 val _=add_astPP ("arrayAlengthrealprint", ``App Alength ls``,genPrint (prefixargsPrint "Array.length"));
 val _=add_astPP ("arrayAupdaterealprint", ``App Aupdate ls``,genPrint (prefixargsPrint "Array.update"));
+val _=add_astPP ("stringStrcatrealprint", ``App Strcat ls``,genPrint (prefixargsPrint "String.concat"));
 
 (*End Apps*)
 
