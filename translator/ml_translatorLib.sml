@@ -1628,7 +1628,7 @@ fun inst_cons_thm tm hol2deep = let
                 handle HOL_ERR _ => []
   val xs = args res
   val ss = fst (match_term res tm)
-  val ys = map (fn x => hol2deep (subst ss x)) xs
+  val ys = map (fn x => remove_primes (hol2deep (subst ss x))) xs
   val th1 = if length ys = 0 then TRUTH else LIST_CONJ ys
   in MATCH_MP th (UNDISCH_ALL th1)
      handle HOL_ERR _ => raise UnableToTranslate tm end
@@ -1676,6 +1676,7 @@ fun inst_case_thm_for tm = let
 
 val last_fail = ref T;
 (*
+  val tm = rhs
   val tm = !last_fail
   val tm = hyps
   val tm = y
@@ -1714,7 +1715,9 @@ fun inst_case_thm tm hol2deep = let
                   (LIST_UNBETA_CONV (rev bs))) lemma
     val lemma = GENL vs lemma
     val _ = can (match_term tm) (concl lemma) orelse failwith("sat_hyp failed")
-    in lemma end handle HOL_ERR _ => (print_term tm; last_fail := tm; fail())
+    in lemma |> remove_primes end
+      handle HOL_ERR _ => (print_term tm; last_fail := tm; fail())
+           | UnableToTranslate t => (last_fail := tm; raise UnableToTranslate t)
   fun sat_hyps tm = if is_conj tm then let
     val (x,y) = dest_conj tm
     in CONJ (sat_hyps x) (sat_hyps y) end else sat_hyp tm
@@ -2805,7 +2808,17 @@ val tm = sortingTheory.PARTITION_DEF |> SPEC_ALL |> concl |> rhs
 val tm = ``case l of
        (x,y)::l1 => if y = a then x else x+y:num | _ => d``
 
-val tm = rhs |> rator |> rand |> rand |> rand
+val tm = rhs
+
+hol2deep tm
+
+type_of ``Fsubst``
+
+ ``!x. x = ARB:(α, β) formula``
+
+val tm = ``Test (Fsubst v8 v17)``
+
+
 
 *)
 
@@ -3572,7 +3585,10 @@ fun translate_main options translate register_type def = (let
 
 (*
 val _ = map (fn (fname,ml_name,lhs,_,_) => install_rec_pattern lhs fname) info
-val (fname,ml_name,lhs,rhs,def) = el 1 info
+val (fname,ml_name,lhs,rhs,def) = el 3 info
+
+hol2deep rhs
+
 can (find_term is_arb) (rhs |> rand |> rator)
 *)
   val thms = loop info

@@ -68,20 +68,20 @@ val Function_func_def = Define`
 
 val _ = translate Function_func_def;
 
-(*
-broken???
 val _ = translate (singleton_def |> INST_TYPE[beta|->alpha,gamma|->beta]);
 
-val def = (assign_axiom_def |> RW [GSYM Prop_func_def,GSYM Function_func_def] |> INST_TYPE [gamma |-> beta]);
-val res = translate def;
+val res = translate empty_def;
 
-val _ = translate (diff_assign_axiom_def |> RW[GSYM Prop_func_def])
+val res = translate (assign_axiom_def |> RW [GSYM Prop_func_def,GSYM Function_func_def] |> INST_TYPE [gamma |-> beta]);
+
+val _ = translate (diff_assign_axiom_def |> RW[GSYM Prop_func_def]);
+
 val _ = translate (DEaxiom_def)
 
-val _ = translate (DSaxiom_def )
+val _ = translate (DSaxiom_def |> RW [GSYM Prop_func_def,GSYM Function_func_def])
 
 val res = translate get_axiom_def;
-*)
+
 
 (* subst*)
 
@@ -91,17 +91,77 @@ val res = translate Rsafe_def;
 
 val res = translate (FVS_def |> SIMP_RULE std_ss [o_DEF]);
 
-(* broken
-val res = translate Psubst_def
+val res = translate proofCheckerTheory.PsubstFO_def;
+
+val res = translate proofCheckerTheory.PPsubst_def
+
+val res = translate proofCheckerTheory.Tsubst_def
+
+val res = translate proofCheckerTheory.Psubst_def
+
 val res = translate Rsubst_def
-*)
-
-val res = translate hp_case_def
-
-val res = translate
-val def = Psubst_def
 
 
+
+val TadmitFFO_alt = prove(
+  ``TadmitFFO sigma x =
+    case x of
+    | Var _ => T
+    | a => TadmitFFO sigma a``,
+  Cases_on `x` \\ fs [] \\ fs [TadmitFFO_def])
+  |> CONV_RULE (RAND_CONV (ONCE_REWRITE_CONV [TadmitFFO_def]));
+
+val res = translate_no_ind TadmitFFO_alt;
+
+val ind_lemma = Q.prove(
+  `^(first is_forall (hyp res))`,
+  rpt gen_tac
+  \\ rpt (disch_then strip_assume_tac)
+  \\ match_mp_tac (latest_ind ())
+  \\ rpt strip_tac
+  \\ last_x_assum match_mp_tac
+  \\ rpt strip_tac
+  \\ fs [FORALL_PROD] \\ cheat) (* argh! bad ind goal.. *)
+  |> update_precondition;
+
+val TadmitFO_alt = prove(
+  ``TadmitFO sigma x =
+    case x of
+    | Var _ => T
+    | a => TadmitFO sigma a``,
+  Cases_on `x` \\ fs [] \\ fs [TadmitFO_def])
+  |> CONV_RULE (RAND_CONV (ONCE_REWRITE_CONV [TadmitFO_def]));
+
+val res = translate_no_ind TadmitFO_alt;
+
+val ind_lemma = Q.prove(
+  `^(first is_forall (hyp res))`,
+  rpt gen_tac
+  \\ rpt (disch_then strip_assume_tac)
+  \\ match_mp_tac (latest_ind ())
+  \\ rpt strip_tac
+  \\ last_x_assum match_mp_tac
+  \\ rpt strip_tac
+  \\ fs [FORALL_PROD] \\ cheat) (* argh! bad ind goal.. *)
+  |> update_precondition;
+
+val res = translate Tadmit_def;
+val res = translate proofCheckerTheory.NPadmit_def
+val res = translate proofCheckerTheory.PPadmit_def
+
+(* broken *)
+
+val def = Padmit_def;
+val res = translate def
+
+val res = translate Radmit_def;
+
+
+
+(* untested from here onwards *)
+
+
+val _ = register_type ``:('a,'b) hp``
 val _ = register_type ``:('a,'b) hp option``
 val Psubst2_def = Define`
   (Psubst2 (m:('a,'b) hp) (sigma:('a,'b)subst) =
@@ -188,4 +248,3 @@ val res = translate pt_result_def;
 *)
 
 val _ = export_theory();
-
