@@ -2111,7 +2111,8 @@ fun single_line_def def = let
     \\ BasicProvers.EVERY_CASE_TAC
     \\ CONV_TAC (RATOR_CONV (ONCE_REWRITE_CONV [def]))
     \\ SRW_TAC [] []
-    \\ POP_ASSUM MP_TAC \\ REWRITE_TAC [PRECONDITION_def])
+    \\ POP_ASSUM MP_TAC \\ REWRITE_TAC [PRECONDITION_def]
+    \\ FULL_SIMP_TAC std_ss [])
   val lemma = lemma |> RW [] |> UNDISCH_ALL
   val new_def =
     rw |> SPEC_ALL |> CONV_RULE (RAND_CONV (ONCE_REWRITE_CONV [lemma]))

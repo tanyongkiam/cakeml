@@ -160,10 +160,10 @@ val _ = Datatype`
            fid2 : 'a;
            fid3 : 'a;
 
-           pid1 : 'c;
-           pid2 : 'c;
-           pid3 : 'c;
-           pid4 : 'c|>`
+           pid1 : 'b;
+           pid2 : 'b;
+           pid3 : 'b;
+           pid4 : 'b|>`
 
 (* More defs from Syntax.thy *)
 val Predicational_def = Define`
@@ -410,14 +410,7 @@ val BVO_def = Define`
   (BVO (OSing x θ) = [INL x; INR x]) ∧
   (BVO (OProd ODE1 ODE2) = BVO ODE1 ++ BVO ODE2)`
 
-val BVF_def = Define`
-  (BVF (Geq f g) = []) ∧
-  (BVF (Prop p dfun_args) = []) ∧
-  (BVF (Not p) = BVF p) ∧
-  (BVF (And p q) = BVF p ++ BVF q) ∧
-  (BVF (Exists x p) = [INL x] ++ BVF p) ∧
-  (BVF (Diamond a p) = BVP a ++ BVF p) ∧
-  (BVF (InContext C p) = UNIVls) ∧
+val BVP_def = Define`
   (BVP (Pvar a) = UNIVls) ∧
   (BVP (Assign x t) = [INL x]) ∧
   (BVP (AssignAny x) = [INL x]) ∧
@@ -426,7 +419,14 @@ val BVF_def = Define`
   (BVP (EvolveODE ODE f) = BVO ODE) ∧
   (BVP (Choice a b) = BVP a ++ BVP b) ∧
   (BVP (Sequence a b) = BVP a ++ BVP b) ∧
-  (BVP (Loop a) = BVP a)`
+  (BVP (Loop a) = BVP a) ∧
+  (BVF (Geq f g) = []) ∧
+  (BVF (Prop p dfun_args) = []) ∧
+  (BVF (Not p) = BVF p) ∧
+  (BVF (And p q) = BVF p ++ BVF q) ∧
+  (BVF (Exists x p) = [INL x] ++ BVF p) ∧
+  (BVF (Diamond a p) = BVP a ++ BVF p) ∧
+  (BVF (InContext C p) = UNIVls)`
 
 val MBV_def = Define`
   (MBV (Pvar a) = []) ∧
@@ -447,14 +447,7 @@ val FVO_def = Define`
   (FVO (OSing x t) = [x] ++ strip_INL (FVT t)) ∧
   (FVO (OProd ODE1 ODE2) = FVO ODE1 ++ FVO ODE2)`
 
-val FVF_def = Define`
-  (FVF (Geq f g) = FVT f ++ FVT g) ∧
-  (FVF (Prop p args) = FLAT (MAP FVT args)) ∧
-  (FVF (Not p) = FVF p) ∧
-  (FVF (And p q) = FVF p ++ FVF q) ∧
-  (FVF (Exists x p) = list_minus (FVF p) [INL x]) ∧
-  (FVF (Diamond a p) = (FVP a ++ (list_minus (FVF p) (MBV a)))) ∧
-  (FVF (InContext C p) = UNIVls) ∧
+val FVP_def = Define`
   (FVP (Pvar a) = UNIVls) ∧
   (FVP (Assign x t) = FVT t) ∧
   (FVP (AssignAny x) = []) ∧
@@ -463,7 +456,14 @@ val FVF_def = Define`
   (FVP (EvolveODE ODE f) = (MAP INL (FVO ODE)) ++ FVF f) ∧
   (FVP (Choice a b) = FVP a ++ FVP b) ∧
   (FVP (Sequence a b) = FVP a ++ (list_minus (FVP b) (MBV a))) ∧
-  (FVP (Loop a) = FVP a)`
+  (FVP (Loop a) = FVP a) ∧
+  (FVF (Geq f g) = FVT f ++ FVT g) ∧
+  (FVF (Prop p args) = FLAT (MAP FVT args)) ∧
+  (FVF (Not p) = FVF p) ∧
+  (FVF (And p q) = FVF p ++ FVF q) ∧
+  (FVF (Exists x p) = list_minus (FVF p) [INL x]) ∧
+  (FVF (Diamond a p) = (FVP a ++ (list_minus (FVF p) (MBV a)))) ∧
+  (FVF (InContext C p) = UNIVls)`
 
 val FVSeq_def = Define`
   FVSeq ((A,S):('a,'b) sequent) = FOLDR (λx acc. (acc ++ (FVF x))) [] A  ++
@@ -616,11 +616,11 @@ val TsubstFO_def = tDefine "TsubstFO"`
   (TsubstFO (Var v) sigma = Var v) ∧
   (TsubstFO (DiffVar v) sigma = DiffVar v) ∧
   (TsubstFO (Const r) sigma = Const r) ∧
-  (TsubstFO (%%F f) sigma = (case f of INL ff => (%%F ff) | INR ff => EL (var_to_el ff) sigma)) ∧
+  (TsubstFO (%%F f) sigma = (case f of INL ff => (%%F ff) | INR ff => any_el (var_to_el ff) sigma (Const 0w))) ∧
   (TsubstFO (Function f args) sigma =
       (case f of
         INL f' => Function f' (MAP (λi. TsubstFO i sigma) args)
-      | INR f' => EL (var_to_el f') sigma )) ∧
+      | INR f' => any_el (var_to_el f') sigma (Const 0w))) ∧
   (TsubstFO (Neg theta1) sigma = Neg (TsubstFO theta1 sigma)) ∧
   (TsubstFO (Plus theta1 theta2) sigma = Plus (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
   (TsubstFO (Times theta1 theta2) sigma = Times (TsubstFO theta1 sigma) (TsubstFO theta2 sigma)) ∧
@@ -740,7 +740,7 @@ val TUadmit_def = Define`
 val NTUadmit_def = Define`
   NTUadmit sigma theta U ⇔
   list_inter
-  (FLAT (MAP (λi. case i of INR i => FVT ( EL (var_to_el i) sigma) | INL i => []) (SIGT theta)))
+  (FLAT (MAP (λi. case i of INR i => FVT (any_el (var_to_el i) sigma (Const 0w)) | INL i => []) (SIGT theta)))
   U = []`
 
 val PUadmit_def = Define`
@@ -754,7 +754,7 @@ val FUadmit_def = Define`
 val TadmitFFO_def = tDefine "TadmitFFO"`
   (TadmitFFO sigma (Differential theta) ⇔ TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls) ∧
   (TadmitFFO sigma (Function (INL f) args) ⇔ EVERY (TadmitFFO sigma) args) ∧
-  (TadmitFFO sigma (Function (INR f) args) ⇔ EVERY (TadmitFFO sigma) args ∧ dfree (EL (var_to_el f) sigma)) ∧
+  (TadmitFFO sigma (Function (INR f) args) ⇔ EVERY (TadmitFFO sigma) args ∧ dfree (any_el (var_to_el f) sigma (Const 0w))) ∧
   (TadmitFFO sigma (Plus theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
   (TadmitFFO sigma (Times theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
   (TadmitFFO sigma (Max theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
@@ -849,14 +849,14 @@ val PUadmitFO_def = Define`
   PUadmitFO sigma theta U ⇔
   list_inter
   (FLAT (MAP
-  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+  (λx. case x of (INL (INR i)) => FVT (any_el (var_to_el i) sigma (Const 0w))
        | _ => []) (SIGP theta))) U = []`
 
 val OUadmitFO_def = Define`
   OUadmitFO sigma theta U ⇔
   list_inter
   (FLAT (MAP
-  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+  (λx. case x of (INL (INR i)) => FVT (any_el (var_to_el i) sigma (Const 0w))
        | _ => []) (SIGO theta))) U = []`
 
 val OadmitFO_def = Define`
@@ -870,7 +870,7 @@ val FUadmitFO_def = Define`
   FUadmitFO sigma theta U ⇔
   list_inter
   (FLAT (MAP
-  (λx. case x of (INL (INR i)) => FVT (EL (var_to_el i) sigma)
+  (λx. case x of (INL (INR i)) => FVT (any_el (var_to_el i) sigma (Const 0w))
        | _ => []) (SIGF theta))) U = []`
 
 val NPadmit_def = Define`
@@ -1185,7 +1185,7 @@ val get_axiom_def = Define`
   (get_axiom ids ADiffEffectSys = DiffEffectSysAxiom ids) ∧
   (get_axiom ids AAllElim = AllElimAxiom ids) ∧
   (get_axiom ids ADiffLinear = DiffLinearAxiom ids) ∧
-  (get_axiom ids ABoxSplit = BoxSplitAxiom ids) ∧
+  (get_axiom ids AboxSplit = BoxSplitAxiom ids) ∧
   (get_axiom ids AImpSelf = ImpSelfAxiom ids) ∧
   (get_axiom ids Acompose = compose_axiom ids) ∧
   (get_axiom ids AconstFcong = constFcongAxiom ids) ∧
@@ -1245,23 +1245,31 @@ val merge_rule_def = Define`
       SOME (replaceI P1 i S ++ SS, C1)
     else NONE)`
 
+val _ = Parse.hide "S";
+
 val LeftRule_result_def = Define`
-  (LeftRule_result AndL j (A,S) =
+  (LeftRule_result AndL j AS = case AS of (A,S) =>
+    if j >= LENGTH A then NONE else
     (case (nth A j) of
       And p q => SOME [((closeI A j) ++ [p;q], S)]
       | _ => NONE)) ∧
-  (LeftRule_result ImplyL j (A,S) =
+  (LeftRule_result ImplyL j AS = case AS of (A,S) =>
+    if j >= LENGTH A then NONE else
     (case (nth A j) of
       Not (And (Not q) (Not (Not p))) => SOME [(closeI A j, S ++ [p]); (replaceI A j q, S)]
     | _ => NONE)) ∧
-  (LeftRule_result HideL j (A,S) = SOME [(closeI A j, S)]) ∧
-  (LeftRule_result (CutLeft f) j (A,S) = SOME [((replaceI A j f),S); ((closeI A j), S ++[Implies (nth A j) f])]) ∧
-  (LeftRule_result EquivL j (A,S) =
+  (LeftRule_result HideL j AS = case AS of (A,S) => SOME [(closeI A j, S)]) ∧
+  (LeftRule_result (CutLeft f) j AS = case AS of (A,S) =>
+    if j >= LENGTH A then NONE else
+    SOME [((replaceI A j f),S); ((closeI A j), S ++[Implies (nth A j) f])]) ∧
+  (LeftRule_result EquivL j AS = case AS of (A,S) =>
+    if j >= LENGTH A then NONE else
     (case (nth A j) of
       Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
        (if (p = p' ∧ q = q') then SOME [(replaceI A j (And p q), S); (replaceI A j (And (Not p) (Not q)) , S)] else NONE)
     | _ => NONE)) ∧
-  (LeftRule_result (BRenameL x y) j (A,S) = (if x = y then NONE else
+  (LeftRule_result (BRenameL x y) j AS = case AS of (A,S) => (if x = y then NONE else
+    if j >= LENGTH A then NONE else
   (case (nth A j) of
    Not(Diamond (Assign xvar theta) (Not phi)) =>
     (if
@@ -1272,58 +1280,80 @@ val LeftRule_result_def = Define`
         SOME [(replaceI A j (FBrename x y (nth A j)),S)]
     else NONE)
    | _ => NONE))) ∧
-  (LeftRule_result NotL j (A,S) = (case (nth A j) of (Not p) => SOME [(closeI A j , S ++ [p])] | _ => NONE))`
+  (LeftRule_result NotL j AS = case AS of (A,S) =>
+    if j >= LENGTH A then NONE else
+   (case (nth A j) of (Not p) => SOME [(closeI A j , S ++ [p])] | _ => NONE))`
 
 val RightRule_result_def = Define`
-  (RightRule_result NotR j (A,S) = (case (nth S j) of (Not p) => SOME [(A ++ [p], closeI S j)] | _ => NONE)) ∧
-  (RightRule_result AndR j (A,S) = (case (nth S j) of (And p q) => SOME [(A, replaceI S j p); (A, replaceI S j q)] | _ => NONE)) ∧
-  (RightRule_result ImplyR j (A,S) = (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
+  (RightRule_result NotR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of (Not p) => SOME [(A ++ [p], closeI S j)] | _ => NONE)) ∧
+  (RightRule_result AndR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of (And p q) => SOME [(A, replaceI S j p); (A, replaceI S j q)] | _ => NONE)) ∧
+  (RightRule_result ImplyR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
     SOME [(A ++ [p], (closeI S j) ++ [q])] | _ => NONE)) ∧
-  (RightRule_result EquivR j (A,S) =
-   (case (nth S j) of Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
+  (RightRule_result EquivR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
                 (if (p = p' ∧ q = q') then (SOME [(A ++ [p], (closeI S j) ++ [q]); ( A ++ [q], (closeI S j) ++ [p])])
                 else (NONE)) | _ => NONE)) ∧
-  (RightRule_result CohideRR j (A,S) = SOME [([], [nth S j])]) ∧
-  (RightRule_result TrueR j (A,S) = (case (nth S j) of (Geq (Const x) (Const y)) =>
+  (RightRule_result CohideRR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    SOME [([], [nth S j])]) ∧
+  (RightRule_result TrueR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of (Geq (Const x) (Const y)) =>
     (if (x = y ∧ (x = 0w)) then(SOME []) else NONE) | _ => NONE)) ∧
-  (RightRule_result Skolem j (A,S) = (case (nth S j) of (Not (Exists x (Not p)))  =>
+  (RightRule_result Skolem j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of (Not (Exists x (Not p)))  =>
     (if (¬ MEM (INL x) (FVSeq (A,S))) ∧ fsafe (FOLDR (And) TT A) ∧ fsafe (FOLDR (Or) FF (closeI S j))then
       SOME [(A, replaceI S j p)]
     else NONE)
   | _ => NONE)) ∧
-  (RightRule_result (BRenameR x y) j (A,S) = (if x = y then NONE else
-  (case (nth S j) of
-   Not(Diamond (Assign xvar theta) (Not phi)) =>
-    (if
-      x = xvar ∧
-     (TRadmit theta ∧  FRadmit(Box (Assign xvar theta) phi) ∧ FRadmit phi ∧ fsafe ( Box(Assign xvar theta)phi) ∧
-     list_inter [INL y; INR y; INR x] (FVF (Box(Assign xvar theta)phi)) = [])  ∧
-        FRadmit (Box(y := theta) (FUrename xvar  y phi)) ∧
-      FRadmit (FUrename xvar y phi) ∧
-    fsafe (Box(y := theta)(FUrename xvar y phi)) ∧
-  list_inter [INL xvar; INR xvar; INR y] (FVF (Box(y := theta)(FUrename xvar y phi))) = []
+  (RightRule_result (BRenameR x y) j AS = case AS of (A,S) => (if x = y then NONE else
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of
+     Not(Diamond (Assign xvar theta) (Not phi)) =>
+      (if
+        x = xvar ∧
+       (TRadmit theta ∧  FRadmit(Box (Assign xvar theta) phi) ∧ FRadmit phi ∧ fsafe ( Box(Assign xvar theta)phi) ∧
+       list_inter [INL y; INR y; INR x] (FVF (Box(Assign xvar theta)phi)) = [])  ∧
+          FRadmit (Box(y := theta) (FUrename xvar  y phi)) ∧
+        FRadmit (FUrename xvar y phi) ∧
+      fsafe (Box(y := theta)(FUrename xvar y phi)) ∧
+    list_inter [INL xvar; INR xvar; INR y] (FVF (Box(y := theta)(FUrename xvar y phi))) = []
 
-    then
-        SOME [(A, replaceI S j (FBrename x y (nth S j)))]
-    else NONE)
-   | Not(Exists xvar (Not phi)) =>
-    (if
-      x = xvar ∧
-     (FRadmit(Forall xvar phi) ∧ FRadmit phi ∧ fsafe (Forall xvar phi) ∧
-     list_inter [INL y; INR y; INR x] (FVF (Forall xvar phi)) = []) ∧
-      FRadmit (Forall  y (FUrename xvar  y phi)) ∧
-      FRadmit (FUrename xvar y phi) ∧
-     fsafe (Forall y (FUrename xvar y phi)) ∧
-     list_inter [INL xvar; INR xvar; INR y] (FVF (Forall y (FUrename xvar y phi))) = []
-    then
-        SOME [(A, replaceI S j (FBrename x y (nth S j)))]
-    else NONE)
-   | _ => NONE))) ∧
-  (RightRule_result HideR j (A,S) = SOME [(A, closeI S j)]) ∧
-  (RightRule_result (CutRight v) j (A,S) = SOME [(A, replaceI S j v); (A,replaceI S j (Implies v (nth S j)))]) ∧
-  (RightRule_result EquivifyR j (A,S) = (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
+      then
+          SOME [(A, replaceI S j (FBrename x y (nth S j)))]
+      else NONE)
+     | Not(Exists xvar (Not phi)) =>
+      (if
+        x = xvar ∧
+       (FRadmit(Forall xvar phi) ∧ FRadmit phi ∧ fsafe (Forall xvar phi) ∧
+       list_inter [INL y; INR y; INR x] (FVF (Forall xvar phi)) = []) ∧
+        FRadmit (Forall  y (FUrename xvar  y phi)) ∧
+        FRadmit (FUrename xvar y phi) ∧
+       fsafe (Forall y (FUrename xvar y phi)) ∧
+       list_inter [INL xvar; INR xvar; INR y] (FVF (Forall y (FUrename xvar y phi))) = []
+      then
+          SOME [(A, replaceI S j (FBrename x y (nth S j)))]
+      else NONE)
+     | _ => NONE))) ∧
+  (RightRule_result HideR j AS = case AS of (A,S) => SOME [(A, closeI S j)]) ∧
+  (RightRule_result (CutRight v) j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    SOME [(A, replaceI S j v); (A,replaceI S j (Implies v (nth S j)))]) ∧
+  (RightRule_result EquivifyR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
 SOME [(A, replaceI S j (Equiv p q))] | _ => NONE)) ∧
-  (RightRule_result CommuteEquivR j (A,S) = (case nth S j of
+  (RightRule_result CommuteEquivR j AS = case AS of (A,S) =>
+    if j >= LENGTH S then NONE else
+    (case nth S j of
 Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
                 (if (p = p' ∧ q = q') then (SOME[(A, replaceI S j (Equiv q p))])
                 else NONE)| _ => NONE))`
@@ -1332,36 +1362,43 @@ val seq2fml_def = Define`
   seq2fml (ante,succ) = Implies (FOLDR And TT ante) (FOLDR Or FF succ)`
 
 val SUrename_def = Define`
-  SUrename x y (A,S) = (MAP (FUrename x y) A, MAP (FUrename x y) S)`
+  SUrename x y AS = case AS of (A,S) => (MAP (FUrename x y) A, MAP (FUrename x y) S)`
 
 val rule_result_def = Define`
-  (rule_result ids (SG,C) (i,LeftRule L j) =
+  (rule_result ids SGC (i,LeftRule L j) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
    (if j ≥ LENGTH (FST (nth SG i)) then NONE else
    (case (LeftRule_result L j (nth SG i)) of
      SOME a => merge_rules (SG,C) (a, nth SG i) i
    | NONE => NONE))) ∧
-  (rule_result ids (SG,C) (i,RightRule R j) =
+  (rule_result ids SGC (i,RightRule R j) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
    (if j ≥ LENGTH (SND (nth SG i)) then NONE else
    (case (RightRule_result R j (nth SG i)) of
      SOME a => merge_rules (SG,C) (a, nth SG i) i
    | NONE => NONE(* [(SG,C)]*)))) ∧
-  (rule_result ids (SG,C) (i,Cut phi) =
+  (rule_result ids SGC (i,Cut phi) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
     (if(fsafe phi) then
       (let (A,S)= nth SG i in  (merge_rules (SG,C) ([(A ++ [phi], S); (A,  S ++ [phi])], (A,S)) i))
     else NONE)) ∧
-  (rule_result ids (SG,C) (i,CloseId j k) =
+  (rule_result ids SGC (i,CloseId j k) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
   (if (j < LENGTH (FST (nth SG i))) ∧ (k < LENGTH (SND (nth SG i))) ∧ nth (FST (nth SG i)) j = nth (SND (nth SG i)) k then
     SOME (closeI SG i, C)
    else NONE)) ∧
-  (rule_result ids (SG, C) (i, URename x y) =
+  (rule_result ids SGC (i, URename x y) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
     (if(FRadmit (seq2fml (nth SG i)) ∧ FRadmit (seq2fml (SUrename x y (nth SG i))) ∧ fsafe (seq2fml (SUrename x y (nth SG i)))) then
       merge_rules (SG,C) ([SUrename x y (nth SG i)],nth SG i) i
     else NONE)) ∧
-  (rule_result ids (SG, C) (i, Cohide2 j k) =
+  (rule_result ids SGC (i, Cohide2 j k) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
   (if ((j ≥ LENGTH (FST (nth SG i))) ∨ (k ≥ LENGTH (SND (nth SG i)))) then NONE
    else
     (merge_rules (SG,C) ([([nth (FST(nth SG i)) j],[nth (SND(nth SG i)) k])], (nth SG i)) i))) ∧
-  (rule_result ids (SG,C) (i, DIGeqSchema ODE theta1 theta2) =
+  (rule_result ids SGC (i, DIGeqSchema ODE theta1 theta2) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
   (let proved =
       ([],[Implies
         (Implies (DPredl ids.vid1) (And (Geq theta1 theta2) (Box(EvolveODE ODE (DPredl ids.vid1))(Geq (Differential theta1) (Differential theta2)))))
@@ -1376,7 +1413,8 @@ val rule_result_def = Define`
     list_subset (FVT theta2) (MAP INL (ODE_dom ODE))) then
         SOME (closeI SG i,C)
      else NONE)) ∧
-  (rule_result ids (SG,C) (i, DIGrSchema ODE theta1 theta2) =
+  (rule_result ids SGC (i, DIGrSchema ODE theta1 theta2) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
   (let proved =
     ([],[Implies
       (Implies (DPredl ids.vid1) (And (Greater theta1 theta2) (Box(EvolveODE ODE (DPredl ids.vid1))(Geq (Differential theta1) (Differential theta2)))))
@@ -1391,7 +1429,8 @@ val rule_result_def = Define`
     list_subset (FVT theta2) (MAP INL (ODE_dom ODE))) then
         SOME (closeI SG i,C)
    else NONE)) ∧
-  (rule_result ids (SG,C) (i, DIEqSchema ODE theta1 theta2) =
+  (rule_result ids SGC (i, DIEqSchema ODE theta1 theta2) = case SGC of (SG,C) =>
+    if i >= LENGTH SG then NONE else
   (let proved =
     ([],[Implies
       (Implies (DPredl ids.vid1) (And (Equals theta1 theta2) (Box(EvolveODE ODE (DPredl ids.vid1))(Equals (Differential theta1) (Differential theta2)))))
