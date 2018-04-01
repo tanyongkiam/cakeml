@@ -427,8 +427,11 @@ val pu_compute = Q.store_thm("pu_compute",`
     round_to_inf s`,
   rw[pu_def]>>fs[round_to_inf_def]>>
   rpt (pop_assum mp_tac)>> EVAL_TAC>>
+  simp[POS_INF_def,NEG_INF_def]>>
   rw[]>>
-  blastLib.FULL_BBLAST_TAC);
+  blastLib.FULL_BBLAST_TAC>>
+  fs[]
+  );
 
 val pl_compute = Q.store_thm("pl_compute",`
   pl (w1:word32) (w2:word32) =
@@ -438,6 +441,7 @@ val pl_compute = Q.store_thm("pl_compute",`
   round_to_inf s`,
   rw[pl_def]>>fs[round_to_inf_def]>>
   rpt (pop_assum mp_tac)>> EVAL_TAC>>
+  simp[POS_INF_def,NEG_INF_def]>>
   rw[]>>
   blastLib.FULL_BBLAST_TAC)
 
@@ -446,6 +450,7 @@ val wtimes_compute = Q.store_thm("wtimes_compute",`
   let prod = sw2sw w1 * sw2sw w2 in round_to_inf prod`,
   EVAL_TAC>>rw[]>>
   rpt(pop_assum mp_tac)>> EVAL_TAC>>
+  simp[POS_INF_def,NEG_INF_def]>>
   blastLib.FULL_BBLAST_TAC);
 
 (* Free variables *)

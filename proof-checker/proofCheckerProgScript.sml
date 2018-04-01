@@ -54,8 +54,74 @@ val _ = register_type ``:('a,'b) pt``;
 val _ = register_type ``:('a,'b) ids_loc``;
 val _ = register_type ``:('a,'b) fin_univ``;
 
-val () = Feedback.set_trace "TheoryPP.include_docs" 0;
+(* mutrec defs are sometimes hidden *)
+val res = translate PRadmit_def;
+val res = translate hpsafe_def;
+val res = translate BVP_def;
+val res = translate FVP_def;
 
+val res = translate (SDom_def |> SIMP_RULE std_ss [o_DEF])
+val res = translate PUadmit_def;
+val res = translate Tsubst_def;
+
+val res = translate PUrename_def;
+val res = translate FBrename_def;
+val res = translate LeftRule_result_def;
+
+val leftrule_result_side = Q.prove(`
+  proofchecker_leftrule_result_side x y z ⇔ T`,
+  EVAL_TAC>>fs[])|> update_precondition
+
+val res = translate (RightRule_result_def |>RW (!extra_preprocessing) );
+
+val rightrule_result_side = Q.prove(`
+  proofchecker_rightrule_result_side x y z ⇔ T`,
+  EVAL_TAC>>fs[])|> update_precondition
+
+val res = translate rule_result_def;
+
+val rule_result_side = Q.prove(`
+  proofchecker_rule_result_side x y z ⇔ T`,
+  EVAL_TAC>>fs[])|> update_precondition
+
+val res = translate get_axrule_def;
+
+val res = translate fnc_def;
+val res = translate pro_def;
+
+val res = translate get_axiom_def;
+
+(* subst*)
+
+val res = translate Rsafe_def;
+
+val res = translate (FVS_def |> SIMP_RULE std_ss [o_DEF]);
+
+val res = translate proofCheckerTheory.PsubstFO_def;
+
+val res = translate proofCheckerTheory.PPsubst_def
+
+val res = translate proofCheckerTheory.Psubst_def
+
+val res = translate Rsubst_def
+
+val res = translate TadmitFFO_def;
+
+val res = translate TadmitFO_def;
+
+val res = translate Tadmit_def;
+val res = translate proofCheckerTheory.NPadmit_def
+val res = translate proofCheckerTheory.PPadmit_def
+
+val res = translate TadmitF_def;
+val res = translate (Oadmit_def |> RW (!extra_preprocessing));
+val res = translate Padmit_def;
+
+val res = translate Radmit_def;
+
+val res = translate pt_result_def;
+
+val () = Feedback.set_trace "TheoryPP.include_docs" 0;
 val _ = (ml_translatorLib.clean_on_exit := true);
 
 val _ = export_theory();

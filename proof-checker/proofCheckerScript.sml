@@ -727,7 +727,7 @@ val SFV_def = Define`
 
 val FVS_def = Define`
   FVS fu sigma =
-  MAP (SFV sigma) (MAP INL fu.als ++ MAP (INR o INL) fu.bls ++ MAP (INR o INR) varls)`
+  FLAT (MAP (SFV sigma) (MAP INL fu.als ++ MAP (INR o INL) fu.bls ++ MAP (INR o INR) varls))`
 
 val TUadmit_def = Define`
   TUadmit sigma theta U ⇔
