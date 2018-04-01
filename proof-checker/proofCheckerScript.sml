@@ -1049,10 +1049,6 @@ val diff_times_axiom_def = Define`
     (Plus (Times (Differential (state_fun ids.fid1)) (state_fun ids.fid2))
           (Times (state_fun ids.fid1) (Differential (state_fun ids.fid2)) ))`
 
-val diff_var_axiom_def = Define`
-  diff_var_axiom ids =
-  Equals (Differential (Var ids.vid1)) (DiffVar ids.vid1)`
-
 val DWaxiom_def = Define`
   DWaxiom ids =
   Box (EvolveODE (OVar ids.vid1 NONE) (Pc ids.pid2)) (Pc ids.pid1)
