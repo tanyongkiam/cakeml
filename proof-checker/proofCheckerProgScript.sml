@@ -50,8 +50,6 @@ val _ = (find_def_for_const := def_of_const);
 
 val _ = use_long_names:=true;
 
-val res = translate get_axiom_def;
-
 val _ = register_type ``:('a,'b) pt``;
 val _ = register_type ``:('a,'b) ids_loc``;
 val _ = register_type ``:('a,'b) fin_univ``;
