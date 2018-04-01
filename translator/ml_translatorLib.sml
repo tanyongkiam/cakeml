@@ -2805,6 +2805,8 @@ val tm = sortingTheory.PARTITION_DEF |> SPEC_ALL |> concl |> rhs
 val tm = ``case l of
        (x,y)::l1 => if y = a then x else x+y:num | _ => d``
 
+val tm = rhs |> rator |> rand |> rand |> rand
+
 *)
 
 fun hol2deep tm =
@@ -3104,8 +3106,8 @@ fun hol2deep tm =
   (* normal function applications *)
   if is_comb tm then let
     val (f,x) = dest_comb tm
-    val thf = hol2deep f
-    val thx = hol2deep x
+    val thf = hol2deep f |> remove_primes
+    val thx = hol2deep x |> remove_primes
     val thx = force_remove_fix thx
     val result = MATCH_MP (MATCH_MP Eval_Arrow thf) thx handle HOL_ERR _ =>
                  MY_MATCH_MP (MATCH_MP Eval_Arrow thf) (MATCH_MP Eval_Eq thx)
