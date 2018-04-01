@@ -753,8 +753,9 @@ val FUadmit_def = Define`
 
 val TadmitFFO_def = tDefine "TadmitFFO"`
   (TadmitFFO sigma (Differential theta) ⇔ TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls) ∧
-  (TadmitFFO sigma (Function (INL f) args) ⇔ EVERY (TadmitFFO sigma) args) ∧
-  (TadmitFFO sigma (Function (INR f) args) ⇔ EVERY (TadmitFFO sigma) args ∧ dfree (any_el (var_to_el f) sigma (Const 0w))) ∧
+  (TadmitFFO sigma (Function fs args) ⇔
+    case fs of INL f => EVERY (TadmitFFO sigma) args
+             | INR f => EVERY (TadmitFFO sigma) args ∧ dfree (any_el (var_to_el f) sigma (Const 0w))) ∧
   (TadmitFFO sigma (Plus theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
   (TadmitFFO sigma (Times theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
   (TadmitFFO sigma (Max theta1 theta2) ⇔ TadmitFFO sigma theta1 ∧ TadmitFFO sigma theta2) ∧
@@ -762,7 +763,8 @@ val TadmitFFO_def = tDefine "TadmitFFO"`
   (TadmitFFO sigma (Abs theta1) ⇔ TadmitFFO sigma theta1) ∧
   (TadmitFFO sigma (Neg theta1) ⇔ TadmitFFO sigma theta1) ∧
   (TadmitFFO sigma (Var x) ⇔ T) ∧
-  (TadmitFFO sigma (Const r) ⇔ T)`
+  (TadmitFFO sigma (Const r) ⇔ T) ∧
+  (TadmitFFO sigma _ ⇔ F)`
   (WF_REL_TAC `measure (trm_size ARB o SND)`>>fs[]>>
   rw[]>>
   imp_res_tac MEM_trm_size>>
@@ -773,7 +775,7 @@ val TadmitFO_def = tDefine "TadmitFO"`
     TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls ∧ dfree (TsubstFO theta sigma)) ∧
   (TadmitFO sigma (Function f args) ⇔
     EVERY (TadmitFO sigma) args) ∧
-  (TadmitFO sigma (%%F (INL f)) ⇔ T) ∧
+  (TadmitFO sigma (%%F fs) ⇔ case fs of INL f => T | _ => F) ∧
   (TadmitFO sigma (Neg theta1) ⇔ TadmitFO sigma theta1) ∧
   (TadmitFO sigma (Plus theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
   (TadmitFO sigma (Times theta1 theta2) ⇔ TadmitFO sigma theta1 ∧ TadmitFO sigma theta2) ∧
@@ -806,7 +808,8 @@ val TadmitF_def = tDefine "TadmitF"`
   (TadmitF sigma (Abs theta1) ⇔ TadmitF sigma theta1) ∧
   (TadmitF sigma (DiffVar x) ⇔ T) ∧
   (TadmitF sigma (Var x) ⇔ T) ∧
-  (TadmitF sigma (Const r) ⇔ T)`
+  (TadmitF sigma (Const r) ⇔ T) ∧
+  (TadmitF sigma _ ⇔ F)`
   (WF_REL_TAC `measure (trm_size ARB o SND)`>>fs[]>>
   rw[]>>
   imp_res_tac MEM_trm_size>>
