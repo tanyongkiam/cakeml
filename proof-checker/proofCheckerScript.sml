@@ -273,7 +273,7 @@ val MEM_trm_size = Q.prove(`
   Induct>>rw[]>>EVAL_TAC>>fs[]>>
   first_x_assum drule>>fs[]);
 
-val dfree_def = tDefine "dfree_def" `
+val dfree_def = tDefine "dfree" `
   (dfree (Var i) ⇔ T) ∧
   (dfree (Const r) ⇔ T) ∧
   (dfree (Function f args) ⇔ EVERY dfree args) ∧
@@ -286,7 +286,7 @@ val dfree_def = tDefine "dfree_def" `
   imp_res_tac MEM_trm_size>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[]);
 
-val dsafe_def = tDefine "dsafe_def" `
+val dsafe_def = tDefine "dsafe" `
   (dsafe (Var i) ⇔ T) ∧
   (dsafe (Const r) ⇔ T) ∧
   (dsafe (Function i args) ⇔ EVERY dsafe args) ∧
@@ -333,7 +333,7 @@ val fsafe_def = Define`
   (fsafe (InContext C f)⇔fsafe f)`
 
 (* Static Semantics.thy *)
-val SIGT_def = tDefine "SIGT_def" `
+val SIGT_def = tDefine "SIGT" `
   (SIGT (Var var) = []) ∧
   (SIGT (Const r) = []) ∧
   (SIGT (Function var f) = [var] ++ FLAT (MAP SIGT f)) ∧
@@ -383,7 +383,7 @@ val primify_def = Define`
 val UNIVls_def = Define`
   UNIVls = MAP INL varls ++ MAP INR varls`
 
-val FVT_def = tDefine "FVT_def"`
+val FVT_def = tDefine "FVT"`
   (FVT (Var x) = [INL x]) ∧
   (FVT (Const x) = []) ∧
   (FVT (Function f args) = FLAT (MAP FVT args)) ∧
@@ -470,7 +470,7 @@ val FVSeq_def = Define`
                 FOLDR (λx acc. (acc ++ (FVF x))) [] S`
 
 (* Uniform Renaming.thy *)
-val TRadmit_def = tDefine "TRadmit_def" `
+val TRadmit_def = tDefine "TRadmit" `
   (TRadmit (Var z) ⇔ T) ∧
   (TRadmit (DiffVar z) ⇔ T) ∧
   (TRadmit (Const c) ⇔ T) ∧
@@ -514,7 +514,7 @@ val PRadmit_def = Define`
 val swap_def = Define`
   swap x y z = if z = x then y else if z = y then x else z`
 
-val TUrename_def = tDefine "TUrename_def" `
+val TUrename_def = tDefine "TUrename" `
   (TUrename x y (Var z) = Var (swap x y z)) ∧
   (TUrename x y (DiffVar z) = DiffVar (swap x y z)) ∧
   (TUrename x y (Const r) = (Const r)) ∧
@@ -612,7 +612,7 @@ val SDom_def = Define`
   MAP (INR o INR) (FILTER (IS_SOME o sigma.SPredicates) varls) ++
   MAP (INR o INR) (FILTER (IS_SOME o sigma.SPrograms) varls)`
 
-val TsubstFO_def = tDefine "TsubstFO_def"`
+val TsubstFO_def = tDefine "TsubstFO"`
   (TsubstFO (Var v) sigma = Var v) ∧
   (TsubstFO (DiffVar v) sigma = DiffVar v) ∧
   (TsubstFO (Const r) sigma = Const r) ∧
@@ -633,7 +633,7 @@ val TsubstFO_def = tDefine "TsubstFO_def"`
   imp_res_tac MEM_trm_size>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[])
 
-val Tsubst_def = tDefine "Tsubst_def"`
+val Tsubst_def = tDefine "Tsubst"`
   (Tsubst (Var x) sigma = Var x) ∧
   (Tsubst (DiffVar x) sigma = DiffVar x) ∧
   (Tsubst (Const r) sigma = Const r) ∧
@@ -751,7 +751,7 @@ val FUadmit_def = Define`
   FUadmit fu sigma theta U ⇔
   list_inter (FLAT (MAP (SFV sigma) (list_inter (SDom fu sigma) (SIGF theta)))) U = []`
 
-val TadmitFFO_def = tDefine "TadmitFFO_def"`
+val TadmitFFO_def = tDefine "TadmitFFO"`
   (TadmitFFO sigma (Differential theta) ⇔ TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls) ∧
   (TadmitFFO sigma (Function (INL f) args) ⇔ EVERY (TadmitFFO sigma) args) ∧
   (TadmitFFO sigma (Function (INR f) args) ⇔ EVERY (TadmitFFO sigma) args ∧ dfree (EL (var_to_el f) sigma)) ∧
@@ -768,7 +768,7 @@ val TadmitFFO_def = tDefine "TadmitFFO_def"`
   imp_res_tac MEM_trm_size>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[])
 
-val TadmitFO_def = tDefine "TadmitFO_def"`
+val TadmitFO_def = tDefine "TadmitFO"`
   (TadmitFO sigma (Differential theta) ⇔
     TadmitFFO sigma theta ∧ NTUadmit sigma theta UNIVls ∧ dfree (TsubstFO theta sigma)) ∧
   (TadmitFO sigma (Function f args) ⇔
@@ -788,7 +788,7 @@ val TadmitFO_def = tDefine "TadmitFO_def"`
   imp_res_tac MEM_trm_size>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[])
 
-val TadmitF_def = tDefine "TadmitF_def"`
+val TadmitF_def = tDefine "TadmitF"`
   (TadmitF sigma (Differential theta) ⇔
     TadmitF sigma theta ∧ TUadmit sigma theta UNIVls) ∧
   (TadmitF sigma (Function f args) ⇔
@@ -812,7 +812,7 @@ val TadmitF_def = tDefine "TadmitF_def"`
   imp_res_tac MEM_trm_size>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[])
 
-val Tadmit_def = tDefine "Tadmit_def"`
+val Tadmit_def = tDefine "Tadmit"`
   (Tadmit sigma (Differential theta) ⇔
     Tadmit sigma theta ∧ TUadmit sigma theta UNIVls) ∧
   (Tadmit sigma (Function f args) ⇔
@@ -975,7 +975,6 @@ val Ssafe_def = Define`
 val Rsafe_def = Define`
   Rsafe R ⇔
   Ssafe (SND R) ∧ EVERY Ssafe (FST R)`
- fun Rsafe::"('sf,'sc,'sz) rule ⇒ bool"
 
 (* --- *)
 
@@ -1066,6 +1065,104 @@ val f1_def = Define`
 val p1_def = Define`
   p1 ids p x = Prop p (singleton ids (Var x))`
 
+val f0_def = Define`
+  f0 f = Function f empty`
+
+val DEaxiom_def = Define`
+  DEaxiom ids =
+((Box(EvolveODE (OSing ids.vid1 (f1 ids ids.fid1 ids.vid1)) (p1 ids ids.vid2 ids.vid1)) (Pc ids.pid1))
+<->
+ (Box(EvolveODE (OSing ids.vid1 (f1 ids ids.fid1 ids.vid1)) (p1 ids ids.vid2 ids.vid1))
+    (Box(DiffAssign ids.vid1 (f1 ids ids.fid1 ids.vid1)) (Pc ids.pid1))))`
+
+val DCaxiom_def = Define`
+  DCaxiom ids =
+  ((Box(EvolveODE (OVar ids.vid1 NONE) (Pc ids.pid2)))(Pc ids.pid3)) -->
+(((Box(EvolveODE (OVar ids.vid1 NONE) (Pc ids.pid2)))(Pc ids.pid1))
+  <->
+   ((Box(EvolveODE (OVar ids.vid1 NONE) (And (Pc ids.pid2) (Pc ids.pid3))))(Pc ids.pid1)))`
+
+val DSaxiom_def = Define`
+  DSaxiom ids =
+(((Box(EvolveODE (OSing ids.vid1 (f0 ids.fid1)) (p1 ids ids.vid2 ids.vid1)))(p1 ids ids.vid3 ids.vid1))
+<->
+(Forall ids.vid2
+ (Implies (Geq (Var ids.vid2) (Const (0w)))
+ (Implies
+   (Forall ids.vid3
+     (Implies (And (Geq (Var ids.vid3) (Const (0w))) (Geq (Var ids.vid2) (Var ids.vid3)))
+        (Prop ids.vid2 (singleton ids (Plus (Var ids.vid1) (Times (f0 ids.fid1) (Var ids.vid3)))))))
+   ((Box(Assign ids.vid1 (Plus (Var ids.vid1) (Times (f0 ids.fid1) (Var ids.vid2)))))(p1 ids ids.vid3 ids.vid1))))))`
+
+val EquivReflexiveAxiom_def = Define`
+  EquivReflexiveAxiom ids = (Prop ids.vid1 empty) <-> (Prop ids.vid1 empty)`
+
+val DiffEffectSysAxiom_def = Define`
+  DiffEffectSysAxiom ids = ((Box(EvolveODE (oprod (OSing ids.vid1 (DFunl ids.fid1)) (OVar ids.vid1 (SOME ids.vid1))) (Pc ids.pid2)))(Pc ids.pid1))
+ <->
+ ((Box(EvolveODE (oprod (OVar ids.vid1 (SOME ids.vid1)) (OSing ids.vid1 (DFunl ids.fid1))) (Pc ids.pid2)))((Box(DiffAssign ids.vid1 (DFunl ids.fid1)))(Pc ids.pid1)))`
+
+val AllElimAxiom_def = Define`
+  AllElimAxiom ids = (Forall ids.vid1 (Pc ids.pid1)) --> (Pc ids.pid1)`
+
+val DiffLinearAxiom_def = Define`
+  DiffLinearAxiom ids =
+  Equals
+  (Differential (Times (Function ids.fid2 empty) (DFunl ids.fid1)))
+  (Times (Function ids.fid2 empty) (Differential (DFunl ids.fid1)))`
+
+val BoxSplitAxiom_def = Define`
+  BoxSplitAxiom ids =
+  ((Box(Pvar ids.vid1))(And (Pc ids.pid1) (Pc ids.pid2)))
+  <->  (And ((Box(Pvar ids.vid1))(Pc ids.pid1))
+           ((Box(Pvar ids.vid1))(Pc ids.pid2)))`
+
+val ImpSelfAxiom_def = Define`
+  ImpSelfAxiom ids =
+  Equiv
+   ((Prop ids.vid1 empty) --> (Prop ids.vid1 empty))
+   TT`
+
+val compose_axiom_def = Define`
+  compose_axiom ids =
+  (Box( Sequence (%%a ids.vid1) (%%a ids.vid2))(Pc ids.pid1)) <->
+  ((Box(%%a ids.vid1) ((Box( %%a ids.vid2)) (Pc ids.pid1))))`
+
+val constFcongAxiom_def = Define`
+  constFcongAxiom ids =
+  Implies
+   (Equals (Function ids.fid1 empty) (Function ids.fid2 empty))
+   (Equiv
+     (Prop ids.vid1 (singleton ids (Function ids.fid1 empty)))
+     (Prop ids.vid1 (singleton ids (Function ids.fid2 empty))))`
+
+val dMinusAxiom_def = Define`
+  dMinusAxiom ids =
+  Equals
+   (Differential (Minus (DFunl ids.fid1) (DFunl ids.fid2)))
+   (Minus (Differential (DFunl ids.fid1)) (Differential(DFunl  ids.fid2)))`
+
+val assignEqAxiom_def = Define`
+  assignEqAxiom ids =
+  Equiv
+    ((Box(Assign ids.vid1 (Function ids.fid1 empty)))(Pc ids.pid1))
+    (Forall ids.vid1 (Implies (Equals (Var ids.vid1) (Function ids.fid1 empty)) (Pc ids.pid1)))`
+
+val allInstAxiom_def = Define`
+  allInstAxiom ids = Implies (Forall ids.vid1 (Prop ids.vid1 (singleton ids (Var ids.vid1)))) ( Prop ids.vid1(singleton ids (Function ids.fid1 empty)))`
+
+val assignAnyAxiom_def = Define`
+  assignAnyAxiom ids =
+  Equiv
+   (Box (AssignAny ids.vid1) (Pc ids.pid1))
+   (Forall ids.vid1 (Pc ids.pid1))`
+
+val equalCommuteAxiom_def = Define`
+  equalCommuteAxiom ids =
+  Equiv
+  (Equals (f0 ids.fid1) (f0 ids.fid2))
+  (Equals (f0 ids.fid2) (f0 ids.fid1))`
+
 val get_axiom_def = Define`
   (get_axiom ids AloopIter = loop_iterate_axiom ids) ∧
   (get_axiom ids AI = Iaxiom ids) ∧
@@ -1079,7 +1176,24 @@ val get_axiom_def = Define`
   (get_axiom ids AdConst = diff_const_axiom ids) ∧
   (get_axiom ids AdPlus = diff_plus_axiom ids) ∧
   (get_axiom ids AdMult = diff_times_axiom ids) ∧
-  (get_axiom ids Advar = diff_var_axiom ids)`
+  (get_axiom ids Advar = diff_var_axiom ids) ∧
+  (get_axiom ids ADW = DWaxiom ids) ∧
+  (get_axiom ids ADE = DEaxiom ids) ∧
+  (get_axiom ids ADC = DCaxiom ids) ∧
+  (get_axiom ids ADS = DSaxiom ids) ∧
+  (get_axiom ids AEquivReflexive = EquivReflexiveAxiom ids) ∧
+  (get_axiom ids ADiffEffectSys = DiffEffectSysAxiom ids) ∧
+  (get_axiom ids AAllElim = AllElimAxiom ids) ∧
+  (get_axiom ids ADiffLinear = DiffLinearAxiom ids) ∧
+  (get_axiom ids ABoxSplit = BoxSplitAxiom ids) ∧
+  (get_axiom ids AImpSelf = ImpSelfAxiom ids) ∧
+  (get_axiom ids Acompose = compose_axiom ids) ∧
+  (get_axiom ids AconstFcong = constFcongAxiom ids) ∧
+  (get_axiom ids AdMinus = dMinusAxiom ids) ∧
+  (get_axiom ids AassignEq = assignEqAxiom ids) ∧
+  (get_axiom ids AallInst = allInstAxiom ids) ∧
+  (get_axiom ids AassignAny = assignAnyAxiom ids) ∧
+  (get_axiom ids AequalCommute = equalCommuteAxiom ids)`
   (* TODO: complete the list! *)
 
 val CQaxrule_def = Define`
