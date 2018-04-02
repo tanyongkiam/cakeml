@@ -148,31 +148,37 @@ val MEM_trm_size = Q.prove(`
 val const_to_str_def = Define`
   const_to_str (w:word32) = (toString (w2i w))`
 
-val _ = translate const_to_str_def;
+val brack_def = Define`
+  brack str = concat [strlit"("; str ; strlit")"]`
+
+val brace_def = Define`
+  brace str = concat [strlit"{"; str ; strlit"}"]`
 
 val trm_to_str_def = tDefine "trm_to_str"`
   (trm_to_str (Var x) = var_to_str x) ∧
-  (trm_to_str (Const r) = (const_to_str r)) ∧
-  (trm_to_str (Function f args) = concat [var_to_str f; strlit"(" ; (concatWith (strlit ",") (MAP trm_to_str args)) ; strlit")"]) ∧
+  (trm_to_str (Const r) = const_to_str r) ∧
+  (trm_to_str (Function f args) = brack (concat [var_to_str f; brack(concatWith (strlit ",") (MAP trm_to_str (FILTER (λt.t ≠ Const 0w) args)))])) ∧
   (trm_to_str (Functional f) = concat [var_to_str f; strlit "(||)"]) ∧
-  (trm_to_str (Plus t1 t2) = concat [trm_to_str t1; strlit "+" ; trm_to_str t2]) ∧
-  (trm_to_str (Times t1 t2) = concat [trm_to_str t1; strlit "*" ; trm_to_str t2]) ∧
+  (trm_to_str (Plus t1 t2) = brack(concat [trm_to_str t1; strlit "+" ; trm_to_str t2])) ∧
+  (trm_to_str (Times t1 t2) = brack(concat [trm_to_str t1; strlit "*" ; trm_to_str t2])) ∧
   (trm_to_str (Max t1 t2) = concat [strlit"Max("; trm_to_str t1; strlit "," ; trm_to_str t2; strlit")"]) ∧
   (trm_to_str (Min t1 t2) = concat [strlit"Min("; trm_to_str t1; strlit "," ; trm_to_str t2; strlit")"]) ∧
   (trm_to_str (Abs t1) = concat [strlit"Abs("; trm_to_str t1;strlit")"]) ∧
-  (trm_to_str (Neg t1) = concat [strlit"-("; trm_to_str t1;strlit")"]) ∧
-  (trm_to_str (DiffVar x) = concat [strlit"Dv{"; var_to_str x ; strlit"}"]) ∧
-  (trm_to_str (Differential t) = concat[strlit "D{"; trm_to_str t ; strlit"}"])`
+  (trm_to_str (Neg t1) = concat [strlit"-"; brack(trm_to_str t1)]) ∧
+  (trm_to_str (DiffVar x) = concat [strlit"Dv"; brace(var_to_str x)]) ∧
+  (trm_to_str (Differential t) = concat[strlit "D"; brace(trm_to_str t)])`
   (WF_REL_TAC `measure (trm_size ARB)`>>fs[]>>
   rw[]>>
+  fs[MEM_FILTER]>>
   imp_res_tac MEM_trm_size>>
+  EVAL_TAC>>
   pop_assum (qspec_then `ARB` assume_tac)>>fs[]);
 
 val ode_to_str_def = Define`
   (ode_to_str (OVar x sp) =
     concat [var_to_str x;
     case sp of NONE => strlit"NONE"
-    |  SOME y => concat[strlit"SOME("; var_to_str y; strlit")"]]) ∧
+    |  SOME y => concat[strlit"SOME"; brack(var_to_str y)]]) ∧
   (ode_to_str (OSing x t) =
     concat [strlit"d"; var_to_str x ; strlit"="; trm_to_str t]) ∧
   (ode_to_str (OProd ODE1 ODE2) =
@@ -182,20 +188,20 @@ val hp_to_str_def = Define`
   (hp_to_str (Pvar a) = var_to_str a) ∧
   (hp_to_str (Assign x e) = concat[var_to_str x ; strlit":=" ; trm_to_str e]) ∧
   (hp_to_str (AssignAny x) = concat[var_to_str x ; strlit":=* "]) ∧
-  (hp_to_str (DiffAssign x e) = concat[strlit"D{" ; var_to_str x ; strlit"}:=" ; trm_to_str e]) ∧
+  (hp_to_str (DiffAssign x e) = concat[strlit"D" ; brace(var_to_str x) ; strlit":=" ; trm_to_str e]) ∧
   (hp_to_str (Test p) = concat[strlit "?" ; fml_to_str p]) ∧
-  (hp_to_str (EvolveODE ODE p) = concat[strlit"{" ; ode_to_str ODE ; strlit"&" ; fml_to_str p ; strlit"}"]) ∧
-  (hp_to_str (Choice a b) = concat[hp_to_str a ; strlit"U" ; hp_to_str b]) ∧
-  (hp_to_str (Sequence a b) = concat[hp_to_str a ; strlit";" ; hp_to_str b]) ∧
-  (hp_to_str (Loop a) = concat[hp_to_str a ; strlit"*"]) ∧
+  (hp_to_str (EvolveODE ODE p) = brace(concat[ode_to_str ODE ; strlit"&" ; fml_to_str p])) ∧
+  (hp_to_str (Choice a b) = brace(concat[hp_to_str a ; strlit"U" ; hp_to_str b])) ∧
+  (hp_to_str (Sequence a b) = brace(concat[hp_to_str a ; strlit";" ; hp_to_str b])) ∧
+  (hp_to_str (Loop a) = concat[brace(hp_to_str a) ; strlit"*"]) ∧
   (fml_to_str (Geq t1 t2) = concat[trm_to_str t1 ; strlit">=" ; trm_to_str t2]) ∧
   (fml_to_str (Prop p args) =
-  concat [var_to_str p; strlit"(" ; (concatWith (strlit ",") (MAP trm_to_str args)) ; strlit")"]) ∧
-  (fml_to_str (Not p) = concat[strlit"!" ; fml_to_str p]) ∧
-  (fml_to_str (And p q) = concat[fml_to_str p ; strlit"&" ; fml_to_str q]) ∧
-  (fml_to_str (Exists x p) = concat[strlit"E" ; var_to_str x ;strlit " . " ; fml_to_str p]) ∧
-  (fml_to_str (Diamond a p) = concat[strlit"<" ; hp_to_str a ; strlit">" ; fml_to_str p]) ∧
-  (fml_to_str (InContext C p) = concat [var_to_str C ; strlit"(" ; fml_to_str p ; strlit")"])`
+  concat [var_to_str p; brack(concatWith (strlit ",") (MAP trm_to_str (FILTER (λt.t ≠ Const 0w) args)))]) ∧
+  (fml_to_str (Not p) = concat[strlit"!" ; brack(fml_to_str p)]) ∧
+  (fml_to_str (And p q) = brack(concat[fml_to_str p ; strlit"&" ; fml_to_str q])) ∧
+  (fml_to_str (Exists x p) = concat[strlit"E" ; var_to_str x ;strlit " . " ; brack(fml_to_str p)]) ∧
+  (fml_to_str (Diamond a p) = concat[strlit"<" ; hp_to_str a ; strlit">" ; brack(fml_to_str p)]) ∧
+  (fml_to_str (InContext C p) = concat [var_to_str C ; brack(fml_to_str p)])`
 
 val seq_to_str_def = Define`
   seq_to_str (A,S) =
@@ -209,12 +215,15 @@ val rule_to_str_def = Define`
 val pt_result_full_def = Define`
   pt_result_full pt =
   case pt_result fu_inst ids_loc_inst pt of
-    NONE => strlit "NONE"
-  | SOME r => rule_to_str r`
+    NONE => NONE
+  | SOME r => SOME (rule_to_str r)`
 
 val res = translate fu_inst_def;
 val res = translate ids_loc_inst_def;
 val res = translate var_to_str_def;
+val res = translate const_to_str_def;
+val res = translate brack_def;
+val res = translate brace_def;
 val res = translate trm_to_str_def;
 val res = translate ode_to_str_def
 val res = translate hp_to_str_def
@@ -244,7 +253,7 @@ val _ = astPP2.disable_astPP()
 *)
 
 (* Now we add parser and File I/O *)
-val parser = (process_topdecs) `
+val parser = (cfTacticsLib.parse_topdecs) `
   exception Fail of string;
   exception ParseException of int
   type ('a,'b) subst = ('a,'b) proofChecker_subst
@@ -1294,7 +1303,7 @@ val parser = (process_topdecs) `
   end        | "Start" =>
   let          val r1 = sequent(str,j3)
          val seq = fst r1 val j4  = snd r1
-  in          (Start(fst seq) (snd seq),j4)
+  in          (Start ((fst seq),(snd seq)),j4)
   end        | "Sub" =>
   let          val r1 = proofTerm(str,j3)
          val pterm1 = fst r1 val j4 = snd r1
@@ -1321,11 +1330,13 @@ val parser = (process_topdecs) `
       if List.length clines = 1 then
         let val fd = TextIO.openIn (List.hd clines) in
         (((
-        print (pt_result_full (parse (TextIO.inputAll fd)))
+        case pt_result_full (parse (TextIO.inputAll fd)) of
+          NONE => print("Failed to check.\n")
+        | (SOME s) => (print("Checked:\n");print s;print"\n")
         )
-        handle ParseException i => print ("ParseException"^ (Int.toString i)))
-        handle Fail s => print ("Fail"^ (s)))
-        handle _ => print ("Unknown Exception")
+        handle ParseException i => print ("ParseException"^ (Int.toString i)^ "\n"))
+        handle Fail s => print ("Fail"^ (s)^ "\n"))
+        handle _ => print ("Unknown Exception\n")
         end
       else
         print"Error in cline args: call with single file containing proof term\n"

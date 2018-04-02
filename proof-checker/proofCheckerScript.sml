@@ -263,8 +263,8 @@ val _ = add_infix ("-->", 560, HOLgrammars.RIGHT)
 val _ = overload_on ("UU", ``Choice``)
 val _ = add_infix ("UU", 561, HOLgrammars.LEFT)
 
-val _ = overload_on (":=", ``Assign``)
-val _ = add_infix (":=", 660, HOLgrammars.RIGHT)
+val _ = overload_on (":==", ``Assign``)
+val _ = add_infix (":==", 660, HOLgrammars.RIGHT)
 
 val MEM_trm_size = Q.prove(`
   ∀ls a.
@@ -1023,7 +1023,7 @@ val Vaxiom_def = Define`
 
 val assign_axiom_def = Define`
   assign_axiom ids =
-  Box (ids.vid1 := (%%f ids.fid1 empty)) (%%p ids.vid1 (singleton ids (Var ids.vid1)))
+  Box (ids.vid1 :== (%%f ids.fid1 empty)) (%%p ids.vid1 (singleton ids (Var ids.vid1)))
   <->
   Prop ids.vid1 (singleton ids (%%f ids.fid1 empty))`
 
@@ -1321,10 +1321,10 @@ val RightRule_result_def = Define`
         x = xvar ∧
        (TRadmit theta ∧  FRadmit(Box (Assign xvar theta) phi) ∧ FRadmit phi ∧ fsafe ( Box(Assign xvar theta)phi) ∧
        list_inter [INL y; INR y; INR x] (FVF (Box(Assign xvar theta)phi)) = [])  ∧
-          FRadmit (Box(y := theta) (FUrename xvar  y phi)) ∧
+          FRadmit (Box(y :== theta) (FUrename xvar  y phi)) ∧
         FRadmit (FUrename xvar y phi) ∧
-      fsafe (Box(y := theta)(FUrename xvar y phi)) ∧
-    list_inter [INL xvar; INR xvar; INR y] (FVF (Box(y := theta)(FUrename xvar y phi))) = []
+      fsafe (Box(y :== theta)(FUrename xvar y phi)) ∧
+    list_inter [INL xvar; INR xvar; INR y] (FVF (Box(y :== theta)(FUrename xvar y phi))) = []
 
       then
           SOME [(A, replaceI S j (FBrename x y (nth S j)))]

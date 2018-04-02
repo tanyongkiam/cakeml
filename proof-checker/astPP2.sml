@@ -34,7 +34,11 @@ val astPrettyPrinters = ref []: (string * term * term_grammar.userprinter) list 
 fun add_astPP hd = astPrettyPrinters:= (hd:: !astPrettyPrinters)
 
 fun strip t = #2 (dest_comb t);
-fun toString s = stringSyntax.fromHOLstring s;
+fun toString s =
+  let val str = stringSyntax.fromHOLstring s in
+  if str = "" then "emp" else str
+    end
+  ;
 
 fun wrap_sys sys = fn gravs => fn d => sys {gravs = gravs,depth = d, binderp=false}
 
@@ -372,6 +376,12 @@ fun pvarPrint sys d t pg str brk blk =
     str (toString (strip t));
 
 val _=add_astPP ("pvarprint", ``Pvar x``, genPrint pvarPrint);
+
+fun panyPrint sys d t pg str brk blk =
+    str ("_");
+
+val _=add_astPP ("panyprint", ``Pany``, genPrint panyPrint);
+
 
 (*Prints all constructor args in a list comma separated*)
 (*Con NONE*)
@@ -771,6 +781,16 @@ val _ = add_astPP("stypeopqprint",``Stype_opq l t``,genPrint stypeopqPrint);
 
 (*Stabbrev*)
 val _ = add_astPP("stabbrevprint",``Stabbrev x y z``,genPrint (dtabbrevPrint));
+
+(*Lannot*)
+fun lannotPrint sys d t pg str brk blk =
+  let val (_,[x,_]) = strip_comb t
+  in
+    sys (pg,pg,pg) d x
+  end;
+
+val _ = add_astPP ("lannotprint", ``Lannot x y``,genPrint lannotPrint);
+
 
 (*Booleans - no special-casing required
 fun boolPrint b sys d t pg str brk blk =
