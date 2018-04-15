@@ -5,15 +5,15 @@ val _ = new_theory "proofChecker";
 (* The base enumeration type for 'c *)
 val _ = Datatype`
   vars =
-  | i1
-  | i2
-  | i3
-  | i4
-  | i5
-  | i6
-  | i7
-  | i8
-  | i9
+  | i01
+  | i02
+  | i03
+  | i04
+  | i05
+  | i06
+  | i07
+  | i08
+  | i09
   | i10
   | i11
   | i12
@@ -24,25 +24,44 @@ val _ = Datatype`
   | i17
   | i18
   | i19
-  | i20`
+  | i20
+  | i21
+  | i22
+  | i23
+  | i24
+  | i25
+  | i26
+  | i27
+  | i28
+  | i29
+  | i30
+  | i31
+  | i32
+  | i33`
 
 (*
   We manually instantiate 'c -> vars
   Throughout the development to avoid type class issues
 *)
 val varls_def = Define`
-  varls = [i1;i2;i3;i4;i5;i6;i7;i8;i9;i10;i11;i12;i13;i14;i15;i16;i17;i18;i19;i20]`
+  varls = [i01;i02;i03;i04;i05;
+           i06;i07;i08;i09;i10;
+           i11;i12;i13;i14;i15;
+           i16;i17;i18;i19;i20;
+           i21;i22;i23;i24;i25;
+           i26;i27;i28;i29;i30;
+           i31;i32;i33]`
 
 val var_to_el_def = Define`
-  (var_to_el i1 = 0n) ∧
-  (var_to_el i2 = 1) ∧
-  (var_to_el i3 = 2) ∧
-  (var_to_el i4 = 3) ∧
-  (var_to_el i5 = 4) ∧
-  (var_to_el i6 = 5) ∧
-  (var_to_el i7 = 6) ∧
-  (var_to_el i8 = 7) ∧
-  (var_to_el i9 = 8) ∧
+  (var_to_el i01 = 0n) ∧
+  (var_to_el i02 = 1) ∧
+  (var_to_el i03 = 2) ∧
+  (var_to_el i04 = 3) ∧
+  (var_to_el i05 = 4) ∧
+  (var_to_el i06 = 5) ∧
+  (var_to_el i07 = 6) ∧
+  (var_to_el i08 = 7) ∧
+  (var_to_el i09 = 8) ∧
   (var_to_el i10 = 9) ∧
   (var_to_el i11 = 10) ∧
   (var_to_el i12 = 11) ∧
@@ -53,7 +72,20 @@ val var_to_el_def = Define`
   (var_to_el i17 = 16) ∧
   (var_to_el i18 = 17) ∧
   (var_to_el i19 = 18) ∧
-  (var_to_el i20 = 19)`
+  (var_to_el i20 = 19) ∧
+  (var_to_el i21 = 20) ∧
+  (var_to_el i22 = 21) ∧
+  (var_to_el i23 = 22) ∧
+  (var_to_el i24 = 23) ∧
+  (var_to_el i25 = 24) ∧
+  (var_to_el i26 = 25) ∧
+  (var_to_el i27 = 26) ∧
+  (var_to_el i28 = 27) ∧
+  (var_to_el i29 = 28) ∧
+  (var_to_el i30 = 29) ∧
+  (var_to_el i31 = 30) ∧
+  (var_to_el i32 = 31) ∧
+  (var_to_el i33 = 32)`
 
 (* Technically, the Isabelle/HOL formalization excludes one word from word32 *)
 val _ = type_abbrev ("word",``:word32``);
@@ -196,12 +228,13 @@ val _ = Datatype`
 val _ = Datatype`
   rrule =
     ImplyR | AndR | CohideRR | TrueR | EquivR | Skolem | NotR
-  | HideR | CutRight (('a,'b) formula) | EquivifyR | CommuteEquivR | BRenameR vars vars`
+  | HideR | CutRight (('a,'b) formula) | EquivifyR | CommuteEquivR | BRenameR vars vars
+  | ExchangeR num | OrR`
 
 val _ = Datatype`
   lrule =
-    ImplyL | AndL | HideL
-  | NotL | CutLeft (('a,'b) formula) | EquivL | BRenameL vars vars`
+    ImplyL | AndL | HideL | FalseL
+  | NotL | CutLeft (('a,'b) formula) | EquivL | BRenameL vars vars | OrL`
 
 val _ = Datatype`
   axRule =
@@ -214,7 +247,9 @@ val _ = Datatype`
   | ADW |ADE | ADC | ADS
   | AEquivReflexive | ADiffEffectSys
   | AAllElim | ADiffLinear | AboxSplit | AImpSelf | Acompose | AconstFcong | AdMinus | AassignEq | AallInst
-  | AassignAny | AequalCommute`
+  | AassignAny | AequalCommute
+  | ATrueImply | Adiamond | AdiamondModusPonens | AequalRefl | AlessEqualRefl
+  | Aassignd | Atestd | Achoiced | Acomposed | Arandomd `
 
 val _ = Datatype`
   ruleApp =
@@ -902,7 +937,10 @@ val PFUadmit_def = Define`
 
 val PPUadmit_def = Define`
   PPUadmit sigma theta U ⇔
-  list_inter (FVF sigma) U = []`
+  list_inter
+  (FLAT (MAP
+  (λx. case x of (INR (INL (INR i))) => FVF sigma
+       | _ => []) (SIGP theta))) U = []`
 
 val PPadmit_def = Define`
   (PPadmit sigma (Pvar a) ⇔ T) ∧
@@ -1162,6 +1200,72 @@ val equalCommuteAxiom_def = Define`
   (Equals (f0 ids.fid1) (f0 ids.fid2))
   (Equals (f0 ids.fid2) (f0 ids.fid1))`
 
+val TrueImplyAxiom_def = Define`
+  TrueImplyAxiom ids =
+  Equiv
+  (Implies TT (Prop ids.vid1 empty))
+  (Prop ids.vid1 empty)`
+
+val diamondAxiom_def = Define`
+  diamondAxiom ids =
+  Equiv
+  (Not (Box (%%a ids.vid1) (Not (Predicational ids.pid1))))
+  (Diamond (%%a ids.vid1) (Predicational ids.pid1))`
+
+val diamondModusPonens_def = Define`
+  diamondModusPonens ids =
+  Implies
+  (Box (%%a ids.vid1) (Predicational ids.pid1))
+  (
+    Implies
+    (Diamond (%%a ids.vid1) (Predicational ids.pid2))
+    (Diamond (%%a ids.vid1) (And (Predicational ids.pid1) (Predicational ids.pid2)))
+  )`
+
+val equalReflAxiom_def = Define`
+  equalReflAxiom ids =
+  Equiv
+  (Equals (Functional ids.fid1) (Functional ids.fid1))
+  TT`
+
+val lessEqualReflAxiom_def = Define`
+  lessEqualReflAxiom ids =
+  Equiv
+  (Leq (Functional ids.fid1) (Functional ids.fid1))
+  TT`
+
+val assigndAxiom_def = Define`
+  assigndAxiom ids =
+  Equiv
+  (Diamond (Assign ids.vid1 (f0 ids.fid1)) (Prop ids.vid1 (singleton ids (Var ids.vid1))))
+  (Prop ids.vid1 (singleton ids (f0 ids.fid1)))`
+
+val testdAxiom_def = Define`
+  testdAxiom ids =
+  Equiv
+  (Diamond (Test (Prop ids.vid2 empty)) (Prop ids.vid1 empty))
+  (And (Prop ids.vid2 empty) (Prop ids.vid1 empty))`
+
+val choicedAxiom_def = Define`
+  choicedAxiom ids =
+  Equiv
+  (Diamond (Choice (%%a ids.vid1) (%%a ids.vid2)) (Predicational ids.pid1))
+  (Or (Diamond (%%a ids.vid1) (Predicational ids.pid1))
+      (Diamond (%%a ids.vid2) (Predicational ids.pid1))
+  )`
+
+val composedAxiom_def = Define`
+  composedAxiom ids =
+  Equiv
+  (Diamond (Sequence (%%a ids.vid1) (%%a ids.vid2)) (Predicational ids.pid1))
+  (Diamond (%%a ids.vid1) (Diamond (%%a ids.vid2) (Predicational ids.pid1)))`
+
+val randomdAxiom_def = Define`
+  randomdAxiom ids =
+  Equiv
+  (Diamond (AssignAny ids.vid1) (Prop ids.vid1 (singleton ids (Var ids.vid1))))
+  (Exists ids.vid1 (Prop ids.vid1 (singleton ids (Var ids.vid1))))`
+
 val get_axiom_def = Define`
   (get_axiom ids AloopIter = loop_iterate_axiom ids) ∧
   (get_axiom ids AI = Iaxiom ids) ∧
@@ -1192,8 +1296,17 @@ val get_axiom_def = Define`
   (get_axiom ids AassignEq = assignEqAxiom ids) ∧
   (get_axiom ids AallInst = allInstAxiom ids) ∧
   (get_axiom ids AassignAny = assignAnyAxiom ids) ∧
-  (get_axiom ids AequalCommute = equalCommuteAxiom ids)`
-  (* TODO: complete the list! *)
+  (get_axiom ids AequalCommute = equalCommuteAxiom ids) ∧
+  (get_axiom ids ATrueImply = TrueImplyAxiom ids) ∧
+  (get_axiom ids Adiamond = diamondAxiom ids) ∧
+  (get_axiom ids AdiamondModusPonens = diamondModusPonens ids) ∧
+  (get_axiom ids AequalRefl = equalReflAxiom ids) ∧
+  (get_axiom ids AlessEqualRefl = lessEqualReflAxiom ids) ∧
+  (get_axiom ids Aassignd = assigndAxiom ids) ∧
+  (get_axiom ids Atestd = testdAxiom ids) ∧
+  (get_axiom ids Achoiced = choicedAxiom ids) ∧
+  (get_axiom ids Acomposed = composedAxiom ids) ∧
+  (get_axiom ids Arandomd = randomdAxiom ids)`
 
 val CQaxrule_def = Define`
   CQaxrule ids =
@@ -1248,27 +1361,22 @@ val _ = Parse.hide "S";
 
 val LeftRule_result_def = Define`
   (LeftRule_result AndL j AS = case AS of (A,S) =>
-    if j >= LENGTH A then NONE else
     (case (nth A j) of
       And p q => SOME [((closeI A j) ++ [p;q], S)]
       | _ => NONE)) ∧
   (LeftRule_result ImplyL j AS = case AS of (A,S) =>
-    if j >= LENGTH A then NONE else
     (case (nth A j) of
       Not (And (Not q) (Not (Not p))) => SOME [(closeI A j, S ++ [p]); (replaceI A j q, S)]
     | _ => NONE)) ∧
   (LeftRule_result HideL j AS = case AS of (A,S) => SOME [(closeI A j, S)]) ∧
   (LeftRule_result (CutLeft f) j AS = case AS of (A,S) =>
-    if j >= LENGTH A then NONE else
     SOME [((replaceI A j f),S); ((closeI A j), S ++[Implies (nth A j) f])]) ∧
   (LeftRule_result EquivL j AS = case AS of (A,S) =>
-    if j >= LENGTH A then NONE else
     (case (nth A j) of
       Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
        (if (p = p' ∧ q = q') then SOME [(replaceI A j (And p q), S); (replaceI A j (And (Not p) (Not q)) , S)] else NONE)
     | _ => NONE)) ∧
   (LeftRule_result (BRenameL x y) j AS = case AS of (A,S) => (if x = y then NONE else
-    if j >= LENGTH A then NONE else
   (case (nth A j) of
    Not(Diamond (Assign xvar theta) (Not phi)) =>
     (if
@@ -1278,43 +1386,52 @@ val LeftRule_result_def = Define`
     then
         SOME [(replaceI A j (FBrename x y (nth A j)),S)]
     else NONE)
+   | Not (Exists xvar (Not phi)) =>
+    (if
+     x = xvar ∧
+     (FRadmit(Forall xvar phi) ∧ FRadmit phi ∧ fsafe (Forall xvar phi) ∧
+     list_inter [INL y; INR y; INR x] (FVF (Forall xvar phi)) = []) ∧
+      FRadmit (Forall  y (FUrename xvar  y phi)) ∧
+      FRadmit (FUrename xvar y phi) ∧
+     fsafe (Forall y (FUrename xvar y phi)) ∧
+     list_inter [INL xvar; INR xvar; INR y] (FVF (Forall y (FUrename xvar y phi))) = []
+      then
+          SOME [(replaceI A j (FBrename x y (nth A j)),S)]
+      else NONE)
    | _ => NONE))) ∧
   (LeftRule_result NotL j AS = case AS of (A,S) =>
-    if j >= LENGTH A then NONE else
-   (case (nth A j) of (Not p) => SOME [(closeI A j , S ++ [p])] | _ => NONE))`
+   (case (nth A j) of (Not p) => SOME [(closeI A j , S ++ [p])] | _ => NONE)) ∧
+  (LeftRule_result FalseL j AS = case AS of (A,S) => (SOME [])) ∧
+  (LeftRule_result OrL j AS = case AS of (A,S) =>
+   (case (nth A j) of
+     Not (And (Not p) (Not q)) =>
+       SOME [(replaceI A j p, S) ; (replaceI A j q,S)]
+      | _ => NONE))`
 
 val RightRule_result_def = Define`
   (RightRule_result NotR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of (Not p) => SOME [(A ++ [p], closeI S j)] | _ => NONE)) ∧
   (RightRule_result AndR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of (And p q) => SOME [(A, replaceI S j p); (A, replaceI S j q)] | _ => NONE)) ∧
   (RightRule_result ImplyR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
     SOME [(A ++ [p], (closeI S j) ++ [q])] | _ => NONE)) ∧
   (RightRule_result EquivR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
                 (if (p = p' ∧ q = q') then (SOME [(A ++ [p], (closeI S j) ++ [q]); ( A ++ [q], (closeI S j) ++ [p])])
                 else (NONE)) | _ => NONE)) ∧
   (RightRule_result CohideRR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     SOME [([], [nth S j])]) ∧
   (RightRule_result TrueR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of (Geq (Const x) (Const y)) =>
     (if (x = y ∧ (x = 0w)) then(SOME []) else NONE) | _ => NONE)) ∧
   (RightRule_result Skolem j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of (Not (Exists x (Not p)))  =>
     (if (¬ MEM (INL x) (FVSeq (A,S))) ∧ fsafe (FOLDR (And) TT A) ∧ fsafe (FOLDR (Or) FF (closeI S j))then
       SOME [(A, replaceI S j p)]
     else NONE)
   | _ => NONE)) ∧
   (RightRule_result (BRenameR x y) j AS = case AS of (A,S) => (if x = y then NONE else
-    if j >= LENGTH S then NONE else
     (case (nth S j) of
      Not(Diamond (Assign xvar theta) (Not phi)) =>
       (if
@@ -1342,16 +1459,23 @@ val RightRule_result_def = Define`
           SOME [(A, replaceI S j (FBrename x y (nth S j)))]
       else NONE)
      | _ => NONE))) ∧
+  (RightRule_result (ExchangeR k) j AS = case AS of (A,S) =>
+    if j ≠ k ∧ k < LENGTH S then
+      SOME [(A,replaceI (replaceI S j (nth S k)) k (nth S j))]
+    else NONE) ∧
+  (RightRule_result OrR j AS = case AS of (A,S) =>
+    (case (nth S j) of
+    Not (And (Not p) (Not q)) =>
+      SOME [(A, (closeI S j) ++ [p;q])]
+    | _ => NONE)) ∧
+
   (RightRule_result HideR j AS = case AS of (A,S) => SOME [(A, closeI S j)]) ∧
   (RightRule_result (CutRight v) j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     SOME [(A, replaceI S j v); (A,replaceI S j (Implies v (nth S j)))]) ∧
   (RightRule_result EquivifyR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case (nth S j) of Not (And (Not q) (Not (Not p))) =>
 SOME [(A, replaceI S j (Equiv p q))] | _ => NONE)) ∧
   (RightRule_result CommuteEquivR j AS = case AS of (A,S) =>
-    if j >= LENGTH S then NONE else
     (case nth S j of
 Not(And (Not (And p q)) (Not (And (Not p') (Not q')))) =>
                 (if (p = p' ∧ q = q') then (SOME[(A, replaceI S j (Equiv q p))])
