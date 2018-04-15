@@ -69,20 +69,22 @@ val res = translate FBrename_def;
 val res = translate LeftRule_result_def;
 
 val leftrule_result_side = Q.prove(`
-  proofchecker_leftrule_result_side x y z ⇔ T`,
-  EVAL_TAC>>fs[])|> update_precondition
+  y < LENGTH (FST z) ⇒
+  (proofchecker_leftrule_result_side x y z ⇔ T)`,
+  EVAL_TAC>>fs[]>>rw[]>>fs[])|> update_precondition
 
 val res = translate (RightRule_result_def |>RW (!extra_preprocessing) );
 
 val rightrule_result_side = Q.prove(`
+  y < LENGTH (SND z) ⇒
   proofchecker_rightrule_result_side x y z ⇔ T`,
-  EVAL_TAC>>fs[])|> update_precondition
+  EVAL_TAC>>rw[]>>fs[])|> update_precondition
 
 val res = translate rule_result_def;
 
 val rule_result_side = Q.prove(`
   proofchecker_rule_result_side x y z ⇔ T`,
-  EVAL_TAC>>fs[])|> update_precondition
+  EVAL_TAC>>fs[]>>rw[]>>fs[])|> update_precondition
 
 val res = translate get_axrule_def;
 

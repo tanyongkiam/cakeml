@@ -1225,13 +1225,13 @@ val diamondModusPonens_def = Define`
 val equalReflAxiom_def = Define`
   equalReflAxiom ids =
   Equiv
-  (Equals (Functional ids.fid1) (Functional ids.fid1))
+  (Equals (Function ids.fid1 empty) (Function ids.fid1 empty))
   TT`
 
 val lessEqualReflAxiom_def = Define`
   lessEqualReflAxiom ids =
   Equiv
-  (Leq (Functional ids.fid1) (Functional ids.fid1))
+  (Leq (Function ids.fid1 empty) (Function ids.fid1 empty))
   TT`
 
 val assigndAxiom_def = Define`
@@ -1382,6 +1382,8 @@ val LeftRule_result_def = Define`
     (if
      x = xvar ∧
      (TRadmit theta ∧ FRadmit(Box (Assign xvar theta)phi) ∧ FRadmit phi ∧ fsafe (Box(Assign xvar theta) phi) ∧
+     FRadmit (Box(y :== theta) (FUrename xvar  y phi)) ∧
+     FRadmit (FUrename xvar y phi) ∧
      list_inter [INL y; INR y; INR x] (FVF (Box (Assign xvar theta)phi)) = [])
     then
         SOME [(replaceI A j (FBrename x y (nth A j)),S)]
@@ -1401,7 +1403,8 @@ val LeftRule_result_def = Define`
    | _ => NONE))) ∧
   (LeftRule_result NotL j AS = case AS of (A,S) =>
    (case (nth A j) of (Not p) => SOME [(closeI A j , S ++ [p])] | _ => NONE)) ∧
-  (LeftRule_result FalseL j AS = case AS of (A,S) => (SOME [])) ∧
+  (LeftRule_result FalseL j AS = case AS of (A,S) =>
+    if (nth A j) = FF then (SOME []) else NONE) ∧
   (LeftRule_result OrL j AS = case AS of (A,S) =>
    (case (nth A j) of
      Not (And (Not p) (Not q)) =>

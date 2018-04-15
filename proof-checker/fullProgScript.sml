@@ -112,20 +112,20 @@ val fu_inst_def = Define`
 val ids_loc_inst_def = Define`
   ids_loc_inst =
   ids_loc
-  i1 i2 i3 (\x. x = i1)
-  i1 i2 i3
-  i1 i2 i3 i4`
+  i01 i02 i03 (\x. x = i01)
+  i01 i02 i03
+  i01 i02 i03 i04`
 
 val var_to_str_def = Define`
-  (var_to_str i1 = strlit"i1") ∧
-  (var_to_str i2 = strlit"i2") ∧
-  (var_to_str i3 = strlit"i3") ∧
-  (var_to_str i4 = strlit"i4") ∧
-  (var_to_str i5 = strlit"i5") ∧
-  (var_to_str i6 = strlit"i6") ∧
-  (var_to_str i7 = strlit"i7") ∧
-  (var_to_str i8 = strlit"i8") ∧
-  (var_to_str i9 = strlit"i9") ∧
+  (var_to_str i01 = strlit"i01") ∧
+  (var_to_str i02 = strlit"i02") ∧
+  (var_to_str i03 = strlit"i03") ∧
+  (var_to_str i04 = strlit"i04") ∧
+  (var_to_str i05 = strlit"i05") ∧
+  (var_to_str i06 = strlit"i06") ∧
+  (var_to_str i07 = strlit"i07") ∧
+  (var_to_str i08 = strlit"i08") ∧
+  (var_to_str i09 = strlit"i09") ∧
   (var_to_str i10 = strlit"i10") ∧
   (var_to_str i11 = strlit"i11") ∧
   (var_to_str i12 = strlit"i12") ∧
@@ -136,7 +136,20 @@ val var_to_str_def = Define`
   (var_to_str i17 = strlit"i17") ∧
   (var_to_str i18 = strlit"i18") ∧
   (var_to_str i19 = strlit"i19") ∧
-  (var_to_str i20 = strlit"i20")`
+  (var_to_str i20 = strlit"i20") ∧
+  (var_to_str i21 = strlit"i21") ∧
+  (var_to_str i22 = strlit"i22") ∧
+  (var_to_str i23 = strlit"i23") ∧
+  (var_to_str i24 = strlit"i24") ∧
+  (var_to_str i25 = strlit"i25") ∧
+  (var_to_str i26 = strlit"i26") ∧
+  (var_to_str i27 = strlit"i27") ∧
+  (var_to_str i28 = strlit"i28") ∧
+  (var_to_str i29 = strlit"i29") ∧
+  (var_to_str i30 = strlit"i30") ∧
+  (var_to_str i31 = strlit"i31") ∧
+  (var_to_str i32 = strlit"i32") ∧
+  (var_to_str i33 = strlit"i33")`
 
 val MEM_trm_size = Q.prove(`
   ∀ls a.
@@ -254,6 +267,7 @@ val _ = astPP2.disable_astPP()
 
 (* Now we add parser and File I/O *)
 val parser = (cfTacticsLib.parse_topdecs) `
+
   exception Fail of string;
   exception ParseException of int
   type ('a,'b) subst = ('a,'b) proofChecker_subst
@@ -279,10 +293,8 @@ val parser = (cfTacticsLib.parse_topdecs) `
   fun sub x y = String.sub x y
   fun  size x = String.size x
 
-  val varls = [I1,I2,I3,I4,I5,I6,I7,I8,I9,I10,I11,I12,I13,I14,I15,I16,I17,I18,I19,I20];
-
   fun repeat (x) (i) = List.tabulate i (fn _ => x)
-  val num_IDS = List.length varls
+  val num_IDS = List.length proofchecker_varls
 
 
 
@@ -361,15 +373,15 @@ val parser = (cfTacticsLib.parse_topdecs) `
     )
 
     fun idMap x = map_of_alist[
-      ("i1",I1),
-      ("i2",I2),
-      ("i3",I3),
-      ("i4",I4),
-      ("i5",I5),
-      ("i6",I6),
-      ("i7",I7),
-      ("i8",I8),
-      ("i9",I9),
+      ("i01",I01),
+      ("i02",I02),
+      ("i03",I03),
+      ("i04",I04),
+      ("i05",I05),
+      ("i06",I06),
+      ("i07",I07),
+      ("i08",I08),
+      ("i09",I09),
       ("i10",I10),
       ("i11",I11),
       ("i12",I12),
@@ -380,22 +392,35 @@ val parser = (cfTacticsLib.parse_topdecs) `
       ("i17",I17),
       ("i18",I18),
       ("i19",I19),
-      ("i20",I20)
+      ("i20",I20),
+      ("i21",I21),
+      ("i22",I22),
+      ("i23",I23),
+      ("i24",I24),
+      ("i25",I25),
+      ("i26",I26),
+      ("i27",I27),
+      ("i28",I28),
+      ("i29",I29),
+      ("i30",I30),
+      ("i31",I31),
+      ("i32",I32),
+      ("i33",I33)
     ]
   (fn x => fn y => x = y)
   (fn x => x)
   x
 
     fun intOfId x = map_of_alist[
-      (I1,0),
-      (I2,1),
-      (I3,2),
-      (I4,3),
-      (I5,4),
-      (I6,5),
-      (I7,6),
-      (I8,7),
-      (I9,8),
+      (I01,0),
+      (I02,1),
+      (I03,2),
+      (I04,3),
+      (I05,4),
+      (I06,5),
+      (I07,6),
+      (I08,7),
+      (I09,8),
       (I10,9),
       (I11,10),
       (I12,11),
@@ -406,7 +431,20 @@ val parser = (cfTacticsLib.parse_topdecs) `
       (I17,16),
       (I18,17),
       (I19,18),
-      (I20,19)
+      (I20,19),
+      (I21,20),
+      (I22,21),
+      (I23,22),
+      (I24,23),
+      (I25,24),
+      (I26,25),
+      (I27,26),
+      (I28,27),
+      (I29,28),
+      (I30,29),
+      (I31,30),
+      (I32,31),
+      (I33,32)
   ]
   (fn x => fn y => x = y)
   (fn x => Int.toString((proofchecker_var_to_el x)+1))
@@ -612,7 +650,17 @@ val parser = (cfTacticsLib.parse_topdecs) `
       ("AassignEq",Aassigneq),
       ("AdMinus",Adminus),
       ("AallInst",Aallinst),
-      ("AequalCommute", Aequalcommute)
+      ("AequalCommute", Aequalcommute),
+      ("ATrueImply", Atrueimply),
+      ("Adiamond", Adiamond),
+      ("AdiamondModusPonens", Adiamondmodusponens),
+      ("AequalRefl",Aequalrefl),
+      ("AlessEqualRefl",Alessequalrefl),
+      ("Aassignd",Aassignd),
+      ("Atestd",Atestd),
+      ("Achoiced",Achoiced),
+      ("Acomposed",Acomposed),
+      ("Arandomd",Arandomd)
     ]
   (fn x => fn y => x = y)
   (fn x => x)
@@ -794,7 +842,7 @@ val parser = (cfTacticsLib.parse_topdecs) `
        end
             | "Const" =>
         let
-      val r1 = real(str,j3)
+      val r1 = int(str,j3)
       val r = fst r1
       val j4 = snd r1
         in
@@ -1095,6 +1143,8 @@ val parser = (cfTacticsLib.parse_topdecs) `
           | "ImplyL" => (Implyl, j2)
           | "AndL" => (Andl, j2)
           | "NotL" => (Notl, j2)
+          | "FalseL" => (Falsel, j2)
+          | "OrLeft" => (Orl, j2)
           | "EquivL" => (Equivl, j2)
           | "CutLeft" =>
   let          val j3 = eatChar(str, j2, #" ")
@@ -1134,6 +1184,8 @@ val parser = (cfTacticsLib.parse_topdecs) `
   in          (Cutright(f),j4)
   end        | "ImplyR" => (Implyr,j2)
           | "AndR" =>(Andr, j2)
+          | "OrRight" =>(Orr, j2)
+          | "NotRight" =>(Notr, j2)
           | "HideR" => (Hider,j2)
           | "CohideRR" => (Cohiderr, j2)
           | "TrueR" => (Truer,j2)
@@ -1141,6 +1193,12 @@ val parser = (cfTacticsLib.parse_topdecs) `
           | "EquivifyR" => (Equivifyr,j2)
           | "CommuteEquivR" => (Commuteequivr,j2)
           | "Skolem" => (Skolem,j2)
+          | "ExchangeRight" =>
+            let val j3 = eatChar(str, j2,#" ")
+                val r1 = nat(str,j3)
+            in
+              (Exchanger (fst r1),(snd r1))
+            end
           | "BRenameR" =>
   let          val j3 = eatChar(str, j2, #" ")
             val r1 = mv(str,j3)
@@ -1336,6 +1394,7 @@ val parser = (cfTacticsLib.parse_topdecs) `
         )
         handle ParseException i => print ("ParseException"^ (Int.toString i)^ "\n"))
         handle Fail s => print ("Fail"^ (s)^ "\n"))
+        handle Bind => print ("Match exn\n")
         handle _ => print ("Unknown Exception\n")
         end
       else
