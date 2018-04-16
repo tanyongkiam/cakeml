@@ -846,7 +846,7 @@ val parser = (cfTacticsLib.parse_topdecs) `
       val r = fst r1
       val j4 = snd r1
         in
-      (Const(Word64.fromInt r),j4)
+      (Const(Word64.fromInt (r*4294967296)),j4)
         end
             | "z" => (zc(),j3)
             | "Function" =>
