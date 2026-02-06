@@ -12,6 +12,15 @@ open mlstring
 
 set_option autoImplicit true
 
+/- Omitted: Definitions/val bindings at the start of HOL4 file:
+   - find_recfun_def (already defined in SemanticPrimitives)
+   - same_tid_def (already defined elsewhere)
+   - check_dup_ctors_cons
+   - no_dup_types_def, decs_to_types_def (old module system)
+   - Two unnamed val bindings for SIMP_CONV results
+   - union_decls_assoc, union_decls_sym, union_decls_mods, union_decls_empty
+     (all old module-system infrastructure) -/
+
 -- ============================================================
 -- Basic stuff
 -- ============================================================
@@ -71,12 +80,20 @@ theorem check_freevars_add :
 -- type_subst
 -- ============================================================
 
+/- Omitted: Theorem check_freevars_subst_single_lem [local].
+   HOL4: Inductive helper for check_freevars_subst_single.
+   Reason: [local] intermediate lemma. -/
+
 theorem check_freevars_subst_single :
     ∀ dbmax tvs t_val tvs' ts,
       tvs.length = ts.length →
       check_freevars dbmax tvs t_val →
       EVERY (check_freevars dbmax tvs') ts →
       check_freevars dbmax tvs' (type_subst (alist_to_fmap (ZIP (tvs, ts))) t_val) := by sorry
+
+/- Omitted: Theorem check_freevars_subst_lem [local].
+   HOL4: General substitution lemma for freevars checking (list version).
+   Reason: [local] helper for check_freevars_subst_list. -/
 
 theorem check_freevars_subst_list :
     ∀ dbmax tvs tvs' ts ts',
@@ -97,12 +114,24 @@ theorem deBruijn_inc_deBruijn_inc :
     ∀ sk i2 (t_val : sem_t) i1,
       deBruijn_inc sk i1 (deBruijn_inc sk i2 t_val) = deBruijn_inc sk (i1 + i2) t_val := by sorry
 
+/- Omitted: Theorem deBuijn_inc_lem1 [local].
+   HOL4: deBruijn_inc helper for single type variable case.
+   Reason: [local] intermediate lemma. -/
+
+/- Omitted: Theorem type_subst_deBruijn_inc_single [local].
+   HOL4: type_subst commutes with deBruijn_inc for a single type.
+   Reason: [local] helper for type_subst_deBruijn_inc_list. -/
+
 theorem type_subst_deBruijn_inc_list :
     ∀ (ts' ts : List sem_t) (tvs : List tvarN) (inc sk : Nat),
       tvs.length = ts.length →
       EVERY (check_freevars 0 tvs) ts' →
       (ts'.map (deBruijn_inc sk inc)).map (type_subst (alist_to_fmap (ZIP (tvs, ts)))) =
       (ts'.map (type_subst (alist_to_fmap (ZIP (tvs, ts.map (deBruijn_inc sk inc)))))) := by sorry
+
+/- Omitted: Theorem check_freevars_deBruijn_inc [local].
+   HOL4: deBruijn_inc preserves check_freevars.
+   Reason: [local] helper. -/
 
 theorem nil_deBruijn_inc :
     ∀ skip tvs (t_val : sem_t),
@@ -149,6 +178,14 @@ theorem type_subst_deBruijn_subst_list :
       (ts''.map (deBruijn_subst inc ts')).map (type_subst (alist_to_fmap (ZIP (tvs, ts)))) =
       (ts''.map (type_subst (alist_to_fmap (ZIP (tvs, ts.map (deBruijn_subst inc ts')))))) := by sorry
 
+/- Omitted: Theorem type_subst_deBruijn_subst_single [local].
+   HOL4: type_subst commutes with deBruijn_subst for a single type.
+   Reason: [local] helper for type_subst_deBruijn_subst_list. -/
+
+/- Omitted: Theorem check_freevars_lem [local].
+   HOL4: check_freevars tvs [] t ∧ tvs' ≥ tvs ⟹ various freevars equivalences.
+   Reason: [local] utility. -/
+
 theorem nil_deBruijn_subst :
     ∀ skip tvs (t_val : sem_t),
       check_freevars skip [] t_val →
@@ -173,6 +210,10 @@ theorem type_e_subst_lem3 :
         check_freevars (n + tvs') tvs2
           (deBruijn_subst n (targs.map (deBruijn_inc 0 n)) t_val) := by sorry
 
+/- Omitted: Theorem type_e_subst_lem5 [local].
+   HOL4: Substitution helper for type_e_subst (intermediate lemma).
+   Reason: [local] intermediate step. -/
+
 theorem subst_inc_cancel :
     (∀ (t_val : sem_t) ts inc,
       deBruijn_subst 0 ts (deBruijn_inc 0 (inc + ts.length) t_val) =
@@ -180,6 +221,10 @@ theorem subst_inc_cancel :
     (∀ (ts' : List sem_t) ts inc,
       (ts'.map (deBruijn_inc 0 (inc + ts.length))).map (deBruijn_subst 0 ts) =
       ts'.map (deBruijn_inc 0 inc)) := by sorry
+
+/- Omitted: Theorem type_e_subst_lem7 [local].
+   HOL4: Another substitution helper (inc/subst interaction).
+   Reason: [local] intermediate step. -/
 
 theorem deBruijn_subst_id :
     (∀ (t_val : sem_t) n,
@@ -391,11 +436,17 @@ theorem tveLookup_db_merge_some :
       (tveLookup n inc tenvE1 = none ∧
        tveLookup n (num_tvs tenvE1 + inc) tenvE2 = some (tvs, t_val)) := by sorry
 
+/- Omitted: val bindings op_thms, list_thms, t_thms, word_size_thms,
+   id_thms, thms, eqs, elims.
+   HOL4: Computed case-analysis theorem lists for proof automation.
+   Reason: Proof-automation artifacts (val bindings), not theorems. -/
+
 -- ============================================================
 -- type_op
 -- ============================================================
 
--- type_op_cases is a computed case analysis theorem in HOL4
+/- type_op_cases is a computed case analysis theorem in HOL4, produced by
+   SIMP_CONV. Not translatable as a single statement; keep as True. -/
 theorem type_op_cases : True := by sorry
 
 -- ============================================================
@@ -504,8 +555,59 @@ theorem type_e_freevars :
       tenv_val_exp_ok tenvE → tenv_val_ok tenv.v →
       EVERY (check_freevars (num_tvs tenvE) []) (env.map Prod.snd)) := by sorry
 
--- type_e_subst: the main substitution theorem for expressions (complex HOL4 statement)
-theorem type_e_subst : True := by sorry
+/-- Type substitution lemma (mutual): substituting well-formed type arguments
+    into a de Bruijn-indexed typing derivation produces a valid derivation with
+    the substituted types. Key lemma for instantiating polymorphic let-bindings. -/
+theorem type_e_subst :
+  (∀ (tenv : type_env) (tenvE : tenv_val_exp) (e : exp) (t : sem_t),
+    type_e tenv tenvE e t →
+    ∀ tenvE1 tenvE2 (targs : List sem_t) tvs,
+      num_tvs tenvE2 = 0 →
+      tenv_abbrev_ok tenv.t →
+      tenv_ctor_ok tenv.c →
+      tenv_val_ok tenv.v →
+      tenv_val_exp_ok tenvE →
+      (∀ t' ∈ targs, check_freevars tvs [] t' = true) →
+      tenvE = db_merge tenvE1 (bind_tvar targs.length tenvE2) →
+      type_e tenv
+        (db_merge (deBruijn_subst_tenvE targs tenvE1) (bind_tvar tvs tenvE2))
+        e (deBruijn_subst (num_tvs tenvE1)
+             (targs.map (deBruijn_inc 0 (num_tvs tenvE1))) t)) ∧
+  (∀ (tenv : type_env) (tenvE : tenv_val_exp) (es : List exp) (ts : List sem_t),
+    type_es tenv tenvE es ts →
+    ∀ tenvE1 tenvE2 (targs : List sem_t) tvs,
+      num_tvs tenvE2 = 0 →
+      tenv_abbrev_ok tenv.t →
+      tenv_ctor_ok tenv.c →
+      tenv_val_ok tenv.v →
+      tenv_val_exp_ok tenvE →
+      (∀ t' ∈ targs, check_freevars tvs [] t' = true) →
+      tenvE = db_merge tenvE1 (bind_tvar targs.length tenvE2) →
+      type_es tenv
+        (db_merge (deBruijn_subst_tenvE targs tenvE1) (bind_tvar tvs tenvE2))
+        es (ts.map (deBruijn_subst (num_tvs tenvE1)
+             (targs.map (deBruijn_inc 0 (num_tvs tenvE1)))))) ∧
+  (∀ (tenv : type_env) (tenvE : tenv_val_exp)
+    (funs : List (varN × varN × exp)) (bindings : List (varN × sem_t)),
+    type_funs tenv tenvE funs bindings →
+    ∀ tenvE1 tenvE2 (targs : List sem_t) tvs,
+      num_tvs tenvE2 = 0 →
+      tenv_abbrev_ok tenv.t →
+      tenv_ctor_ok tenv.c →
+      tenv_val_ok tenv.v →
+      tenv_val_exp_ok tenvE →
+      (∀ t' ∈ targs, check_freevars tvs [] t' = true) →
+      tenvE = db_merge tenvE1 (bind_tvar targs.length tenvE2) →
+      type_funs tenv
+        (db_merge (deBruijn_subst_tenvE targs tenvE1) (bind_tvar tvs tenvE2))
+        funs (bindings.map (fun p => (p.1,
+          deBruijn_subst (num_tvs tenvE1)
+            (targs.map (deBruijn_inc 0 (num_tvs tenvE1))) p.2)))) := by sorry
+
+/- Omitted: Theorem type_e_subst_lem [local].
+   HOL4: Main inductive substitution lemma for typed expressions; the
+   non-local type_e_subst above is derived from it.
+   Reason: [local] inductive helper. -/
 
 -- Recursive functions have function type
 theorem type_funs_Tfn :
@@ -588,29 +690,81 @@ theorem ctMap_ok_lookup :
       FLOOKUP ctMap' tn = some (tvs, ts, ti) →
       ∀ t' ∈ ts, check_freevars 0 tvs t' := by sorry
 
--- ctMap_ok is preserved by merging two disjoint ctMaps
-theorem ctMap_ok_merge_imp : True := by sorry
-  -- HOL4: DISJOINT (FRANGE (SND ∘ SND) ctMap1) (FRANGE (SND ∘ SND) ctMap2) →
-  -- ctMap_ok ctMap1 → ctMap_ok ctMap2 → ctMap_ok (FUNION ctMap1 ctMap2)
+/- Omitted: Theorem o_f_FRANGE2 [local].
+   HOL4: Helper for FRANGE and o_f interaction on finite maps.
+   Reason: [local] helper for ctMap_ok_merge_imp. -/
 
-theorem type_def_to_ctMap_mem : True := by sorry
-  -- HOL4: ALOOKUP (type_def_to_ctMap tenvT next tds tids) k = SOME x →
-  -- LENGTH tds = LENGTH tids → MEM (SND (SND x)) tids
+/-- Merging two well-formed constructor type maps yields a well-formed map,
+    provided their type identifier ranges are disjoint. -/
+theorem ctMap_ok_merge_imp :
+  ∀ (ctMap1 ctMap2 : ctMap),
+    (∀ ti, ti ∈ FRANGE (o_f (fun p => p.2) ctMap1) →
+           ti ∉ FRANGE (o_f (fun p => p.2) ctMap2)) →
+    ctMap_ok ctMap1 →
+    ctMap_ok ctMap2 →
+    ctMap_ok (FUNION ctMap1 ctMap2) := by sorry
 
-theorem ctMap_ok_type_defs : True := by sorry
-  -- HOL4: ALL_DISTINCT tids → DISJOINT (set tids) prim_type_nums →
-  -- check_ctor_tenv tenvT tds → tenv_abbrev_ok tenvT →
-  -- ctMap_ok (FEMPTY |++ REVERSE (type_def_to_ctMap tenvT next tds tids))
+theorem type_def_to_ctMap_mem :
+  ∀ (tenvT : tenv_abbrev) next tds tids k x,
+    ALOOKUP (type_def_to_ctMap tenvT next tds tids) k = some x →
+    tds.length = tids.length →
+    x.2.2 ∈ tids := by sorry
+
+/-- The constructor type map generated from well-formed type definitions
+    is itself well-formed (ctMap_ok). -/
+theorem ctMap_ok_type_defs :
+  ∀ (tenvT : tenv_abbrev) next tds tids,
+    ALL_DISTINCT tids = true →
+    (∀ ti ∈ tids, ti ∉ prim_type_nums) →
+    tds.length = tids.length →
+    check_ctor_tenv tenvT tds = true →
+    tenv_abbrev_ok tenvT →
+    ctMap_ok (FUPDATE_LIST FEMPTY
+      (type_def_to_ctMap tenvT next tds tids).reverse) := by sorry
+
+/- Omitted: Theorem fupdate2_union [local].
+   HOL4: FUPDATE_LIST equivalence with FUNION.
+   Reason: [local] finite map helper. -/
+
+/- Omitted: The following theorems from HOL4 are not translated because they
+   relate to the old module system or consistency infrastructure that is not
+   part of the core type soundness development:
+   - ctMap_ok_type_decs, consistent_ctMap_union, consistent_ctMap_union2,
+     consistent_ctMap_disjoint, all_distinct_map_fst_lemma [local],
+     check_ctor_tenv_type_decs_to_ctMap_lemma [local],
+     check_ctor_tenv_type_decs_to_ctMap, consistent_decls_union,
+     consistent_decls_union2, consistent_decls_add_mod,
+     tid_exn_to_tc_11, tid_exn_not -/
 
 -- ============================================================
 -- check_ctor_tenv
 -- ============================================================
 
-theorem check_ctor_tenv_change_tenvT : True := by sorry
-  -- HOL4: check_ctor_tenv tenvT1 env → ... → check_ctor_tenv tenvT2 env
+/-- Constructor environment checking is monotone in the type abbreviation
+    environment: if type name validity is preserved, then check_ctor_tenv
+    transfers between abbreviation environments. -/
+theorem check_ctor_tenv_change_tenvT :
+  ∀ (tenvT1 tenvT2 : tenv_abbrev)
+    (env : List (List tvarN × mlstring × List (conN × List ast_t))),
+    (∀ td ∈ env, ∀ ctor ∈ td.2.2,
+      (∀ t' ∈ ctor.2, check_type_names tenvT1 t' = true →
+                       check_type_names tenvT2 t' = true)) →
+    check_ctor_tenv tenvT1 env = true →
+    check_ctor_tenv tenvT2 env = true := by sorry
 
-theorem check_ctor_tenv_EVERY : True := by sorry
-  -- HOL4: check_ctor_tenv tenvT tds ↔ EVERY check_dup_ctors tds ∧ ...
+/-- Unfolding `check_ctor_tenv` into pointwise conditions: duplicate checking,
+    distinct type variables, free variable/type name validity, and distinct
+    type names. -/
+theorem check_ctor_tenv_EVERY :
+  ∀ (tenvT : tenv_abbrev)
+    (tds : List (List tvarN × mlstring × List (conN × List ast_t))),
+    check_ctor_tenv tenvT tds = true ↔
+    (∀ td ∈ tds, check_dup_ctors td = true) ∧
+    (∀ td ∈ tds, ALL_DISTINCT td.1 = true) ∧
+    (∀ td ∈ tds, ∀ ctor ∈ td.2.2,
+      (∀ t' ∈ ctor.2, check_freevars_ast td.1 t' = true) ∧
+      (∀ t' ∈ ctor.2, check_type_names tenvT t' = true)) ∧
+    ALL_DISTINCT (tds.map (fun td => td.2.1)) = true := by sorry
 
 -- ============================================================
 -- type_v
@@ -653,6 +807,15 @@ theorem type_v_freevars :
     ∀ tvs (tenvC : ctMap) tenvS v_val t_val,
       type_v tvs tenvC tenvS v_val t_val → check_freevars tvs [] t_val := by sorry
 
+/- Omitted: Theorem remove_lambda_prod [local].
+   HOL4: (λ(x,y). P x y) = (λxy. P (FST xy) (SND xy))
+   Reason: [local], trivial eta/pair lemma; unnecessary in Lean 4. -/
+
+/- Omitted: Theorem type_subst_lem1 [local].
+   HOL4: tscheme_inst (tvs, t) (0, t') ⟹ t' = deBruijn_subst 0 [] t
+   (labelled tscheme_inst0 in the end-of-file comments).
+   Reason: [local] helper for type_subst. -/
+
 -- type_subst: type_v is preserved under deBruijn substitution
 theorem type_subst_thm :
     ∀ tvs (ctMap' : ctMap) tenvS v_val t_val targs tvs',
@@ -663,8 +826,11 @@ theorem type_subst_thm :
       check_freevars targs.length [] t_val →
       type_v tvs' ctMap' tenvS v_val (deBruijn_subst 0 targs t_val) := by sorry
 
+/- HOL4: nsMap (λ(tvs,ts,tid). (tvs, g ts, h tid)) (build_ctor_tenv tenvT tds ids) =
+         build_ctor_tenv tenvT (MAP (I ## I ## MAP (I ## ga)) tds) (MAP h ids)
+   when MAP (type_name_subst tenvT) ∘ ga = g ∘ MAP (type_name_subst tenvT).
+   Complex higher-order statement involving pair-maps over type definitions. -/
 theorem nsMap_build_ctor_tenv : True := by sorry
-  -- HOL4: relates nsMap on build_ctor_tenv
 
 theorem check_ctor_tenv_ok :
     ∀ (tenvT : tenv_abbrev) tds tis,
@@ -672,6 +838,10 @@ theorem check_ctor_tenv_ok :
       check_ctor_tenv tenvT tds →
       tenv_abbrev_ok tenvT →
       tenv_ctor_ok (build_ctor_tenv tenvT tds tis) := by sorry
+
+/- Omitted: Theorem decls_ok_union.
+   HOL4: decls_ok d1 ∧ decls_ok d2 ⟹ decls_ok (union_decls d1 d2)
+   Reason: Uses old module-system decls_ok definition, not in scope. -/
 
 -- ============================================================
 -- type_d
@@ -684,6 +854,10 @@ theorem type_d_check_uniq :
     (∀ check tenv d tdecs new_tenv,
       type_ds check tenv d tdecs new_tenv →
       type_ds false tenv d tdecs new_tenv) := by sorry
+
+/- Omitted: Theorem type_d_check_uniq_lem [local].
+   HOL4: Inductive helper for type_d_check_uniq.
+   Reason: [local] inductive helper. -/
 
 theorem extend_dec_tenv_ok :
     ∀ (tenv tenv' : type_env),
@@ -698,11 +872,23 @@ theorem type_d_tenv_ok_helper :
       type_ds check tenv d tdecs tenv' →
       tenv_ok tenv → tenv_ok tenv') := by sorry
 
+/- Omitted: Theorem type_d_tenv_ok_helper_lem [local].
+   HOL4: Helper for type_d_tenv_ok showing environments have ok types.
+   Reason: [local] helper. -/
+
 theorem type_d_tenv_ok :
     ∀ check tenv d tdecs (tenv' : type_env),
       type_d check tenv d tdecs tenv' →
       tenv_ok tenv →
       tenv_ok (extend_dec_tenv tenv' tenv) := by sorry
+
+/- Omitted: Theorem type_d_mod.
+   HOL4: type_d produces declarations whose types are in decls_to_mods.
+   Reason: Uses old module-system infrastructure (decls_to_mods). -/
+
+/- Omitted: Theorem type_d_mod_lem [local].
+   HOL4: Helper for type_d_mod showing module typing.
+   Reason: [local] helper for type_d_mod. -/
 
 -- ============================================================
 -- type_ds
@@ -716,5 +902,27 @@ theorem type_ds_empty :
 theorem type_ds_sing :
     ∀ check (tenv : type_env) d decls r,
       type_ds check tenv [d] decls r ↔ type_d check tenv d decls r := by sorry
+
+/- Omitted: The following theorems from HOL4 are not translated because they
+   relate to the old module system, top-level program typing, or closed-form
+   analysis infrastructure not used in the core type soundness development:
+
+   - type_ds_mod, type_ds_no_dup_types_helper [local], type_ds_no_dup_types,
+     type_ds_decls_ok, type_specs_tenv_ok, type_specs_no_mod,
+     check_signature_tenv_ok, type_prog_empty, type_prog_sing,
+     type_top_check_uniq, type_prog_check_uniq, type_top_decls_ok,
+     type_prog_decls_ok, type_no_dup_top_types_lem [local],
+     type_no_dup_top_types_lem2 [local], type_no_dup_top_types,
+     type_no_dup_mods_lem [local], type_no_dup_mods,
+     tenv_names_def, lookup_tenv_names, tenv_names_bind_var_list,
+     tenv_names_bind_var_list2, type_p_closed [local],
+     type_funs_dom [local], type_e_closed [local], type_d_closed [local],
+     type_d_new_dec_vs [local], type_ds_closed [local], type_top_closed,
+     type_env_dom [local], weakM_dom [local], type_env_dom2 [local],
+     consistent_mod_env_dom [local], type_sound_inv_closed
+
+   All of these are either module-system infrastructure (type_prog, type_top,
+   consistent_mod_env, weakM, etc.) or closed-form/domain analysis (type_p_closed,
+   type_e_closed, tenv_names, etc.) that are not part of the core development. -/
 
 end CakeML

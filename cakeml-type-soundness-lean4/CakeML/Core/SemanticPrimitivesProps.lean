@@ -12,6 +12,10 @@ open mlstring
 
 set_option autoImplicit true
 
+/- Omitted: val bindings op_thms, SFV, bool_case_eq_thm, etc.
+   HOL4: Proof automation artifacts (overloads, val bindings).
+   Reason: Not mathematical content; Lean uses different proof automation. -/
+
 -- ============================================================
 -- Simple simp lemmas about sem_env
 -- ============================================================
@@ -40,12 +44,16 @@ theorem extend_dec_env_assoc :
 -- shift_lookup and do_shift definitions
 -- ============================================================
 
+/- Renamed: HOL4 Definition shift_lookup_def → Lean def shift_lookup_props
+   (avoids collision with a field or accessor named shift_lookup). -/
 def shift_lookup_props : shift → BitVec n → Nat → BitVec n
   | shift.Lsl => word_lsl
   | shift.Lsr => word_lsr
   | shift.Asr => word_asr
   | shift.Ror => word_ror
 
+/- Renamed: HOL4 Definition do_shift_def → Lean def do_shift_props
+   (avoids collision with a field or accessor named do_shift). -/
 def do_shift_props : shift → Nat → word_size → lit → Option lit
   | sh, n, word_size.W8, lit.Word8 w => some (lit.Word8 (shift_lookup_props sh w n))
   | sh, n, word_size.W64, lit.Word64 w => some (lit.Word64 (shift_lookup_props sh w n))
@@ -143,6 +151,19 @@ theorem pmatch_acc :
       (pmatch.pmatch_list envc store' ps vs' env = match_result.Match_type_error ↔
        pmatch.pmatch_list envc store' ps vs' (env ++ env2) = match_result.Match_type_error)) := by sorry
 
+/- Omitted: Theorem pair_case_eq [local].
+   HOL4: pair_CASE x f = v ⟺ ∃ x1 x2. x = (x1,x2) ∧ f x1 x2 = v
+   Reason: [local] proof automation helper. -/
+
+/- Omitted: Theorem pair_lam_lem [local].
+   HOL4: (let (x,y) = z in f x y) = v ⟺ ∃ x1 x2. z = (x1,x2) ∧ f x1 x2 = v
+   Reason: [local] proof automation helper. -/
+
+/- Omitted: Theorem do_app_cases.
+   HOL4: Machine-generated exhaustive case-split theorem for do_app
+   (massive disjunction over all op cases, produced by SIMP_CONV).
+   Reason: Computed case analysis; in Lean 4, use the definition directly. -/
+
 -- ============================================================
 -- do_opapp_cases
 -- ============================================================
@@ -217,6 +238,10 @@ theorem do_app_type_error :
       (x : store v × ffi_state ffi) (a : abort),
       do_app s op' es = some (x, result.Rerr (error_result.Rabort a)) →
       x = s := by sorry
+
+/- Omitted: Theorem build_rec_env_help_lem [local].
+   HOL4: Helper lemma for build_rec_env showing FOLDR equivalence.
+   Reason: [local] proof helper for build_rec_env_merge. -/
 
 -- ============================================================
 -- build_rec_env properties
@@ -384,7 +409,8 @@ def sv_every (P : α → Prop) : store_v α → Prop
 -- sv_rel
 -- ============================================================
 
-/-- Relates two store values element-wise using R (HOL4's LIST_REL for Varray) -/
+/-- Lean addition (not in HOL4): Explicit list relation for Varray case of sv_rel.
+    HOL4 uses LIST_REL directly; Lean needs a concrete definition. -/
 def sv_rel_list (R : α → β → Prop) : List α → List β → Prop
   | [], [] => True
   | a :: as', b :: bs => R a b ∧ sv_rel_list R as' bs
@@ -412,6 +438,10 @@ theorem sv_rel_cases :
       (∃ w, x = store_v.W8array w ∧ y = store_v.W8array w) ∨
       (∃ m v1 v2, x = store_v.Thunk m v1 ∧ y = store_v.Thunk m v2 ∧ R v1 v2) ∨
       (∃ vs1 vs2, x = store_v.Varray vs1 ∧ y = store_v.Varray vs2 ∧ sv_rel R x y) := by sorry
+
+/- Omitted: Theorem sv_rel_O.
+   HOL4: sv_rel (λx y. R x y ∧ Q x y) = λx y. sv_rel R x y ∧ sv_rel Q x y
+   Reason: Uses HOL4 O (relation composition); not needed in Lean proofs. -/
 
 theorem sv_rel_mono :
     ∀ (P Q : α → β → Prop),
@@ -566,6 +596,8 @@ theorem nat_to_v_11 :
 -- concrete_v properties
 -- ============================================================
 
+/- Renamed: HOL4 Theorem concrete_v_list → Lean theorem concrete_v_list_thm
+   (avoids collision with the concrete_v_list constructor/definition). -/
 theorem concrete_v_list_thm :
     ∀ (xs : List v),
       concrete_v.concrete_v_list xs = EVERY concrete_v xs := by sorry

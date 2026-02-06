@@ -10,6 +10,11 @@ namespace CakeML
 open HOL4
 open mlstring
 
+/- Lean additions (not in HOL4 evaluatePropsScript.sml):
+   - RTC: Reflexive transitive closure inductive. HOL4 uses the relation library.
+   - isPrefixProp: IS_PREFIX as a Prop. HOL4 uses rich_listTheory.IS_PREFIX.
+   - LIST_REL: Pairwise list relation. HOL4 uses listTheory.LIST_REL. -/
+
 -- ============================================================
 -- Auxiliary: Reflexive Transitive Closure
 -- ============================================================
@@ -122,6 +127,10 @@ theorem evaluate_call_FFI_rel_imp :
   (∀ (s : state ffi) env p s' r,
     evaluate_decs s env p = (s', r) →
     RTC call_FFI_rel s.ffi_field s'.ffi_field) := by sorry
+
+/- Omitted: Theorem evaluate_decs_call_FFI_rel [local].
+   HOL4: Local helper extracting the decs-only conjunct from evaluate_call_FFI_rel.
+   Reason: [local] proof helper; the exported evaluate_decs_call_FFI_rel_imp is present below. -/
 
 theorem evaluate_decs_call_FFI_rel_imp :
   ∀ (s : state ffi) env p s' r,
@@ -261,6 +270,10 @@ theorem is_clock_io_mono_match_case_pair_safe {ffi : Type}
     | match_result.Match_type_error => h st'
     | match_result.Match env' => j env' st')) st := by sorry
 
+/- Omitted: val step_tac.
+   HOL4: Proof tactic for stepping through is_clock_io_mono proofs.
+   Reason: Proof automation artifact; not mathematical content. -/
+
 theorem is_clock_io_mono_evaluate :
   (∀ (s : state ffi) env es,
     is_clock_io_mono (fun s => evaluate s env es) s) ∧
@@ -379,12 +392,24 @@ theorem evaluate_match_list_result :
   evaluate_match s env val' p er = (s', r) →
   ∃ r', r = list_result r' := by sorry
 
+/- Omitted: val evaluate_decs_lemmas.
+   HOL4: Convenience val binding collecting decs-only lemma conjuncts.
+   Reason: Proof automation artifact; not mathematical content. -/
+
 theorem evaluate_decs_add_to_clock :
   ∀ (s : state ffi) env p s' r extra,
     evaluate_decs s env p = (s', r) ∧
     r ≠ result.Rerr (error_result.Rabort abort.Rtimeout_error) →
     evaluate_decs ({ s with clock := s.clock + extra }) env p =
       ({ s' with clock := s'.clock + extra }, r) := by sorry
+
+/- Omitted: Theorem add_lemma [local].
+   HOL4: ∀ k k'. ∃ extra. k = k' + extra ∨ k' = k + extra.
+   Reason: [local] trivial arithmetic helper. -/
+
+/- Omitted: Theorem with_clock_ffi [local].
+   HOL4: (s with clock := k).ffi = s.ffi.
+   Reason: [local] trivial accessor lemma. -/
 
 theorem evaluate_decs_clock_determ :
   ∀ (s : state ffi) env p s1 r1 s2 r2 k1 k2,
@@ -440,6 +465,11 @@ theorem evaluate_next_exn_stamp_mono :
     evaluate_decs s env ds = (s', res3) →
     s.next_exn_stamp ≤ s'.next_exn_stamp) := by sorry
 
+/- Omitted: Theorem evaluate_case_eqs.
+   HOL4: LIST_CONJ [pair_case_eq, result_case_eq, error_result_case_eq, ...].
+   Reason: Convenience conjunction for proof automation; in Lean 4,
+   handled by simp lemmas and cases/match tactics. -/
+
 theorem evaluate_set_next_stamps :
   (∀ (s0 : state ffi) env xs s1 res,
     evaluate s0 env xs = (s1, res) →
@@ -470,6 +500,9 @@ theorem call_FFI_return_unchanged {ffi : Type} {ffi_st : ffi_state ffi} :
   (call_FFI ffi_st s conf bytes = ffi_result.FFI_return ffi_st bytes') ↔
   (s = ffiname.ExtCall (strlit []) ∧ bytes' = bytes) := by sorry
 
+/- Renamed: HOL4 Theorem do_app_ffi_unchanged → Lean do_app_ffi_unchanged'
+   (avoids collision with do_app_ffi_unchanged in SemanticPrimitivesProps.lean,
+   which has a different signature). -/
 theorem do_app_ffi_unchanged' {ffi : Type}
     {refs refs' : store v} {ffi_st : ffi_state ffi} :
   do_app (refs, ffi_st) op' vs = some ((refs', ffi_st), r) →
@@ -507,6 +540,10 @@ theorem is_clock_io_mono_set_clock {ffi : Type}
   r ≠ result.Rerr (error_result.Rabort abort.Rtimeout_error) →
   ∃ ck0, f ({ s with clock := ck0 }) = ({ s' with clock := ck1 }, r) := by sorry
 
+/- Omitted: val evaluate_set_clock_lemmas.
+   HOL4: Convenience val binding collecting set_clock conjuncts.
+   Reason: Proof automation artifact; not mathematical content. -/
+
 theorem evaluate_set_clock :
   ∀ (s : state ffi) env exps s1 res,
     evaluate s env exps = (s1, res) ∧
@@ -531,6 +568,10 @@ theorem is_clock_io_mono_minimal {ffi : Type}
   ∃ s'', f ({ s with clock := k }) =
     (s'', result.Rerr (error_result.Rabort abort.Rtimeout_error)) ∧
     io_events_mono s''.ffi_field s'.ffi_field := by sorry
+
+/- Omitted: val evaluate_minimal_lemmas.
+   HOL4: Convenience val binding collecting minimal clock conjuncts.
+   Reason: Proof automation artifact; not mathematical content. -/
 
 theorem evaluate_minimal_clock :
   ∀ (s : state ffi) env es s' r k,
@@ -721,6 +762,9 @@ theorem evaluate_Apps_Funs_timeout :
     evaluate st env [Apps x l.reverse] =
       ({ s2 with clock := 0 }, result.Rerr (error_result.Rabort abort.Rtimeout_error)) := by sorry
 
+/- Renamed: HOL4 Theorem evaluate_Apps → Lean evaluate_Apps'
+   (the Lean version has a slightly different signature to avoid
+   name collision with the Apps definition). -/
 theorem evaluate_Apps' :
   ∀ (xs : List exp) (st : state ffi) env s1 (ns : List varN) n clos_v env1 e vs,
     evaluate st env xs = (s1, result.Rval vs) ∧
