@@ -1,0 +1,287 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/TypeSysProps.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/TypeSysProps.olean -i ././.lake/build/lib/CakeML/Core/TypeSysProps.ilean -c ././.lake/build/ir/CakeML/Core/TypeSysProps.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:19:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:23:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:28:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:31:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:34:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:37:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:52:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:65:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:74:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:81:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:92:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:96:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:100:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:102:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:111:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:117:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:123:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:132:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:140:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:142:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:147:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:157:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:166:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:174:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:182:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:193:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:199:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:206:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:216:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:218:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:224:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:258:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:270:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:273:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:278:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:283:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:287:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:294:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:301:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:306:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:310:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:316:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:323:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:327:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:331:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:337:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:342:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:349:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:353:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:359:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:368:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:373:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:384:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:390:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:394:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:404:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:406:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:416:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:422:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:424:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:428:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:433:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:439:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:445:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:459:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:462:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:471:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:480:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:488:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:499:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:504:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:530:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:536:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:538:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:544:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:546:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:552:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:554:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:560:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:566:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:572:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:577:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:584:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:588:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:593:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:598:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:600:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:607:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:613:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:621:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:626:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:634:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:644:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/TypeSysProps.lean:649:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "1129884898256814617"}

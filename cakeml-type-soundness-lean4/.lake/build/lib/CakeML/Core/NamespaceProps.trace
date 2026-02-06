@@ -1,0 +1,293 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/NamespaceProps.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/NamespaceProps.olean -i ././.lake/build/lib/CakeML/Core/NamespaceProps.ilean -c ././.lake/build/ir/CakeML/Core/NamespaceProps.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:13:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:18:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:22:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:26:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:30:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:35:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:39:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:43:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:48:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:54:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:57:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:60:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:63:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:66:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:69:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:72:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:75:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:78:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:81:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:84:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:87:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:94:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:98:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:102:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:106:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:109:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:114:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:117:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:121:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:126:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:129:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:133:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:136:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:141:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:144:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:147:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:150:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:153:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:157:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:162:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:170:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:175:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:180:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:185:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:192:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:199:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:204:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:207:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:210:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:214:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:217:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:220:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:225:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:228:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:232:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:236:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:240:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:245:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:248:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:252:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:258:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:262:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:266:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:271:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:276:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:293:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:302:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:307:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:310:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:313:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:316:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:321:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:326:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:332:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:338:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:343:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:348:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:351:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:356:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:359:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:366:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:369:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:373:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:376:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:380:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:383:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:387:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:391:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:395:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:402:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:406:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:410:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:413:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:416:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:419:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/NamespaceProps.lean:422:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "17915853362298318711"}

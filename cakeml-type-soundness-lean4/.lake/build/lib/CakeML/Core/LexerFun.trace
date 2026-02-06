@@ -1,0 +1,47 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/LexerFun.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/LexerFun.olean -i ././.lake/build/lib/CakeML/Core/LexerFun.ilean -c ././.lake/build/ir/CakeML/Core/LexerFun.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:46:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:107:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:141:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:160:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:176:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:192:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:228:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:303:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:405:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:442:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:454:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:455:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:456:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/LexerFun.lean:457:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "8565977424801327320"}

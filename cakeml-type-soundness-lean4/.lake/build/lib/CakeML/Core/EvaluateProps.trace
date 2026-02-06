@@ -1,0 +1,254 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/EvaluateProps.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/EvaluateProps.olean -i ././.lake/build/lib/CakeML/Core/EvaluateProps.ilean -c ././.lake/build/ir/CakeML/Core/EvaluateProps.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:77:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:81:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:84:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:88:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:91:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:95:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:98:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:102:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:107:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:115:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:126:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:131:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:136:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:144:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:155:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:163:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:166:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:169:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:172:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:182:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:190:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:193:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:197:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:205:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:214:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:222:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:232:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:248:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:264:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:272:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:276:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:285:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:292:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:299:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:306:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:309:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:312:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:317:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:320:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:328:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:331:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:335:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:345:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:355:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:360:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:369:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:378:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:382:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:389:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:400:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:408:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:414:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:421:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:432:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:443:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:469:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:473:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:479:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:502:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:510:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:517:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:524:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:535:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:546:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:557:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:567:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:571:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:574:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:581:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:584:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:607:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:620:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:623:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:646:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:651:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:658:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:677:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:691:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:694:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:699:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:710:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:716:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/EvaluateProps.lean:724:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "12544126754838955854"}

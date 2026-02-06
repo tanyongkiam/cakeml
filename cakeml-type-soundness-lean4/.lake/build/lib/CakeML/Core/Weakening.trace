@@ -1,0 +1,98 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/Weakening.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/Weakening.olean -i ././.lake/build/lib/CakeML/Core/Weakening.ilean -c ././.lake/build/ir/CakeML/Core/Weakening.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:65:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:68:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:71:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:74:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:79:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:85:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:91:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:97:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:102:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:109:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:115:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:121:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:128:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:138:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:152:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:163:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:166:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:172:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:175:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:178:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:183:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:187:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:189:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:191:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:193:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:195:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:197:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:199:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:201:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:208:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/Weakening.lean:215:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "6667660497530227153"}

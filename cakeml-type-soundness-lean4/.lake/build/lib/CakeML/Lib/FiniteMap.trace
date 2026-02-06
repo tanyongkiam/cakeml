@@ -1,0 +1,5 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Lib/FiniteMap.lean -R ./././. -o ././.lake/build/lib/CakeML/Lib/FiniteMap.olean -i ././.lake/build/lib/CakeML/Lib/FiniteMap.ilean -c ././.lake/build/ir/CakeML/Lib/FiniteMap.c --json",
+   "level": "trace"}],
+ "depHash": "16888471328422757478"}

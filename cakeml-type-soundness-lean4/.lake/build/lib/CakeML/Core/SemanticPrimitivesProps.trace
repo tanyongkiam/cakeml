@@ -1,0 +1,176 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Core/SemanticPrimitivesProps.lean -R ./././. -o ././.lake/build/lib/CakeML/Core/SemanticPrimitivesProps.olean -i ././.lake/build/lib/CakeML/Core/SemanticPrimitivesProps.ilean -c ././.lake/build/ir/CakeML/Core/SemanticPrimitivesProps.c --json",
+   "level": "trace"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:19:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:23:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:27:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:31:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:34:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:58:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:61:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:68:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:82:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:92:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:102:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:116:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:122:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:128:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:150:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:166:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:172:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:179:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:186:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:209:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:215:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:225:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:234:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:246:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:250:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:261:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:265:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:279:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:284:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:289:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:293:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:297:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:300:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:314:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:319:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:324:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:329:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:333:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:400:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:403:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:408:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:416:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:437:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:442:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:447:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:451:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:455:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:472:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:476:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:536:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:541:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:562:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:569:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:573:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:587:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:601:8: declaration uses 'sorry'",
+   "level": "warning"},
+  {"message":
+   "././././CakeML/Core/SemanticPrimitivesProps.lean:606:8: declaration uses 'sorry'",
+   "level": "warning"}],
+ "depHash": "12813630846244629723"}
