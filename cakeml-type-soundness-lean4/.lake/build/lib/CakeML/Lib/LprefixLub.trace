@@ -1,8 +1,0 @@
-{"log":
- [{"message":
-   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Lib/LprefixLub.lean -R ./././. -o ././.lake/build/lib/CakeML/Lib/LprefixLub.olean -i ././.lake/build/lib/CakeML/Lib/LprefixLub.ilean -c ././.lake/build/ir/CakeML/Lib/LprefixLub.c --json",
-   "level": "trace"},
-  {"message":
-   "././././CakeML/Lib/LprefixLub.lean:14:18: declaration uses 'sorry'",
-   "level": "warning"}],
- "depHash": "4184241249058025876"}

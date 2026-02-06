@@ -1,5 +1,0 @@
-{"log":
- [{"message":
-   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH=:/usr/local/lib /home/yongkiam/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean -DautoImplicit=true ././././CakeML/Lib/Llist.lean -R ./././. -o ././.lake/build/lib/CakeML/Lib/Llist.olean -i ././.lake/build/lib/CakeML/Lib/Llist.ilean -c ././.lake/build/ir/CakeML/Lib/Llist.c --json",
-   "level": "trace"}],
- "depHash": "269747264011504761"}
