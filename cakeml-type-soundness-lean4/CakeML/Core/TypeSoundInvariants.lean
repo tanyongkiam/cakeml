@@ -30,7 +30,12 @@ abbrev ctMap := fmap stamp (List tvarN × List sem_t × type_ident)
 
 -- Heterogeneous version of nsAll2 (relates namespaces with different value types)
 -- Needed because env.c has stamp values while tenv.c has type info
-def nsAll2_het [BEq m] [BEq n] (_ : id m n → α → β → Prop) : ns m n α → ns m n β → Prop := sorry
+def nsAll2_het [BEq m] [BEq n] (r : id m n → α → β → Prop)
+    (ns1 : ns m n α) (ns2 : ns m n β) : Prop :=
+  (∀ x v1, nsLookup ns1 x = some v1 →
+    ∃ v2, nsLookup ns2 x = some v2 ∧ r x v1 v2) ∧
+  (∀ x v2, nsLookup ns2 x = some v2 →
+    ∃ v1, nsLookup ns1 x = some v1 ∧ r x v1 v2)
 
 -- ============================================================
 -- Definitions
@@ -86,12 +91,103 @@ def add_tenvE : tenv_val_exp → tenv_val → tenv_val
 
 -- ============================================================
 -- type_v: typing relation on values
--- Axiomatized because the HOL4 inductive definition has
--- occurrences (EVERY2, list membership, heterogeneous nsAll2)
--- that violate Lean 4's strict positivity checker.
+-- The HOL4 definition uses LIST_REL, EVERY, and nsAll2, which
+-- are inductives that cause strict positivity violations. We
+-- replace them with universal quantification + indexing.
 -- ============================================================
 
-axiom type_v : Nat → ctMap → tenv_store → v → sem_t → Prop
+inductive type_v : Nat → ctMap → tenv_store → v → sem_t → Prop where
+  | Litv_IntLit : ∀ tvs cm tenvS n,
+    type_v tvs cm tenvS (v.Litv (lit.IntLit n)) Tint
+
+  | Litv_Char : ∀ tvs cm tenvS c,
+    type_v tvs cm tenvS (v.Litv (lit.Char c)) Tchar
+
+  | Litv_StrLit : ∀ tvs cm tenvS s,
+    type_v tvs cm tenvS (v.Litv (lit.StrLit s)) Tstring
+
+  | Litv_Word8 : ∀ tvs cm tenvS w,
+    type_v tvs cm tenvS (v.Litv (lit.Word8 w)) Tword8
+
+  | Litv_Word64 : ∀ tvs cm tenvS w,
+    type_v tvs cm tenvS (v.Litv (lit.Word64 w)) Tword64
+
+  | Litv_Float64 : ∀ tvs cm tenvS w,
+    type_v tvs cm tenvS (v.Litv (lit.Float64 w)) Tdouble
+
+  | Conv_some : ∀ tvs cm tenvS vs tvs' stamp' ts' ts ti
+      (hlen : vs.length = ts.length),
+    EVERY (check_freevars tvs []) ts' = true →
+    tvs'.length = ts'.length →
+    (∀ i (h : i < vs.length),
+      type_v tvs cm tenvS (vs.get ⟨i, h⟩)
+        (type_subst (alist_to_fmap (ZIP (tvs', ts'))) (ts.get ⟨i, by omega⟩))) →
+    FLOOKUP cm stamp' = some (tvs', ts, ti) →
+    type_v tvs cm tenvS (v.Conv (some stamp') vs) (sem_t.Tapp ts' ti)
+
+  | Conv_none : ∀ tvs cm tenvS vs ts
+      (hlen : vs.length = ts.length),
+    (∀ i (h : i < vs.length),
+      type_v tvs cm tenvS (vs.get ⟨i, h⟩) (ts.get ⟨i, by omega⟩)) →
+    type_v tvs cm tenvS (v.Conv none vs) (Ttup ts)
+
+  | Closure : ∀ tvs cm tenvS env tenv tenvE n e t1 t2,
+    tenv_ok tenv →
+    tenv_val_exp_ok tenvE →
+    num_tvs tenvE = 0 →
+    nsAll2_het (type_ctor cm) env.c tenv.c →
+    -- nsAll2 for the value namespace, split to avoid ∃ with type_v
+    -- (1) Pointwise typing when both lookups succeed
+    (∀ x w p, nsLookup env.v_field x = some w →
+      nsLookup (add_tenvE tenvE tenv.v) x = some p →
+      type_v p.1 cm tenvS w p.2) →
+    -- (2) Domain: env.v ⊆ dom(tenv.v)
+    (∀ x, (∃ w, nsLookup env.v_field x = some w) →
+      ∃ p, nsLookup (add_tenvE tenvE tenv.v) x = some p) →
+    -- (3) Domain: dom(tenv.v) ⊆ env.v
+    (∀ x, (∃ p, nsLookup (add_tenvE tenvE tenv.v) x = some p) →
+      ∃ w, nsLookup env.v_field x = some w) →
+    check_freevars tvs [] t1 = true →
+    type_e tenv (tenv_val_exp.Bind_name n 0 t1 (bind_tvar tvs tenvE)) e t2 →
+    type_v tvs cm tenvS (v.Closure env n e) (Tfn t1 t2)
+
+  | Recclosure : ∀ tvs cm tenvS env funs n t tenv tenvE bindings,
+    tenv_ok tenv →
+    tenv_val_exp_ok tenvE →
+    num_tvs tenvE = 0 →
+    nsAll2_het (type_ctor cm) env.c tenv.c →
+    -- nsAll2 for the value namespace, split to avoid ∃ with type_v
+    (∀ x w p, nsLookup env.v_field x = some w →
+      nsLookup (add_tenvE tenvE tenv.v) x = some p →
+      type_v p.1 cm tenvS w p.2) →
+    (∀ x, (∃ w, nsLookup env.v_field x = some w) →
+      ∃ p, nsLookup (add_tenvE tenvE tenv.v) x = some p) →
+    (∀ x, (∃ p, nsLookup (add_tenvE tenvE tenv.v) x = some p) →
+      ∃ w, nsLookup env.v_field x = some w) →
+    type_funs tenv (bind_var_list 0 bindings (bind_tvar tvs tenvE)) funs bindings →
+    ALOOKUP bindings n = some t →
+    ALL_DISTINCT (funs.map (fun (x, _, _) => x)) = true →
+    n ∈ funs.map (fun (x, _, _) => x) →
+    type_v tvs cm tenvS (v.Recclosure env funs n) t
+
+  | Loc_ref : ∀ tvs cm tenvS n t,
+    check_freevars 0 [] t = true →
+    FLOOKUP tenvS n = some (store_t.Ref_t t) →
+    type_v tvs cm tenvS (v.Loc true n) (Tref t)
+
+  | Loc_w8array : ∀ tvs cm tenvS n,
+    FLOOKUP tenvS n = some store_t.W8array_t →
+    type_v tvs cm tenvS (v.Loc true n) Tword8array
+
+  | Loc_varray : ∀ tvs cm tenvS n t,
+    check_freevars 0 [] t = true →
+    FLOOKUP tenvS n = some (store_t.Varray_t t) →
+    type_v tvs cm tenvS (v.Loc true n) (Tarray t)
+
+  | Vectorv : ∀ tvs cm tenvS vs t,
+    check_freevars 0 [] t = true →
+    (∀ w ∈ vs, type_v tvs cm tenvS w t) →
+    type_v tvs cm tenvS (v.Vectorv vs) (Tvector t)
 
 -- ============================================================
 -- More definitions
@@ -141,7 +237,9 @@ def good_ctMap (ctMap' : ctMap) : Prop :=
   ctMap_has_lists ctMap'
 
 def consistent_ctMap (st : state ffi_ty) (type_ids : Nat → Prop) (ctMap' : ctMap) : Prop :=
-  sorry -- involves DISJOINT, FRANGE, FDOM conditions
+  (∀ s tvs ts ti, FLOOKUP ctMap' s = some (tvs, ts, ti) → ¬ type_ids ti) ∧
+  (∀ cn id', FLOOKUP ctMap' (stamp.TypeStamp cn id') ≠ none → id' < st.next_type_stamp) ∧
+  (∀ id', FLOOKUP ctMap' (stamp.ExnStamp id') ≠ none → id' < st.next_exn_stamp)
 
 def type_all_env (ctMap' : ctMap) (tenvS : tenv_store) (env : sem_env) (tenv : type_env) : Prop :=
   nsAll2_het (type_ctor ctMap') env.c tenv.c ∧

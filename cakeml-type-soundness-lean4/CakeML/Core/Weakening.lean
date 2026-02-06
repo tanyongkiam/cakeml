@@ -3,34 +3,11 @@
   Translated from: hol4_sources/weakeningScript.sml
 -/
 import CakeML.Core.TypeSysProps
--- import CakeML.Core.TypeSoundInvariants  -- not imported: has pre-existing build errors
 
 namespace CakeML
 
 open HOL4
 open mlstring
-
--- ============================================================
--- Definitions from TypeSoundInvariants needed here
--- (Re-stated because TypeSoundInvariants does not currently build)
--- ============================================================
-
-/-- Whether all type schemes in a value environment have well-formed free variables -/
-noncomputable def tenv_val_ok_w (tenvV : tenv_val) : Prop :=
-  nsAll (fun _ (tvs, t') => check_freevars tvs [] t') tenvV
-
-/-- Whether a tenv_val_exp has well-formed free variables -/
-def tenv_val_exp_ok_w : tenv_val_exp → Prop
-  | tenv_val_exp.Empty => True
-  | tenv_val_exp.Bind_tvar _ tenv => tenv_val_exp_ok_w tenv
-  | tenv_val_exp.Bind_name _ tvs t' tenv =>
-    check_freevars (tvs + num_tvs tenv) [] t' ∧ tenv_val_exp_ok_w tenv
-
-/-- Whether a type environment is well-formed -/
-noncomputable def tenv_ok_w (tenv : type_env) : Prop :=
-  tenv_val_ok_w tenv.v ∧
-  nsAll (fun _ (tvs, ts, _) => ∀ t' ∈ ts, check_freevars 0 tvs t') tenv.c ∧
-  nsAll (fun _ (tvs, t') => check_freevars 0 tvs t') tenv.t
 
 -- ============================================================
 -- Definitions
@@ -66,7 +43,7 @@ theorem weak_tenvE_refl :
   ∀ tenvE, weak_tenvE tenvE tenvE := by sorry
 
 theorem weak_tenv_refl :
-  ∀ tenv, tenv_val_ok_w tenv.v → weak_tenv tenv tenv := by sorry
+  ∀ tenv, tenv_val_ok tenv.v → weak_tenv tenv tenv := by sorry
 
 theorem weakS_refl [BEq α] :
   ∀ (tenvS : fmap α β), weakS tenvS tenvS := by sorry
@@ -101,7 +78,7 @@ theorem weak_tenvE_bind_tvar :
 
 theorem weak_tenvE_bind_tvar2 :
   ∀ tenv tenv' tvs,
-    tenv_val_exp_ok_w tenv →
+    tenv_val_exp_ok tenv →
     num_tvs tenv = 0 →
     weak_tenvE tenv' tenv →
     weak_tenvE (bind_tvar tvs tenv') (bind_tvar 0 tenv) := by sorry
@@ -200,14 +177,14 @@ theorem type_s_weakening : True := by sorry
 
 theorem weak_tenv_extend_dec_tenv :
   ∀ tenv1 tenv2 tenv3,
-    tenv_val_ok_w tenv1.v →
+    tenv_val_ok tenv1.v →
     weak_tenv tenv2 tenv3 →
     weak_tenv (extend_dec_tenv tenv1 tenv2)
               (extend_dec_tenv tenv1 tenv3) := by sorry
 
 theorem weak_extend_dec_tenv :
   ∀ tenv1 tenv2 tenv3,
-    tenv_ok_w tenv1 →
+    tenv_ok tenv1 →
     weak tenv2 tenv3 →
     weak (extend_dec_tenv tenv1 tenv2)
          (extend_dec_tenv tenv1 tenv3) := by sorry
@@ -217,14 +194,14 @@ theorem type_d_weakening :
     type_d check tenv d decls tenv' →
     ∀ tenv'',
       check = false →
-      tenv_ok_w tenv'' →
+      tenv_ok tenv'' →
       weak tenv'' tenv →
       type_d check tenv'' d decls tenv') ∧
   (∀ check tenv ds decls tenv',
     type_ds check tenv ds decls tenv' →
     ∀ tenv'',
       check = false →
-      tenv_ok_w tenv'' →
+      tenv_ok tenv'' →
       weak tenv'' tenv →
       type_ds check tenv'' ds decls tenv') := by sorry
 

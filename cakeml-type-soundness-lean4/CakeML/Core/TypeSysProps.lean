@@ -97,7 +97,12 @@ theorem deBruijn_inc_deBruijn_inc :
     ∀ sk i2 (t_val : sem_t) i1,
       deBruijn_inc sk i1 (deBruijn_inc sk i2 t_val) = deBruijn_inc sk (i1 + i2) t_val := by sorry
 
-theorem type_subst_deBruijn_inc_list : True := by sorry
+theorem type_subst_deBruijn_inc_list :
+    ∀ (ts' ts : List sem_t) (tvs : List tvarN) (inc sk : Nat),
+      tvs.length = ts.length →
+      EVERY (check_freevars 0 tvs) ts' →
+      (ts'.map (deBruijn_inc sk inc)).map (type_subst (alist_to_fmap (ZIP (tvs, ts)))) =
+      (ts'.map (type_subst (alist_to_fmap (ZIP (tvs, ts.map (deBruijn_inc sk inc)))))) := by sorry
 
 theorem nil_deBruijn_inc :
     ∀ skip tvs (t_val : sem_t),
@@ -137,7 +142,12 @@ theorem check_freevars_subst :
         EVERY (check_freevars (tvs1 + tvs') tvs2) targs →
         check_freevars (tvs1 + tvs') tvs2 (deBruijn_subst 0 targs t_val) := by sorry
 
-theorem type_subst_deBruijn_subst_list : True := by sorry
+theorem type_subst_deBruijn_subst_list :
+    ∀ (tvs : List tvarN) (ts ts' ts'' : List sem_t) (inc : Nat),
+      tvs.length = ts.length →
+      EVERY (check_freevars 0 tvs) ts'' →
+      (ts''.map (deBruijn_subst inc ts')).map (type_subst (alist_to_fmap (ZIP (tvs, ts)))) =
+      (ts''.map (type_subst (alist_to_fmap (ZIP (tvs, ts.map (deBruijn_subst inc ts')))))) := by sorry
 
 theorem nil_deBruijn_subst :
     ∀ skip tvs (t_val : sem_t),
@@ -213,7 +223,11 @@ theorem tenv_abbrev_ok_merge :
 -- tenv_ctor stuff
 -- ============================================================
 
-theorem type_ctor_long : True := by sorry
+theorem type_ctor_long :
+    ∀ (ctMap' : ctMap) (mn : modN) (ident : id modN conN)
+      (nc : Nat × stamp) (tvs_ts_ti : List tvarN × List sem_t × type_ident),
+      type_ctor ctMap' (id.Long mn ident) nc tvs_ts_ti =
+      type_ctor ctMap' ident nc tvs_ts_ti := by sorry
 
 theorem tenv_ctor_ok_merge :
     ∀ (tenvC1 tenvC2 : tenv_ctor),
@@ -381,6 +395,7 @@ theorem tveLookup_db_merge_some :
 -- type_op
 -- ============================================================
 
+-- type_op_cases is a computed case analysis theorem in HOL4
 theorem type_op_cases : True := by sorry
 
 -- ============================================================
@@ -401,7 +416,37 @@ theorem type_p_freevars :
       EVERY (check_freevars tvs []) ts ∧
       EVERY (check_freevars tvs []) (env'.map Prod.snd)) := by sorry
 
-theorem type_p_subst : True := by sorry
+theorem type_p_subst :
+    (∀ n (tenv : type_env) p t_val new_bindings,
+      type_p n tenv p t_val new_bindings →
+      ∀ targs' inc (tvs : Nat) targs,
+        tenv_abbrev_ok tenv.t →
+        tenv_ctor_ok tenv.c →
+        n = inc + targs.length →
+        EVERY (check_freevars tvs []) targs →
+        targs' = targs.map (deBruijn_inc 0 inc) →
+        type_p (inc + tvs) tenv p
+          (deBruijn_subst inc targs' t_val)
+          (new_bindings.map (fun (x, t') => (x, deBruijn_subst inc targs' t')))) ∧
+    (∀ n (tenv : type_env) ps ts new_bindings,
+      type_ps n tenv ps ts new_bindings →
+      ∀ targs' inc (tvs : Nat) targs,
+        tenv_abbrev_ok tenv.t →
+        tenv_ctor_ok tenv.c →
+        n = inc + targs.length →
+        EVERY (check_freevars tvs []) targs →
+        targs' = targs.map (deBruijn_inc 0 inc) →
+        type_ps (inc + tvs) tenv ps
+          (ts.map (deBruijn_subst inc targs'))
+          (new_bindings.map (fun (x, t') => (x, deBruijn_subst inc targs' t')))) := by sorry
+
+theorem type_p_tenvV_indep :
+    (∀ p tvs (tenv : type_env) t_val bindings tenvV,
+      type_p tvs tenv p t_val bindings =
+      type_p tvs { tenv with v := tenvV } p t_val bindings) ∧
+    (∀ ps tvs (tenv : type_env) ts bindings tenvV,
+      type_ps tvs tenv ps ts bindings =
+      type_ps tvs { tenv with v := tenvV } ps ts bindings) := by sorry
 
 theorem type_p_bvl :
     (∀ tvs tenvC p t_val bindings,
@@ -413,13 +458,16 @@ theorem type_p_bvl :
       ∀ (tenv' : tenv_val_exp),
         tenv_val_exp_ok tenv' → tenv_val_exp_ok (bind_var_list tvs bindings tenv')) := by sorry
 
-theorem type_p_tenvV_indep : True := by sorry
-
 -- ============================================================
 -- type_e, type_es, type_funs
 -- ============================================================
 
-theorem type_es_list_rel : True := by sorry
+theorem type_es_list_rel :
+    ∀ (es : List exp) (ts : List sem_t) (tenv : type_env) (tenvE : tenv_val_exp),
+      type_es tenv tenvE es ts ↔
+        (∃ h : es.length = ts.length,
+         ∀ i (hi : i < es.length),
+           type_e tenv tenvE (es.get ⟨i, hi⟩) (ts.get ⟨i, h ▸ hi⟩)) := by sorry
 
 theorem type_es_length :
     ∀ tenv tenvE es ts,
@@ -456,6 +504,7 @@ theorem type_e_freevars :
       tenv_val_exp_ok tenvE → tenv_val_ok tenv.v →
       EVERY (check_freevars (num_tvs tenvE) []) (env.map Prod.snd)) := by sorry
 
+-- type_e_subst: the main substitution theorem for expressions (complex HOL4 statement)
 theorem type_e_subst : True := by sorry
 
 -- Recursive functions have function type
@@ -533,25 +582,35 @@ theorem mem_type_def_to_ctMap :
       tds.length = ids.length →
       ∃ cn i, stmp = stamp.TypeStamp cn i ∧ next ≤ i ∧ i < next + tds.length := by sorry
 
-theorem ctMap_ok_merge_imp : True := by sorry
-
 theorem ctMap_ok_lookup :
     ∀ (ctMap' : ctMap) (cn : conN) (tvs : List tvarN) (ts : List sem_t) (ti : type_ident) (tn : stamp),
       ctMap_ok ctMap' →
       FLOOKUP ctMap' tn = some (tvs, ts, ti) →
       ∀ t' ∈ ts, check_freevars 0 tvs t' := by sorry
 
+-- ctMap_ok is preserved by merging two disjoint ctMaps
+theorem ctMap_ok_merge_imp : True := by sorry
+  -- HOL4: DISJOINT (FRANGE (SND ∘ SND) ctMap1) (FRANGE (SND ∘ SND) ctMap2) →
+  -- ctMap_ok ctMap1 → ctMap_ok ctMap2 → ctMap_ok (FUNION ctMap1 ctMap2)
+
 theorem type_def_to_ctMap_mem : True := by sorry
+  -- HOL4: ALOOKUP (type_def_to_ctMap tenvT next tds tids) k = SOME x →
+  -- LENGTH tds = LENGTH tids → MEM (SND (SND x)) tids
 
 theorem ctMap_ok_type_defs : True := by sorry
+  -- HOL4: ALL_DISTINCT tids → DISJOINT (set tids) prim_type_nums →
+  -- check_ctor_tenv tenvT tds → tenv_abbrev_ok tenvT →
+  -- ctMap_ok (FEMPTY |++ REVERSE (type_def_to_ctMap tenvT next tds tids))
 
 -- ============================================================
 -- check_ctor_tenv
 -- ============================================================
 
 theorem check_ctor_tenv_change_tenvT : True := by sorry
+  -- HOL4: check_ctor_tenv tenvT1 env → ... → check_ctor_tenv tenvT2 env
 
 theorem check_ctor_tenv_EVERY : True := by sorry
+  -- HOL4: check_ctor_tenv tenvT tds ↔ EVERY check_dup_ctors tds ∧ ...
 
 -- ============================================================
 -- type_v
@@ -594,8 +653,18 @@ theorem type_v_freevars :
     ∀ tvs (tenvC : ctMap) tenvS v_val t_val,
       type_v tvs tenvC tenvS v_val t_val → check_freevars tvs [] t_val := by sorry
 
--- This is the theorem `type_subst` from the HOL4 source (about type_v and substitution)
-theorem type_subst_thm : True := by sorry
+-- type_subst: type_v is preserved under deBruijn substitution
+theorem type_subst_thm :
+    ∀ tvs (ctMap' : ctMap) tenvS v_val t_val targs tvs',
+      type_v tvs ctMap' tenvS v_val t_val →
+      tvs = targs.length →
+      ctMap_ok ctMap' →
+      EVERY (check_freevars tvs' []) targs →
+      check_freevars targs.length [] t_val →
+      type_v tvs' ctMap' tenvS v_val (deBruijn_subst 0 targs t_val) := by sorry
+
+theorem nsMap_build_ctor_tenv : True := by sorry
+  -- HOL4: relates nsMap on build_ctor_tenv
 
 theorem check_ctor_tenv_ok :
     ∀ (tenvT : tenv_abbrev) tds tis,
@@ -603,8 +672,6 @@ theorem check_ctor_tenv_ok :
       check_ctor_tenv tenvT tds →
       tenv_abbrev_ok tenvT →
       tenv_ctor_ok (build_ctor_tenv tenvT tds tis) := by sorry
-
-theorem nsMap_build_ctor_tenv : True := by sorry
 
 -- ============================================================
 -- type_d
