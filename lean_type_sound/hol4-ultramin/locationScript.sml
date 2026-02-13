@@ -25,35 +25,3 @@ val _ = add_record_fupdate ("col", “locn_colupdate”)
 Datatype: locs = Locs locn locn
 End
 
-Definition default_loc_def:
-  default_loc = POSN 0 0
-End
-
-Definition start_locs_def: start_locs = Locs default_loc default_loc
-End
-
-Overload end_locn[local] = “EOFpt”
-Overload unknown_locn[local] = “UNKNOWNpt”
-
-Definition unknown_loc_def:
-  unknown_loc = Locs unknown_locn unknown_locn
-End
-
-Definition locnle_def:
-  locnle l1 l2 <=>
-    l1 = l2 ∨ (* reflexivity, for free *)
-    l1 = unknown_locn ∨ (* minimal element *)
-    l2 = end_locn ∨ (* maximal element *)
-    (* otherwise compare row and col lexicographically*)
-    l2 ≠ unknown_locn ∧ l1 ≠ end_locn ∧
-    (l1.row < l2.row ∨ l1.row = l2.row ∧ l1.col < l2.col)
-End
-
-(* for debugging *)
-
-Definition map_loc_def[simp]:
-  (map_loc [] _ = []) /\
-  (map_loc (h :: t) n =
-    (h, Locs (POSN 0 n) (POSN 0 n)) :: map_loc t (n+1))
-End
-

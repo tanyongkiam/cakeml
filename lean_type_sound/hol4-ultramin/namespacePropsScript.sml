@@ -22,8 +22,6 @@ Proof
  >> rw [id_to_mods_def, id_to_n_def, mk_id_def]
 QED
 
-(* ----------- Monotonicity for ind rel ------------ *)
-
 Theorem nsSub_mono[mono]:
    (!x y z. R1 x y z ⇒ R2 x y z) ⇒ (nsSub R1 e1 e2 ⇒ nsSub R2 e1 e2)
 Proof
@@ -44,8 +42,6 @@ Proof
  >> qexists_tac `\x y z. R1 x z y`
  >> rw []
 QED
-
-(* ---------- Automatic simps involving empty envs -------------- *)
 
 Theorem nsLookup_nsEmpty[simp]:
    !id. nsLookup nsEmpty id = NONE
@@ -93,8 +89,6 @@ Theorem nsAll2_nsEmpty[simp]:
 Proof
  rw [nsEmpty_def, nsAll2_def]
 QED
-
-(* ------------- Other simple automatic theorems --------- *)
 
 Theorem alist_to_ns_cons[simp]:
    !k v l. alist_to_ns ((k,v)::l) = nsBind k v (alist_to_ns l)
@@ -181,12 +175,6 @@ Proof
   rw [alist_to_ns_def]
 QED
 
-(* -------------- nsLookup ------------------ *)
-
-(* -------------- alist_to_ns --------------- *)
-
-(* -------------- nsLift --------------- *)
-
 Theorem nsLookup_nsLift:
    !mn e id.
     nsLookup (nsLift mn e) id =
@@ -218,8 +206,6 @@ Proof
  >> CASE_TAC
  >> rw [nsLookupMod_def]
 QED
-
-(* --------------- nsAppend ------------- *)
 
 Theorem nsLookup_nsAppend_some:
    ∀e1 id e2 v.
@@ -283,8 +269,6 @@ Proof
  >> qexists_tac `[h]`
  >> simp [nsLookupMod_def]
 QED
-
-(* -------------- nsAll ---------------- *)
 
 Theorem eALL_T[simp]:
    !e. nsAll (\n x. T) e
@@ -352,8 +336,6 @@ Proof
   rw [nsAll_def] >>
   fs [nsLookup_nsAppend_some]
 QED
-
-(* -------------- nsSub ---------------- *)
 
 Theorem nsSub_conj:
    !P Q e1 e2. nsSub (\id x y. P id x y ∧ Q id x y) e1 e2 ⇔ nsSub P e1 e2 ∧
@@ -642,8 +624,6 @@ Proof
 QED
 *)
 
-(* -------------- nsAll2 ---------------- *)
-
 Theorem nsAll2_conj:
    !P Q e1 e2. nsAll2 (\id x y. P id x y ∧ Q id x y) e1 e2 ⇔ nsAll2 P e1 e2 ∧ nsAll2 Q e1 e2
 Proof
@@ -744,8 +724,4 @@ Proof
  >> every_case_tac
  >> fs []
 QED
-
-(* -------------- nsMap --------------- *)
-
-(* --------------- nsDom --------------- *)
 

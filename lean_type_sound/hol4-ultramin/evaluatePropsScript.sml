@@ -62,22 +62,6 @@ Proof
   >> fs[] >> metis_tac[]
 QED
 
-Theorem evaluate_call_FFI_rel:
-   (∀(s:'ffi state) e exp.
-      RTC call_FFI_rel s.ffi (FST (evaluate s e exp)).ffi) ∧
-   (∀(s:'ffi state) e v pes errv.
-      RTC call_FFI_rel s.ffi (FST (evaluate_match s e v pes errv)).ffi) ∧
-   (∀(s:'ffi state) e ds.
-      RTC call_FFI_rel s.ffi (FST (evaluate_decs s e ds)).ffi)
-Proof
-  ho_match_mp_tac full_evaluate_ind >>
-  srw_tac[][full_evaluate_def, do_eval_res_def] >>
-  every_case_tac >> full_simp_tac(srw_ss())[] >>
-  imp_res_tac do_app_call_FFI_rel >>
-  rev_full_simp_tac(srw_ss())[dec_clock_def] >>
-  metis_tac[RTC_TRANSITIVE,transitive_def,FST]
-QED
-
 Theorem do_app_io_events_mono:
    do_app (r,ffi) op vs = SOME ((r',ffi'),res) ⇒ io_events_mono ffi ffi'
 Proof
@@ -352,9 +336,6 @@ Proof
   \\ FIRST_X_ASSUM (MP_TAC o Q.SPEC `k`)
   \\ CASE_TAC \\ fs []
 QED
-
-val evaluate_minimal_lemmas = BODY_CONJUNCTS is_clock_io_mono_evaluate
-  |> map (BETA_RULE o MATCH_MP is_clock_io_mono_minimal);
 
 Theorem can_pmatch_all_EVERY:
   can_pmatch_all envC refs ps v <=>

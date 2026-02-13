@@ -80,67 +80,6 @@ End
 Definition list_type_num_def:
   list_type_num   = 1
 End
-Definition option_type_num_def:
-  option_type_num = 2
-End
-Definition lit_type_num_def:
-  lit_type_num    = 3
-End
-Definition id_type_num_def:
-  id_type_num     = 4
-End
-Definition ast_t_type_num_def:
-  ast_t_type_num  = 5
-End
-Definition pat_type_num_def:
-  pat_type_num    = 6
-End
-Definition lop_type_num_def:
-  lop_type_num    = 7
-End
-Definition opn_type_num_def:
-  opn_type_num    = 8
-End
-Definition opb_type_num_def:
-  opb_type_num    = 9
-End
-Definition opw_type_num_def:
-  opw_type_num    = 10
-End
-Definition shift_type_num_def:
-  shift_type_num  = 11
-End
-Definition word_size_type_num_def:
-  word_size_type_num = 12
-End
-Definition fp_uop_type_num_def:
-  fp_uop_type_num = 13
-End
-Definition fp_bop_type_num_def:
-  fp_bop_type_num = 14
-End
-Definition fp_top_type_num_def:
-  fp_top_type_num = 15
-End
-Definition fp_cmp_type_num_def:
-  fp_cmp_type_num = 16
-End
-
-Definition op_type_num_def:
-  op_type_num     = 20
-End
-Definition locn_type_num_def:
-  locn_type_num   = 21
-End
-Definition locs_type_num_def:
-  locs_type_num   = 22
-End
-Definition exp_type_num_def:
-  exp_type_num    = 24
-End
-Definition dec_type_num_def:
-  dec_type_num    = 25
-End
 
 (* The result of evaluation *)
 Datatype:
@@ -187,10 +126,6 @@ End
 
 (* The nth item in the list is the value at location n *)
 Type store = “:('a store_v) list”
-
-Definition empty_store_def:
-  empty_store = []:α store_v list
-End
 
 Definition store_lookup_def:
   store_lookup l (st:('a store_v) list) =
@@ -492,11 +427,6 @@ Definition vs_to_string_def:
   vs_to_string (_::v1) = NONE
 End
 
-Definition maybe_to_v_def:
-  maybe_to_v NONE = Conv (SOME (TypeStamp «None» option_type_num)) [] ∧
-  maybe_to_v (SOME v) = Conv (SOME (TypeStamp «Some» option_type_num)) [v]
-End
-
 Definition nat_to_v_def:
   nat_to_v n = Litv (IntLit (&n))
 End
@@ -747,9 +677,6 @@ Datatype:
 End
 
 Type store_ffi = “: 'v store # 'ffi ffi_state”
-
-Overload w64lit[local] = “λw. Litv (Word64 w)”
-Overload f64lit[local] = “λw. Litv (Float64 w)”
 
 Definition xor_bytes_def:
   xor_bytes [] bs2 = SOME (bs2:word8 list) ∧

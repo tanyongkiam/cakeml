@@ -104,12 +104,6 @@ Definition nsDom_def:
      {n | (v,n) | v ∈ 𝕌(:φ) ∧ n ∈ 𝕌(:(ν, ξ) id) ∧ nsLookup env n = SOME v}
 End
 
-Definition nsDomMod_def:
-  nsDomMod (env:('m,'n,'v)namespace) =
-     {n | (v,n) | v ∈ 𝕌(:(ν, ξ, φ) namespace) ∧ n ∈ 𝕌(:ν list) ∧
-                  nsLookupMod env n = SOME v}
-End
-
 Definition nsMap_def:
   nsMap (f:'v -> 'w) ((Bind v m):('m,'n,'v)namespace) =
     Bind (MAP (λ(n,x). (n,f x)) v) (MAP (λ(mn,e). (mn,nsMap f e)) m)

@@ -46,11 +46,6 @@ Proof
   Induct \\ fs [listTheory.list_size_def,listTheory.list_size_append]
 QED
 
-Definition sing_env_def:
-  sing_env n v =
-    <| v := nsBind n v nsEmpty; c := nsEmpty |> : v sem_env
-End
-
 Definition evaluate_def[nocompute]:
   evaluate st env [] = ((st:'ffi state),Rval [])
   ∧

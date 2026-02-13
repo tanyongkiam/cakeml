@@ -7,7 +7,6 @@ Ancestors
 Libs
   preamble boolSimps
 
-
 Theorem with_same_v[simp]:
    (env:'v sem_env) with v := env.v = env
 Proof
@@ -174,10 +173,6 @@ Definition store_v_vs_def[simp]:
   store_v_vs (Thunk _ v) = [v]
 End
 
-Definition store_vs_def:
-  store_vs s = FLAT (MAP store_v_vs s)
-End
-
 Definition ctors_of_tdef_def[simp]:
   ctors_of_tdef (_,_,condefs) = MAP FST condefs
 End
@@ -208,8 +203,6 @@ Definition FV_def[simp]:
   (FV_defs ((_,x,e)::defs) =
      (FV e DIFF {Short x}) ∪ FV_defs defs)
 End
-
-Overload SFV = ``λe. {x | Short x ∈ FV e}``
 
 Theorem FV_pes_MAP:
    FV_pes pes = BIGUNION (IMAGE (λ(p,e). FV e DIFF (IMAGE Short (set (pat_bindings p [])))) (set pes))

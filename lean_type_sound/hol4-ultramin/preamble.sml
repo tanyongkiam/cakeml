@@ -14,7 +14,6 @@ open ASCIInumbersTheory BasicProvers Defn HolKernel Parse SatisfySimps Tactic
      pairTheory pred_setTheory quantHeuristicsLib relationTheory res_quanTheory
      rich_listTheory sortingTheory sptreeTheory stringTheory sumTheory
      wordsTheory;
-(*Temporary workaround for cache being slow on long files*)
 fun clear_cache_prover gtac  =
  let
    val _ = List.app Cache.clear_cache [numSimps.arith_cache, intSimps.omega_cache,
@@ -27,7 +26,6 @@ fun clear_cache_prover gtac  =
  end
 val _ = Tactical.set_prover clear_cache_prover;
 
-(* TOOD: move? *)
 val wf_rel_tac = WF_REL_TAC
 val induct_on = Induct_on
 val cases_on = Cases_on;
@@ -43,3 +41,4 @@ val _ = set_trace"Goalstack.print_goal_at_top"0 handle HOL_ERR _ => set_trace"go
 val rveq = rpt BasicProvers.VAR_EQ_TAC
 
 end
+

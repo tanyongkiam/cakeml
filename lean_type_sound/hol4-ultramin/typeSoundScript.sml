@@ -8,7 +8,6 @@ Ancestors
   ast typeSystem semanticPrimitives fpSem evaluate namespaceProps
   semanticPrimitivesProps evaluateProps weakening
   typeSysProps typeSoundInvariants semantics_min
-  primSemEnv[qualified]
 
 val _ = temp_delsimps ["NORMEQ_CONV"]
 
@@ -1288,7 +1287,6 @@ Proof
  >- metis_tac [nsLookup_add_tenvE3]
 QED
 
-(* TODO: Move *)
 Theorem EVERY_REPLICATE:
   EVERY (\x. type_v tvs ctMap tenv x t') vs =
   EVERY (\x. type_v tvs ctMap tenv (FST x) (SND x)) (ZIP (vs, REPLICATE (LENGTH vs) t'))

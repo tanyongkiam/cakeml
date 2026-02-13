@@ -22,7 +22,6 @@ Datatype:
   | Tapp (t list) type_ident
 End
 
-
 (* Some abbreviations *)
 Definition Tarray_num_def:
  ((Tarray_num:num) : type_ident= (( 0 : num)))
@@ -233,14 +232,10 @@ Datatype:
   | Bind_name varN num t tenv_val_exp
 End
 
-
-(*val bind_tvar : nat -> tenv_val_exp -> tenv_val_exp*)
 Definition bind_tvar_def:
  ((bind_tvar:num -> tenv_val_exp -> tenv_val_exp) tvs tenvE=  (if tvs =( 0 : num) then tenvE else Bind_tvar tvs tenvE))
 End
 
-
-(*val opt_bind_name : maybe varN -> nat -> t -> tenv_val_exp -> tenv_val_exp*)
 Definition opt_bind_name_def:
  ((opt_bind_name:(mlstring)option -> num -> t -> tenv_val_exp -> tenv_val_exp) n tvs t tenvE=
    ((case n of
@@ -249,8 +244,6 @@ Definition opt_bind_name_def:
   )))
 End
 
-
-(*val tveLookup : varN -> nat -> tenv_val_exp -> maybe (nat * t)*)
 Definition tveLookup_def:
 ((tveLookup:mlstring -> num -> tenv_val_exp ->(num#t)option) n inc Empty=  NONE)
 /\
@@ -262,7 +255,6 @@ Definition tveLookup_def:
   else
     tveLookup n inc tenvE))
 End
-
 
 Type tenv_abbrev = ``: (modN, typeN, ( tvarN list # t)) namespace``
 Type tenv_ctor = ``: (modN, conN, ( tvarN list # t list # type_ident)) namespace``
@@ -276,8 +268,6 @@ Datatype:
    |>
 End
 
-
-(*val extend_dec_tenv : type_env -> type_env -> type_env*)
 Definition extend_dec_tenv_def:
  ((extend_dec_tenv:type_env -> type_env -> type_env) tenv' tenv=
    (<| v := (nsAppend tenv'.v tenv.v);
@@ -285,8 +275,6 @@ Definition extend_dec_tenv_def:
      t := (nsAppend tenv'.t tenv.t) |>))
 End
 
-
-(*val lookup_varE : id modN varN -> tenv_val_exp -> maybe (nat * t)*)
 Definition lookup_varE_def:
  ((lookup_varE:((mlstring),(mlstring))id -> tenv_val_exp ->(num#t)option) id tenvE=
    ((case id of
@@ -295,8 +283,6 @@ Definition lookup_varE_def:
   )))
 End
 
-
-(*val lookup_var : id modN varN -> tenv_val_exp -> type_env -> maybe (nat * t)*)
 Definition lookup_var_def:
  ((lookup_var:((modN),(varN))id -> tenv_val_exp -> type_env ->(num#t)option) id tenvE tenv=
    ((case lookup_varE id tenvE of
@@ -305,8 +291,6 @@ Definition lookup_var_def:
   )))
 End
 
-
-(*val num_tvs : tenv_val_exp -> nat*)
 Definition num_tvs_def:
 ((num_tvs:tenv_val_exp -> num) Empty= (( 0 : num)))
 /\
@@ -315,8 +299,6 @@ Definition num_tvs_def:
 ((num_tvs:tenv_val_exp -> num) (Bind_name n tvs t tenvE)=  (num_tvs tenvE))
 End
 
-
-(*val bind_var_list : nat -> list (varN * t) -> tenv_val_exp -> tenv_val_exp*)
 Definition bind_var_list_def:
 ((bind_var_list:num ->(mlstring#t)list -> tenv_val_exp -> tenv_val_exp) tvs [] tenvE=  tenvE)
 /\
@@ -324,22 +306,17 @@ Definition bind_var_list_def:
  (Bind_name n tvs t (bind_var_list tvs binds tenvE)))
 End
 
-
 (* A pattern matches values of a certain type and extends the type environment
  * with the pattern's binders. The number is the maximum deBruijn type variable
  * allowed. *)
-(*val type_p : nat -> type_env -> pat -> t -> list (varN * t) -> bool*)
 
 (* An expression has a type *)
-(*val type_e : type_env -> tenv_val_exp -> exp -> t -> bool*)
 
 (* A list of expressions has a list of types *)
-(*val type_es : type_env -> tenv_val_exp -> list exp -> list t -> bool*)
 
 (* Type a mutually recursive bundle of functions.  Unlike pattern typing, the
  * resulting environment does not extend the input environment, but just
  * represents the functions *)
-(*val type_funs : type_env -> tenv_val_exp -> list (varN * varN * exp) -> list (varN * t) -> bool*)
 
 (* Check a declaration and update the top-level environments
  * The arguments are in order:
@@ -399,7 +376,6 @@ Definition supported_conversion_def[simp]:
 End
 
 (* Check that the operator can have type (t1 -> ... -> tn -> t) *)
-(*val type_op : op -> list t -> t -> bool*)
 Definition type_op_def:
  (type_op:op -> t list -> t -> bool) op ts t=
    case (op,ts) of
@@ -485,7 +461,6 @@ End
  * constructors, and that the free type variables of each constructor argument
  * type are included in the type's type parameters. Also check that all of the
  * types mentioned are in scope. *)
-(*val check_ctor_tenv : tenv_abbrev -> list (list tvarN * typeN * list (conN * list ast_t)) -> bool*)
 Definition check_ctor_tenv_def:
  ((check_ctor_tenv:((modN),(typeN),((tvarN)list#t))namespace ->((tvarN)list#mlstring#(conN#(ast_t)list)list)list -> bool) tenvT []=  T)
 /\ ((check_ctor_tenv:((modN),(typeN),((tvarN)list#t))namespace ->((tvarN)list#mlstring#(conN#(ast_t)list)list)list -> bool) tenvT ((tvs,tn,ctors)::tds)=
@@ -499,8 +474,6 @@ Definition check_ctor_tenv_def:
   check_ctor_tenv tenvT tds))
 End
 
-
-(*val build_ctor_tenv : tenv_abbrev -> list (list tvarN * typeN * list (conN * list ast_t)) -> list nat -> tenv_ctor*)
 Definition build_ctor_tenv_def:
  (build_ctor_tenv tenvT [] []=  (alist_to_ns []))
 /\ (build_ctor_tenv tenvT ((tvs,tn,ctors)::tds) (id::ids)=
@@ -513,7 +486,6 @@ Definition build_ctor_tenv_def:
           ctors)))))
 /\ (build_ctor_tenv tenvT _ _=  (alist_to_ns []))
 End
-
 
 (* For the value restriction on let-based polymorphism *)
 Definition is_value_def:
@@ -647,7 +619,6 @@ type_e tenv tenvE e Texn)
 ==>
 type_e tenv tenvE (Raise e) t)
 
-
 /\ (! tenv tenvE e pes t.
 (type_e tenv tenvE e t /\ ~ (pes = []) /\
 (! ((p,e) :: LIST_TO_SET pes). ? bindings.
@@ -771,14 +742,11 @@ type_funs tenv tenvE funs bindings /\
 type_funs tenv tenvE ((fn, n, e)::funs) ((fn, Tfn t1 t2)::bindings))
 End
 
-(*val tenv_add_tvs : nat -> alist varN t -> alist varN (nat * t)*)
 Definition tenv_add_tvs_def:
  ((tenv_add_tvs:num ->(mlstring#t)list ->(mlstring#(num#t))list) tvs bindings=
    (MAP (\ (n,t) .  (n,(tvs,t))) bindings))
 End
 
-
-(*val type_pe_determ : type_env -> tenv_val_exp -> pat -> exp -> bool*)
 Definition type_pe_determ_def:
  ((type_pe_determ:type_env -> tenv_val_exp -> pat -> exp -> bool) tenv tenvE p e=
    (! t1 tenv1 t2 tenv2.
@@ -788,8 +756,6 @@ Definition type_pe_determ_def:
     (tenv1 = tenv2)))
 End
 
-
-(*val tscheme_inst : (nat * t) -> (nat * t) -> bool*)
 Definition tscheme_inst_def:
  ((tscheme_inst:num#t -> num#t -> bool) (tvs_spec, t_spec) (tvs_impl, t_impl)=
    (? subst.
@@ -799,12 +765,10 @@ Definition tscheme_inst_def:
     (deBruijn_subst(( 0 : num)) subst t_impl = t_spec)))
 End
 
-
 Definition tenvLift_def:
  ((tenvLift:mlstring -> type_env -> type_env) mn tenv=
    (<| v := (nsLift mn tenv.v); c := (nsLift mn tenv.c); t := (nsLift mn tenv.t)  |>))
 End
-
 
 Inductive type_d:
 (! extra_checks tvs tenv p e t bindings locs.
@@ -890,7 +854,6 @@ type_ds extra_checks (extend_dec_tenv tenv1 tenv) ds decls2 tenv2 /\
 DISJOINT decls1 decls2)
 ==>
 type_d extra_checks tenv (Dlocal lds ds) (decls1 UNION decls2) tenv2)
-
 
 /\ (! extra_checks tenv.
 T
@@ -1007,8 +970,6 @@ Definition tscheme_inst2_def:
  ((tscheme_inst2:'a -> num#t -> num#t -> bool) _ ts1 ts2=  (tscheme_inst ts1 ts2))
 End
 
-
-(*val weak_tenv : type_env -> type_env -> bool*)
 Definition weak_tenv_def:
  ((weak_tenv:type_env -> type_env -> bool) tenv_impl tenv_spec=
    (nsSub tscheme_inst2 tenv_spec.v tenv_impl.v /\
@@ -1071,3 +1032,4 @@ type_prog extra_checks (union_decls decls1 decls) (extend_dec_tenv tenv1 tenv) t
 type_prog extra_checks decls tenv (top :: tops)
   (union_decls decls2 decls1) (extend_dec_tenv tenv2 tenv1)
   *)
+

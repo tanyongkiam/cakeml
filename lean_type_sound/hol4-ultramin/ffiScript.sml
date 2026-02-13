@@ -51,11 +51,6 @@ Datatype:
    |>
 End
 
-Definition initial_ffi_state_def:
-  initial_ffi_state oc (ffi:'ffi) =
-    <| oracle := oc; ffi_state := ffi; io_events := [] |>
-End
-
 Datatype:
   ffi_result = FFI_return ('ffi ffi_state) (word8 list)
              | FFI_final final_event
@@ -104,12 +99,3 @@ End
 (* trace-based semantics can be recovered as an instance of oracle-based
  * semantics as follows. *)
 
-Definition trace_oracle_def:
-  trace_oracle s io_trace conf input =
-    case LHD io_trace of
-    | NONE => Oracle_final FFI_failed
-    | SOME (IO_event s' conf' bytes2) =>
-      if s = s' ∧ MAP FST bytes2 = input ∧ conf = conf' then
-        Oracle_return (THE (LTL io_trace)) (MAP SND bytes2)
-      else Oracle_final FFI_failed
-End

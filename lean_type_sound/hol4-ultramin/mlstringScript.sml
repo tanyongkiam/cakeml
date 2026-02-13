@@ -10,9 +10,6 @@ Ancestors
 Libs
   preamble
 
-val cpn_distinct = TypeBase.distinct_of ``:ordering``
-val cpn_nchotomy = TypeBase.nchotomy_of ``:ordering``
-
 (* Defines strings as a separate type from char list. This theory should be
    moved into HOL, either as its own theory, or as an addendum to stringTheory *)
 
@@ -35,11 +32,6 @@ End
 
 (* the test here is because underspecification is annoying (and SEG is underspecified) *)
 (* the underlying primitive (CopyStrStr) raises an exception if the test is false *)
-Definition substring_def:
-  substring (strlit s) off len = strlit (if off + len ≤ LENGTH s then SEG len off s
-                                         else if off <= LENGTH s then DROP off s
-                                         else "")
-End
 
 Definition concat_def:
   concat l = strlit (FLAT (MAP (λs. case s of strlit x => x) l))
@@ -89,82 +81,14 @@ Proof
   Cases >> Cases >> simp[]
 QED
 
-Theorem explode_BIJ:
-   BIJ explode UNIV UNIV
-Proof
-  rw[BIJ_IFF_INV] >>
-  qexists_tac`implode` >>
-  rw[implode_explode,
-     explode_implode]
-QED
-
-Definition extract_def:
-  extract s i opt =
-    if strlen s <= i
-      then implode []
-    else case opt of
-        SOME x => substring s i (MIN (strlen s - i) x)
-      | NONE => substring s i (strlen s - i)
-End
-
 Definition strcat_def:
   strcat s1 s2 = concat [s1; s2]
 End
 val _ = Parse.add_infix("^",480,Parse.LEFT)
 Overload "^" = ``λx y. strcat x y``
 
-Theorem concat_cons:
-   concat (h::t) = strcat h (concat t)
-Proof
-  rw[strcat_def,concat_def]
-QED
-
-Theorem strcat_thm:
-   strcat s1 s2 = implode (explode s1 ++ explode s2)
-Proof
-  rw[strcat_def,concat_def]
-  \\ CASE_TAC \\ rw[] \\ CASE_TAC \\ rw[implode_def]
-QED
-
-Definition concatWith_aux_def:
-  (concatWith_aux s [] bool = implode []) /\
-  (concatWith_aux s (h::t) T = strcat h (concatWith_aux s t F)) /\
-  (concatWith_aux s (h::t) F = strcat s (concatWith_aux s (h::t) T))
-Termination
-  wf_rel_tac `inv_image ($< LEX $<) (\(s,l,b). (LENGTH l, if b then 0n else 1))` \\
-  rw[]
-End
-
-Definition concatWith_def:
-  concatWith s l = concatWith_aux s l T
-End
-
 Definition str_def:
   str (c: char) = implode [c]
-End
-
-Definition translate_aux_def:
-  (translate_aux f s n 0 = []) /\
-  (translate_aux f s n (SUC len) = f (strsub s n)::translate_aux f s (n + 1) len)
-End
-
-Definition translate_def:
-  translate f s = implode (translate_aux f s 0 (strlen s))
-End
-
-Definition splitl_aux_def:
-  splitl_aux P s i =
-    if i < strlen s ∧ P (strsub s i) then
-        splitl_aux P s (i+1)
-    else (extract s 0 (SOME i), extract s i NONE)
-Termination
-  WF_REL_TAC`inv_image $< (λ(x,s,i). strlen s - i)`
-End
-
-val splitl_aux_ind = theorem"splitl_aux_ind";
-
-Definition splitl_def:
-  splitl P s = splitl_aux P s 0
 End
 
 Definition tokens_aux_def:
@@ -252,7 +176,6 @@ QED
   ... >> NO_TAC)
 *)
 
-
 Theorem TOKENS_eq_tokens:
    !P ls.(MAP explode (tokens P ls) = TOKENS P (explode ls))
 Proof
@@ -273,20 +196,6 @@ Theorem TOKENS_eq_tokens_sym =
         |> Q.AP_TERM`MAP implode`
         |> SIMP_RULE(srw_ss())[MAP_MAP_o,implode_explode,o_DEF]
 
-Definition fields_aux_def:
-  (fields_aux f s ss n 0 = [implode (REVERSE ss)]) /\
-  (fields_aux f s ss n (SUC len) =
-    if f (strsub s n)
-      then implode (REVERSE ss)::(fields_aux f s [] (n + 1) len)
-    else fields_aux f s (strsub s n::ss) (n + 1) len)
-End
-
-
-
-Definition fields_def:
-  fields f s = fields_aux f s [] 0 (strlen s)
-End
-
 Definition isStringThere_aux_def:
   (isStringThere_aux s1 s2 s1i s2i 0 = T) /\
   (isStringThere_aux s1 s2 s1i s2i (SUC len) =
@@ -294,7 +203,6 @@ Definition isStringThere_aux_def:
       then isStringThere_aux s1 s2 (s1i + 1) (s2i + 1) len
     else F)
 End
-
 
 (*
 
@@ -307,20 +215,6 @@ val isStringThere_thm = Q.prove (
   Cases_on `len` \\ rw [SEG] \\ `s2i < STRLEN s'` by DECIDE_TAC \\
 );
 *)
-
-Definition isPrefix_def:
-  isPrefix s1 s2 =
-    if strlen s1 <= strlen s2
-      then isStringThere_aux s1 s2 0 0 (strlen s1)
-    else F
-End
-
-Definition isSuffix_def:
-  isSuffix s1 s2 =
-    if strlen s1 <= strlen s2
-      then isStringThere_aux s1 s2 0 (strlen s2 - strlen s1) (strlen s1)
-    else F
-End
 
 Definition isSubstring_aux_def:
   (isSubstring_aux s1 s2 lens1 n 0 = F) /\
@@ -382,98 +276,6 @@ Overload ">=" = ``λx y. mlstring_ge x y``
 
 (* Properties of string orderings *)
 
-val flip_ord_def = ternaryComparisonsTheory.invert_comparison_def
-Overload flip_ord = ``invert_comparison``
-
-Theorem compare_aux_spec[local]:
-  !s1 s2 ord_in start len.
-    len + start ≤ strlen s1 ∧ len + start ≤ strlen s2 ⇒
-    (compare_aux s1 s2 ord_in start len =
-      if TAKE len (DROP start (explode s1)) = TAKE len (DROP start (explode s2)) then
-        ord_in
-      else if string_lt (TAKE len (DROP start (explode s1))) (TAKE len (DROP start (explode s2))) then
-        LESS
-      else
-        GREATER)
-Proof
-  Induct_on `len` >>
-  rw [] >>
-  ONCE_REWRITE_TAC [compare_aux_def] >>
-  simp [] >>
-  Cases_on `s1` >>
-  Cases_on `s2` >>
-  fs [] >>
-  full_simp_tac (srw_ss()) [TAKE_SUM, DECIDE ``!n. SUC n = 1 + n``] >>
-  fs [TAKE1_DROP, DROP_DROP_T, char_lt_def] >>
-  fs [string_lt_def] >>
-  simp [] >>
-  rw [] >>
-  fs [char_lt_def, CHAR_EQ_THM]
-QED
-
-Theorem string_lt_take_mono[local]:
-  !s1 s2 x.
-    s1 < s2 ⇒ TAKE x s1 < TAKE x s2 ∨ (TAKE x s1 = TAKE x s2)
-Proof
-  ho_match_mp_tac string_lt_ind >>
-  rw [string_lt_def] >>
-  Cases_on `x` >>
-  fs [string_lt_def] >>
-  metis_tac []
-QED
-
-Theorem string_lt_remove_take[local]:
-  !s1 s2 x. TAKE x s1 < TAKE x s2 ⇒ s1 < s2
-Proof
-  ho_match_mp_tac string_lt_ind >>
-  rw [string_lt_def] >>
-  Cases_on `x` >>
-  fs [string_lt_def] >>
-  metis_tac []
-QED
-
-Theorem string_prefix_le[local]:
-  !s1 s2. s1 ≼ s2 ⇒ s1 ≤ s2
-Proof
-  ho_match_mp_tac string_lt_ind >>
-  rw [string_lt_def, string_le_def, isPREFIX_STRCAT] >>
-  Cases_on `s3` >>
-  fs []
-QED
-
-Theorem take_prefix[local]:
-  !l s. TAKE l s ≼ s
-Proof
-  Induct_on `s` >>
-  rw [] >>
-  Cases_on `l` >>
-  fs []
-QED
-
-Theorem mlstring_lt_inv_image:
-   mlstring_lt = inv_image string_lt explode
-Proof
-  simp [inv_image_def, FUN_EQ_THM] >>
-  Cases >>
-  Cases >>
-  simp [mlstring_lt_def, compare_def, compare_aux_spec] >>
-  qmatch_goalsub_abbrev_tac ‘if x < x' then _ else _’ >>
-  rw []
-  >- (
-    `TAKE x s' ≤ s'` by metis_tac [take_prefix, string_prefix_le] >>
-    fs [string_le_def] >>
-    `x ≠ x'` by decide_tac >>
-    unabbrev_all_tac >> fs [])
-  >- metis_tac [string_lt_remove_take, TAKE_LENGTH_ID]
-  >- metis_tac [string_lt_take_mono, TAKE_LENGTH_ID]
-  >- metis_tac [take_prefix, string_prefix_le, LENGTH_TAKE, LESS_OR_EQ, string_lt_antisym, string_le_def]
-  >- metis_tac [string_lt_remove_take, TAKE_LENGTH_ID]
-  >- metis_tac [string_lt_take_mono, TAKE_LENGTH_ID]
-  >- metis_tac [take_prefix, string_prefix_le, string_lt_antisym, string_le_def]
-  >- metis_tac [string_lt_remove_take, TAKE_LENGTH_ID]
-  >- metis_tac [string_lt_take_mono, TAKE_LENGTH_ID]
-QED
-
 Definition collate_aux_def:
   (collate_aux f (s1: mlstring) s2 ord n 0 = ord) /\
   (collate_aux f s1 s2 ord n (SUC len) =
@@ -491,77 +293,12 @@ Definition collate_def:
   else collate_aux f s1 s2 EQUAL 0 (strlen s2)
 End
 
-Definition char_escape_seq_def:
-  char_escape_seq c =
-    if c = #"\t"
-    then SOME (strlit "\\t")
-    else if c = #"\n"
-    then SOME (strlit "\\n")
-    else if c = #"\\"
-    then SOME (strlit "\\\\")
-    else if c = #"\""
-    then SOME (strlit "\\\"")
-    else NONE
-End
-
-Definition char_escaped_def:
-  char_escaped c = case char_escape_seq c of
-    NONE => [c]
-  | SOME s => explode s
-End
-
-Definition escape_str_def:
-  escape_str s = implode ("\"" ++ FLAT (MAP char_escaped (explode s)) ++ "\"")
-End
-
-Definition escape_char_def:
-  escape_char c = implode ("#\"" ++ char_escaped c ++ "\"")
-End
-
 (* optimising mlstring app_list *)
 
 Datatype:
   app_list_ann = BigList ('a list)
                | BigAppend app_list_ann app_list_ann
                | Small ('a app_list)
-End
-
-Definition sum_sizes_def:
-  sum_sizes [] k = k ∧
-  sum_sizes (l::ls) k = sum_sizes ls (strlen l + k)
-End
-
-Overload size_limit[local] = “2048:num”
-
-Definition make_app_list_ann_def:
-  make_app_list_ann input =
-    case input of
-    | Nil => (Small input, 0)
-    | Append l1 l2 =>
-        (let (x1,n1) = make_app_list_ann l1 in
-         let (x2,n2) = make_app_list_ann l2 in
-         let n = n1+n2 in
-           if n < size_limit then
-             (Small input,n)
-           else
-             (BigAppend x1 x2,n))
-    | List ls =>
-        (let n = sum_sizes ls 0 in
-           if n < size_limit then
-             (Small input,n)
-           else (BigList ls,n))
-End
-
-Definition shrink_def:
-  shrink (Small t) = List [concat (append t)] ∧
-  shrink (BigList ls) = List ls ∧
-  shrink (BigAppend l1 l2) = Append (shrink l1) (shrink l2)
-End
-
-Definition str_app_list_opt_def:
-  str_app_list_opt l =
-    let (t,n) = make_app_list_ann l in
-      shrink t
 End
 
 Definition char_to_word8_def[simp]:

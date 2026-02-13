@@ -8,7 +8,6 @@ Ancestors
 Libs
   preamble
 
-
 val _ = temp_delsimps ["lift_disj_eq", "lift_imp_disj"]
 
 val find_recfun_def = semanticPrimitivesTheory.find_recfun_def;
@@ -35,8 +34,6 @@ val _ = export_rewrites [
   "typeSystem.Tword8_def",
   "typeSystem.Tword8array_def",
   "typeSystem.Tdouble_def"]
-
-(* ----------- Basic stuff ----------- *)
 
 Theorem unchanged_tenv[simp]:
   !(tenv : type_env).
@@ -112,8 +109,6 @@ Definition type_pes_def:
         type_e tenv (bind_var_list tvs' bindings tenvE) e t2)
 End
 
-(* ---------- check_freevars ---------- *)
-
 Theorem check_freevars_add:
  (!tvs tvs' t. check_freevars tvs tvs' t ⇒
   !tvs''. tvs'' ≥ tvs ⇒ check_freevars tvs'' tvs' t)
@@ -123,8 +118,6 @@ srw_tac[][check_freevars_def] >-
 metis_tac [MEM_EL, EVERY_MEM] >>
 decide_tac
 QED
-
-(* ---------- type_subst ---------- *)
 
 Theorem check_freevars_subst_single:
  !dbmax tvs t tvs' ts.
@@ -148,8 +141,6 @@ Proof
          metis_tac []))
  >- full_simp_tac(srw_ss())[EVERY_MEM]
 QED
-
-(* ---------- deBruijn_inc ---------- *)
 
 Theorem deBruijn_inc0:
  (!t sk. deBruijn_inc sk 0 t = t) ∧
@@ -252,8 +243,6 @@ decide_tac >-
      metis_tac []) >>
 metis_tac []
 QED
-
-(* ---------- deBruijn_subst ---------- *)
 
 Theorem deBruijn_subst_check_freevars:
  !tvs tvs' t ts n.
@@ -506,8 +495,6 @@ full_simp_tac(srw_ss())[EVERY_MEM, MEM_EL] >>
 metis_tac []
 QED
 
-(* ---------- tenv_abbrev stuff ---------- *)
-
 Theorem tenv_abbrev_ok_lookup:
  !tenvT tn tvs t.
   tenv_abbrev_ok tenvT ∧
@@ -541,8 +528,6 @@ Proof
  metis_tac [check_freevars_add, numeralTheory.numeral_distrib]
 QED
 
-(* ---------- tenv_ctor stuff ----------*)
-
 Theorem tenv_ctor_ok_merge[simp]:
    !tenvC1 tenvC2.
     tenv_ctor_ok tenvC1 ∧ tenv_ctor_ok tenvC2
@@ -565,8 +550,6 @@ Proof
  >> disch_then drule
  >> simp []
 QED
-
-(* ---------- tenv_val_exp stuff ---------- *)
 
 Definition deBruijn_subst_tenvE_def:
 (deBruijn_subst_tenvE targs Empty = Empty) ∧
@@ -815,8 +798,6 @@ Proof
  >> rw [db_merge_def, tveLookup_def]
 QED
 
-(* ---------- type_op ---------- *)
-
 val op_thms = { nchotomy = op_nchotomy, case_def = op_case_def };
 val list_thms = { nchotomy = list_nchotomy, case_def = list_case_def };
 val t_thms = { nchotomy = t_nchotomy, case_def = t_case_def };
@@ -832,8 +813,6 @@ Theorem type_op_cases =
   |> (SIMP_CONV(srw_ss())(type_op_def::eqs@elims) THENC
       SIMP_CONV (bool_ss++DNF_ss) [
         PULL_EXISTS])
-
-(* ---------- type_p ---------- *)
 
 Theorem type_ps_length:
  ∀tvs tenvC ps ts tenv.
@@ -938,8 +917,6 @@ Proof
  simp [] >>
  metis_tac []
 QED
-
-(* ---------- type_e, type_es, type_funs ---------- *)
 
 Theorem type_es_list_rel:
  !es ts tenv tenvE. type_es tenv tenvE es ts = LIST_REL (type_e tenv tenvE) es ts
@@ -1518,13 +1495,9 @@ Proof
  >> simp [db_merge_def, deBruijn_subst_tenvE_def, deBruijn_inc0]
 QED
 
-
  (*
 (* ---------- tid_exn_to_tc ---------- *)
  *)
-
-(* ---------- ctMap stuff ---------- *)
-
 
 Definition type_def_to_ctMap_def:
   (type_def_to_ctMap tenvT next_stamp [] [] = []) ∧
@@ -1721,19 +1694,14 @@ Proof
     fs [])
 QED
 
-
  (*
  *)
 
  (*
  *)
-
-(* ---------- consistent_decls ---------- *)
 
 (*
  *)
-
-(* ---------- type_v  ---------- *)
 
 Theorem nsLookup_add_tenvE1:
    !tenvE tenvV n tvs t tvs2.
@@ -1965,8 +1933,6 @@ QED
 (* --------- decls_ok ------------ *)
  *)
 
-(* ---------- type_d ---------- *)
-
 Theorem type_d_check_uniq:
  (!check tenv d tdecs new_tenv.
   type_d check tenv d tdecs new_tenv
@@ -2116,8 +2082,6 @@ Proof
 QED
  *)
 
-(* ---------- type_ds ---------- *)
-
 Theorem type_ds_empty[simp]:
   !check tenv decls r.
   type_ds check tenv [] decls r ⇔
@@ -2164,8 +2128,6 @@ QED
  (*
  *)
 
-(* ---------- type_specs ---------- *)
-
 (*
 
 Theorem type_specs_no_mod:
@@ -2180,7 +2142,6 @@ Proof
 QED
    *)
 
-(* ---------------- type_top, type_prog ---------- *)
 (*
 
 Theorem type_prog_empty[simp]:
