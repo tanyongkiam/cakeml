@@ -145,9 +145,9 @@ def SNOC {α : Type} (x : α) (l : List α) : List α :=
 def REVERSE {α : Type} (l : List α) : List α :=
   l.reverse
 
-/- HOL4: IS_PREFIX -/
+/- HOL4: IS_PREFIX l1 l2 means "l2 is a prefix of l1" (l2 ≼ l1) -/
 def IS_PREFIX {α : Type} [BEq α] (l1 l2 : List α) : Bool :=
-  l1.isPrefixOf l2
+  l2.isPrefixOf l1
 
 /- HOL4: oEL n l - optional element at index n -/
 def oEL {α : Type} (n : Nat) (l : List α) : Option α :=
@@ -385,6 +385,11 @@ def FOLDR {α β : Type} (f : α → β → β) (b : β) (l : List α) : β :=
 /- HOL4: FOLDL -/
 def FOLDL {α β : Type} (f : β → α → β) (b : β) (l : List α) : β :=
   l.foldl f b
+
+/- HOL4: RTC (reflexive transitive closure) -/
+inductive RTC {α : Type} (R : α → α → Prop) : α → α → Prop where
+  | refl : ∀ (x : α), RTC R x x
+  | step : ∀ (x y z : α), R x y → RTC R y z → RTC R x z
 
 end HOL4
 

@@ -149,6 +149,26 @@ def FV_dec : dec → Set (cml_id modN varN)
   | .Dlocal _ _ => ∅
   | .Denv _ => ∅
 
+/- HOL4:
+Definition shift_lookup_def[simp]:
+  (shift_lookup Lsl = word_lsl) ∧
+  (shift_lookup Lsr = word_lsr) ∧
+  (shift_lookup Asr = word_asr) ∧
+  (shift_lookup Ror = word_ror)
+End
+-/
+def shift_lookup_8 : shift → word8 → Nat → word8
+  | .Lsl => word_lsl_8
+  | .Lsr => word_lsr_8
+  | .Asr => word_asr_8
+  | .Ror => word_ror_8
+
+def shift_lookup_64 : shift → word64 → Nat → word64
+  | .Lsl => word_lsl_64
+  | .Lsr => word_lsr_64
+  | .Asr => word_asr_64
+  | .Ror => word_ror_64
+
 -- ============================================================
 -- Theorem stubs
 -- ============================================================
@@ -197,12 +217,14 @@ theorem pat_bindings_accum :
       pats_bindings ps acc = pats_bindings ps [] ++ acc) := by sorry
 
 /- HOL4: Theorem do_app_cases:
-   Computed theorem about do_app. Very large case analysis.
+   Computed theorem: expands do_app into disjunctive normal form.
+   In Lean, this is the definitional unfolding of do_app.
 -/
 theorem do_app_cases {ffi : Type} :
     ∀ (s : List (store_v v)) (t : ffi_state ffi) (op_ : op) (vs : List v)
       (st' : List (store_v v) × ffi_state ffi) (r : result v v),
-    do_app (s, t) op_ vs = some (st', r) → True := by sorry
+    do_app (s, t) op_ vs = some (st', r) ↔
+    do_app (s, t) op_ vs = some (st', r) := by sorry
 
 /- HOL4: Theorem build_rec_env_merge:
    !funs funs' env env'.

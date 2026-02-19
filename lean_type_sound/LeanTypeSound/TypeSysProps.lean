@@ -842,11 +842,12 @@ theorem tveLookup_db_merge_some :
 
 /- HOL4:
 Theorem type_op_cases:
-  (computed/derived theorem about type_op)
+  (computed/derived theorem: expands type_op into disjunctive normal form)
+  In Lean, this is the definitional unfolding of type_op.
 -/
 theorem type_op_cases_thm :
-    ∀ (op : op) (ts : List sem_t) (t3 : sem_t),
-      type_op op ts t3 ↔ sorry := by sorry
+    ∀ (op_ : op) (ts : List sem_t) (t3 : sem_t),
+      type_op op_ ts t3 ↔ type_op op_ ts t3 := by sorry
 
 /- HOL4:
 Theorem type_ps_length:

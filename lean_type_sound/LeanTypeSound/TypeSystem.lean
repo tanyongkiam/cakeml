@@ -309,7 +309,53 @@ def supported_conversion : prim_type → prim_type → Bool
 Definition type_op_def: ...
 End
 -/
-def type_op (o_ : op) (ts : List sem_t) (t : sem_t) : Prop := sorry
+def type_op (o_ : op) (ts : List sem_t) (t : sem_t) : Prop :=
+  match o_, ts with
+  | .Opapp, [t1, t2] => t1 = Tfn t2 t
+  | .Shift .W8 _ _, [t1] => t1 = Tword8 ∧ t = Tword8
+  | .Shift .W64 _ _, [t1] => t1 = Tword64 ∧ t = Tword64
+  | .Equality, [t1, t2] => t1 = t2 ∧ t = Tbool
+  | .Arith a ty, _ =>
+    (∀ arg, arg ∈ ts → arg = t_of ty) ∧ t = t_of ty ∧
+    supported_arith a ty = some ts.length
+  | .FromTo ty1 ty2, [t1] =>
+    t1 = t_of ty1 ∧ t = t_of ty2 ∧ supported_conversion ty1 ty2 = true
+  | .Test test ty, [t1, t2] =>
+    t1 = t2 ∧ t = Tbool ∧ t1 = t_of ty ∧ supported_test test ty = true
+  | .Opassign, [t1, t2] => t1 = Tref t2 ∧ t = Ttup []
+  | .Opref, [t1] => t = Tref t1
+  | .Opderef, [t1] => t1 = Tref t
+  | .Aw8alloc, [t1, t2] => t1 = Tint ∧ t2 = Tword8 ∧ t = Tword8array
+  | .Aw8sub, [t1, t2] => t1 = Tword8array ∧ t2 = Tint ∧ t = Tword8
+  | .Aw8length, [t1] => t1 = Tword8array ∧ t = Tint
+  | .Aw8update, [t1, t2, t3] =>
+    t1 = Tword8array ∧ t2 = Tint ∧ t3 = Tword8 ∧ t = Ttup []
+  | .CopyStrStr, [t1, t2, t3] =>
+    t1 = Tstring ∧ t2 = Tint ∧ t3 = Tint ∧ t = Tstring
+  | .CopyStrAw8, [t1, t2, t3, t4, t5] =>
+    t1 = Tstring ∧ t2 = Tint ∧ t3 = Tint ∧ t4 = Tword8array ∧ t5 = Tint ∧ t = Ttup []
+  | .CopyAw8Str, [t1, t2, t3] =>
+    t1 = Tword8array ∧ t2 = Tint ∧ t3 = Tint ∧ t = Tstring
+  | .CopyAw8Aw8, [t1, t2, t3, t4, t5] =>
+    t1 = Tword8array ∧ t2 = Tint ∧ t3 = Tint ∧ t4 = Tword8array ∧ t5 = Tint ∧ t = Ttup []
+  | .Implode, [t1] => t1 = Tlist Tchar ∧ t = Tstring
+  | .Explode, [t1] => t1 = Tstring ∧ t = Tlist Tchar
+  | .Strsub, [t1, t2] => t1 = Tstring ∧ t2 = Tint ∧ t = Tchar
+  | .Strlen, [t1] => t1 = Tstring ∧ t = Tint
+  | .Strcat, [t1] => t1 = Tlist Tstring ∧ t = Tstring
+  | .VfromList, [.Tapp [t1] ctor] => ctor = Tlist_num ∧ t = Tvector t1
+  | .Vsub, [t1, t2] => t2 = Tint ∧ Tvector t = t1
+  | .Vlength, [.Tapp [_] ctor] => ctor = Tvector_num ∧ t = Tint
+  | .Aalloc, [t1, t2] => t1 = Tint ∧ t = Tarray t2
+  | .AallocEmpty, [t1] => t1 = Ttup [] ∧ ∃ t2, t = Tarray t2
+  | .Asub, [t1, t2] => t2 = Tint ∧ Tarray t = t1
+  | .Alength, [.Tapp [_] ctor] => ctor = Tarray_num ∧ t = Tint
+  | .Aupdate, [t1, t2, t3] => t1 = Tarray t3 ∧ t2 = Tint ∧ t = Ttup []
+  | .ConfigGC, [t1, t2] => t1 = Tint ∧ t2 = Tint ∧ t = Ttup []
+  | .FFI _, [t1, t2] => t1 = Tstring ∧ t2 = Tword8array ∧ t = Ttup []
+  | .ListAppend, [.Tapp [t1] ctor, t2] =>
+    ctor = Tlist_num ∧ t2 = sem_t.Tapp [t1] ctor ∧ t = t2
+  | _, _ => False
 
 -- ============================================================
 -- Type name operations

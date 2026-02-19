@@ -43,7 +43,7 @@ Theorem fst_triple[local]:
   (\ (x,y,z). x) = FST
 -/
 theorem fst_triple {α β γ : Type} :
-    (fun (p : α × β × γ) => p.1) = (fun (p : α × β × γ) => p.1) := by sorry
+    (fun ((x, _, _) : α × β × γ) => x) = (fun (p : α × β × γ) => p.1) := by sorry
 
 /- HOL4:
 Theorem sing_list[local]:
@@ -359,7 +359,7 @@ Theorem remove_lambda_prod[local]:
 -/
 theorem remove_lambda_prod {α β γ : Type} :
     ∀ (P : α → β → γ),
-      (fun (p : α × β) => P p.1 p.2) = (fun (p : α × β) => P p.1 p.2) := by sorry
+      (fun ((x, y) : α × β) => P x y) = (fun (p : α × β) => P p.1 p.2) := by sorry
 
 /- HOL4:
 Theorem opapp_type_sound:
@@ -499,7 +499,7 @@ Theorem do_eq_Boolv:
 -/
 theorem do_eq_Boolv :
     ∀ (b b' : Bool),
-      do_eq (Boolv b) (Boolv b') = .Eq_val (b = b') := by sorry
+      do_eq (Boolv b) (Boolv b') = .Eq_val (b == b') := by sorry
 
 /- HOL4:
 Theorem prim_canonical_Boolv_thm:
