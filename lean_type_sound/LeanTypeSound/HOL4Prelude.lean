@@ -36,6 +36,9 @@ def sUnion {α : Type} (ss : Set (Set α)) : Set α := fun x => ∃ s, ss s ∧ 
 
 def Disjoint {α : Type} (s1 s2 : Set α) : Prop := ∀ x, ¬(s1 x ∧ s2 x)
 
+def subset {α : Type} (s1 s2 : Set α) : Prop := ∀ x, s1 x → s2 x
+instance {α : Type} : HasSubset (Set α) := ⟨subset⟩
+
 end Set
 
 -- Notation for set operations
