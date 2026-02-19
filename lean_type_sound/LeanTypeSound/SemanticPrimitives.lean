@@ -450,6 +450,147 @@ def shift64_lookup : shift → word64 → Nat → word64
   | .Asr => word_asr_64
   | .Ror => word_ror_64
 
+/- HOL4: Type store_ffi = ": 'v store # 'ffi ffi_state" -/
+abbrev store_ffi (α : Type) (ffi : Type) := store α × ffi_state ffi
+
+/- HOL4:
+Definition thunk_op_def:
+  thunk_op (s: v store_v list, t: 'ffi ffi_state) th_op vs =
+    case (th_op,vs) of
+    | (AllocThunk m, [v]) =>
+        (let (s',n) = store_alloc (Thunk m v) s in
+           SOME ((s',t), Rval (Loc F n)))
+    | (UpdateThunk m, [Loc _ lnum; v]) =>
+        (case store_assign lnum (Thunk m v) s of
+         | SOME s' => SOME ((s',t), Rval (Conv NONE []))
+         | NONE => NONE)
+    | _ => NONE
+End
+-/
+def thunk_op_fun {ffi : Type} (st : store v × ffi_state ffi) (th_op : thunk_op) (vs : List v) :
+    Option ((store v × ffi_state ffi) × result v v) :=
+  match th_op, vs with
+  | .AllocThunk m, [val_] =>
+    let (s', n) := store_alloc (.Thunk m val_) st.1
+    some ((s', st.2), .Rval (.Loc false n))
+  | .UpdateThunk m, [.Loc _ lnum, val_] =>
+    match store_assign lnum (.Thunk m val_) st.1 with
+    | some s' => some ((s', st.2), .Rval (.Conv none []))
+    | none => none
+  | _, _ => none
+
+/- HOL4:
+Definition check_type_def:
+  check_type BoolT v = (v = Boolv T ∨ v = Boolv F) ∧
+  check_type IntT v = (∃i. v = Litv (IntLit i)) ∧
+  check_type CharT v = (∃c. v = Litv (Char c)) ∧
+  check_type StrT v = (∃s. v = Litv (StrLit s)) ∧
+  check_type (WordT W8) v = (∃w. v = Litv (Word8 w)) ∧
+  check_type (WordT W64) v = (∃w. v = Litv (Word64 w)) ∧
+  check_type Float64T v = (∃w. v = Litv (Float64 w))
+End
+-/
+def check_type (ty : prim_type) (val_ : v) : Bool :=
+  match ty, val_ with
+  | .BoolT, val_ => val_ == Boolv true || val_ == Boolv false
+  | .IntT, .Litv (.IntLit _) => true
+  | .CharT, .Litv (.Char _) => true
+  | .StrT, .Litv (.StrLit _) => true
+  | .WordT .W8, .Litv (.Word8 _) => true
+  | .WordT .W64, .Litv (.Word64 _) => true
+  | .Float64T, .Litv (.Float64 _) => true
+  | _, _ => false
+
+/- HOL4:
+Definition dest_Litv_def[simp]:
+  dest_Litv (Litv v) = SOME v ∧
+  dest_Litv _ = NONE
+End
+-/
+def dest_Litv : v → Option lit
+  | .Litv l => some l
+  | _ => none
+
+/- HOL4:
+Definition the_Litv_IntLit_def[simp]:
+  the_Litv_IntLit (Litv (IntLit i)) = i
+End
+-/
+def the_Litv_IntLit : v → Int
+  | .Litv (.IntLit i) => i
+  | _ => default
+
+/- HOL4:
+Definition the_Litv_Word8_def[simp]:
+  the_Litv_Word8 (Litv (Word8 w)) = w
+End
+-/
+def the_Litv_Word8 : v → word8
+  | .Litv (.Word8 w) => w
+  | _ => default
+
+/- HOL4:
+Definition the_Litv_Word64_def[simp]:
+  the_Litv_Word64 (Litv (Word64 w)) = w
+End
+-/
+def the_Litv_Word64 : v → word64
+  | .Litv (.Word64 w) => w
+  | _ => default
+
+/- HOL4:
+Definition the_Litv_Float64_def[simp]:
+  the_Litv_Float64 (Litv (Float64 w)) = w
+End
+-/
+def the_Litv_Float64 : v → word64
+  | .Litv (.Float64 w) => w
+  | _ => default
+
+/- HOL4:
+Definition the_Litv_Char_def[simp]:
+  the_Litv_Char (Litv (Char c)) = c
+End
+-/
+def the_Litv_Char : v → Char
+  | .Litv (.Char c) => c
+  | _ => default
+
+/- HOL4:
+Definition the_Boolv_def[simp]:
+  the_Boolv v = (v = Boolv T)
+End
+-/
+def the_Boolv (val_ : v) : Bool := val_ == Boolv true
+
+/- HOL4:
+Definition num_cmp_def[simp]:
+  num_cmp Lt  i j = (i <  j:num) ∧
+  num_cmp Leq i j = (i <= j) ∧
+  num_cmp Gt  i j = (i >  j) ∧
+  num_cmp Geq i j = (i >= j)
+End
+-/
+def num_cmp : opb → Nat → Nat → Bool
+  | .Lt,  i, j => i < j
+  | .Leq, i, j => i <= j
+  | .Gt,  i, j => i > j
+  | .Geq, i, j => i >= j
+
+/- HOL4:
+Definition int_cmp_def[simp]:
+  int_cmp Lt  i j = (i <  j:int) ∧
+  int_cmp Leq i j = (i <= j) ∧
+  int_cmp Gt  i j = (i >  j) ∧
+  int_cmp Geq i j = (i >= j)
+End
+-/
+def int_cmp : opb → Int → Int → Bool
+  | .Lt,  i, j => i < j
+  | .Leq, i, j => decide (i ≤ j)
+  | .Gt,  i, j => j < i
+  | .Geq, i, j => decide (j ≤ i)
+
 /- HOL4:
 Datatype:
   exp_or_val = Exp exp | Val v
@@ -561,17 +702,40 @@ def do_eval : List v → Option eval_state →
 def reset_env_generation : Option eval_state → Option eval_state →
     Option eval_state := sorry
 
--- copy_array, ws_to_chars, chars_to_ws, xor_bytes, thunk_op, check_type, do_test, do_arith,
--- do_conversion, do_app -- all large case-analysis functions
+/- HOL4:
+Definition copy_array_def:
+  ...
+End
+-/
 def copy_array {α : Type} (src_off : List α × Int) (len : Int)
     (d : Option (List α × Int)) : Option (List α) := sorry
 
+/- HOL4:
+Definition ws_to_chars_def:
+  ws_to_chars (ws:word8 list) = MAP (λw. CHR (w2n w)) ws
+End
+-/
 def ws_to_chars (ws : List word8) : List Char :=
   ws.map fun w => CHR (w2n_8 w)
 
+/- HOL4:
+Definition chars_to_ws_def:
+  chars_to_ws cs = MAP (λc. i2w (&ORD c)) cs :word8 list
+End
+-/
 def chars_to_ws (cs : List Char) : List word8 :=
   cs.map fun c => i2w_8 (Int.ofNat (ORD c))
 
+/- HOL4:
+Definition xor_bytes_def:
+  xor_bytes [] bs2 = SOME (bs2:word8 list) ∧
+  xor_bytes bs1 [] = NONE ∧
+  xor_bytes (b1::bs1) (b2::bs2) =
+    case xor_bytes bs1 bs2 of
+    | NONE => NONE
+    | SOME rest => SOME (word_xor b1 b2 :: rest)
+End
+-/
 def xor_bytes : List word8 → List word8 → Option (List word8)
   | [], bs2 => some bs2
   | _, [] => none
@@ -580,11 +744,124 @@ def xor_bytes : List word8 → List word8 → Option (List word8)
     | none => none
     | some rest => some (word_xor_8 b1 b2 :: rest)
 
-def check_type (ty : prim_type) (val_ : v) : Bool := sorry
+/- HOL4:
+Definition do_test_def:
+  do_test Equal ty v1 v2 =
+    (if check_type ty v1 ∧ check_type ty v2 then
+       (if ty = Float64T
+        then Eq_val (fp64_equal (the_Litv_Float64 v1) (the_Litv_Float64 v2))
+        else do_eq v1 v2)
+     else Eq_type_error) ∧
+  do_test (Compare cmp) ty v1 v2 =
+    (case (ty, dest_Litv v1, dest_Litv v2) of
+     | (IntT,     SOME (IntLit i),  SOME (IntLit j))  => Eq_val (int_cmp cmp i j)
+     | (CharT,    SOME (Char c),    SOME (Char d))    => Eq_val (num_cmp cmp (ORD c) (ORD d))
+     | (WordT W8, SOME (Word8 w),   SOME (Word8 v))   => Eq_val (num_cmp cmp (w2n w) (w2n v))
+     | (Float64T, SOME (Float64 w), SOME (Float64 v)) => Eq_val (fp_cmp cmp w v)
+     | _ => Eq_type_error) ∧
+  do_test _ ty v1 v2 = Eq_type_error
+End
+-/
+def do_test : test → prim_type → v → v → eq_result
+  | .Equal, ty, v1, v2 =>
+    if check_type ty v1 && check_type ty v2 then
+      if ty == .Float64T then
+        .Eq_val (fp64_equal (the_Litv_Float64 v1) (the_Litv_Float64 v2))
+      else do_eq v1 v2
+    else .Eq_type_error
+  | .Compare cmp, ty, v1, v2 =>
+    match ty, dest_Litv v1, dest_Litv v2 with
+    | .IntT, some (.IntLit i), some (.IntLit j) => .Eq_val (int_cmp cmp i j)
+    | .CharT, some (.Char c), some (.Char d) => .Eq_val (num_cmp cmp (ORD c) (ORD d))
+    | .WordT .W8, some (.Word8 w), some (.Word8 u) => .Eq_val (num_cmp cmp (w2n_8 w) (w2n_8 u))
+    | .Float64T, some (.Float64 w), some (.Float64 u) => .Eq_val (fp_cmp_fun cmp w u)
+    | _, _, _ => .Eq_type_error
+  | _, _, _, _ => .Eq_type_error
 
-def do_test : test → prim_type → v → v → eq_result := sorry
-def do_arith : arith → prim_type → List v → Option (v ⊕ v) := sorry
-def do_conversion : v → prim_type → prim_type → Option (v ⊕ v) := sorry
+/- HOL4:
+Definition do_arith_def:
+  (do_arith a Float64T vals = ...) ∧
+  (do_arith a IntT vals = ...) ∧
+  (do_arith a (WordT W8) vals = ...) ∧
+  (do_arith a (WordT W64) vals = ...) ∧
+  (do_arith a BoolT vals = ...) ∧
+  (do_arith a _ vals = NONE)
+End
+-/
+def do_arith : arith → prim_type → List v → Option (v ⊕ v)
+  | a, .Float64T, vals =>
+    match a, vals.map the_Litv_Float64 with
+    | .Abs,  [v1]       => some (.inr (.Litv (.Float64 (fp64_abs v1))))
+    | .Neg,  [v1]       => some (.inr (.Litv (.Float64 (fp64_negate v1))))
+    | .Sqrt, [v1]       => some (.inr (.Litv (.Float64 (fp64_sqrt roundTiesToEven v1))))
+    | .Add,  [v1, v2]   => some (.inr (.Litv (.Float64 (fp64_add roundTiesToEven v1 v2))))
+    | .Sub,  [v1, v2]   => some (.inr (.Litv (.Float64 (fp64_sub roundTiesToEven v1 v2))))
+    | .Mul,  [v1, v2]   => some (.inr (.Litv (.Float64 (fp64_mul roundTiesToEven v1 v2))))
+    | .Div,  [v1, v2]   => some (.inr (.Litv (.Float64 (fp64_div roundTiesToEven v1 v2))))
+    | .FMA,  [v1, v2, v3] => some (.inr (.Litv (.Float64 (fp64_mul_add roundTiesToEven v2 v3 v1))))
+    | _, _ => none
+  | a, .IntT, vals =>
+    match a, vals.map the_Litv_IntLit with
+    | .Add, [v1, v2] => some (.inr (.Litv (.IntLit (v1 + v2))))
+    | .Sub, [v1, v2] => some (.inr (.Litv (.IntLit (v1 - v2))))
+    | .Mul, [v1, v2] => some (.inr (.Litv (.IntLit (v1 * v2))))
+    | .Div, [v1, v2] => some (if v2 == 0 then .inl div_exn_v
+                               else .inr (.Litv (.IntLit (v1 / v2))))
+    | .Mod, [v1, v2] => some (if v2 == 0 then .inl div_exn_v
+                               else .inr (.Litv (.IntLit (v1 % v2))))
+    | _, _ => none
+  | a, .WordT .W8, vals =>
+    match a, vals.map the_Litv_Word8 with
+    | .Add, [v1, v2] => some (.inr (.Litv (.Word8 (word_add_8 v1 v2))))
+    | .Sub, [v1, v2] => some (.inr (.Litv (.Word8 (word_sub_8 v1 v2))))
+    | .And, [v1, v2] => some (.inr (.Litv (.Word8 (word_and_8 v1 v2))))
+    | .Or,  [v1, v2] => some (.inr (.Litv (.Word8 (word_or_8 v1 v2))))
+    | .Xor, [v1, v2] => some (.inr (.Litv (.Word8 (word_xor_8 v1 v2))))
+    | _, _ => none
+  | a, .WordT .W64, vals =>
+    match a, vals.map the_Litv_Word64 with
+    | .Add, [v1, v2] => some (.inr (.Litv (.Word64 (word_add_64 v1 v2))))
+    | .Sub, [v1, v2] => some (.inr (.Litv (.Word64 (word_sub_64 v1 v2))))
+    | .And, [v1, v2] => some (.inr (.Litv (.Word64 (word_and_64 v1 v2))))
+    | .Or,  [v1, v2] => some (.inr (.Litv (.Word64 (word_or_64 v1 v2))))
+    | .Xor, [v1, v2] => some (.inr (.Litv (.Word64 (word_xor_64 v1 v2))))
+    | _, _ => none
+  | a, .BoolT, vals =>
+    match a, vals with
+    | .Not, [v1] => some (.inr (Boolv (!(the_Boolv v1))))
+    | _, _ => none
+  | _, _, _ => none
+
+/- HOL4:
+Definition do_conversion_def:
+  (do_conversion v (WordT W8) IntT = SOME (INR $ Litv $ IntLit $ & (w2n (the_Litv_Word8 v)))) ∧
+  (do_conversion v (WordT W64) IntT = SOME (INR $ Litv $ IntLit $ & (w2n (the_Litv_Word64 v)))) ∧
+  (do_conversion v IntT (WordT W8) = SOME (INR $ Litv $ Word8 $ i2w (the_Litv_IntLit v))) ∧
+  (do_conversion v IntT (WordT W64) = SOME (INR $ Litv $ Word64 $ i2w (the_Litv_IntLit v))) ∧
+  (do_conversion v CharT IntT = SOME (INR $ Litv $ IntLit $ & (ORD (the_Litv_Char v)))) ∧
+  (do_conversion v IntT CharT = ...) ∧
+  (do_conversion v CharT (WordT W8) = SOME (INR $ Litv $ Word8 $ char_to_word8 (the_Litv_Char v))) ∧
+  (do_conversion v (WordT W8) CharT = SOME (INR $ Litv $ Char $ word8_to_char (the_Litv_Word8 v))) ∧
+  (do_conversion v Float64T (WordT W64) = SOME (INR $ Litv $ Word64 $ the_Litv_Float64 v)) ∧
+  (do_conversion v (WordT W64) Float64T = SOME (INR $ Litv $ Float64 $ the_Litv_Word64 v)) ∧
+  (do_conversion _ _ _ = NONE)
+End
+-/
+def do_conversion : v → prim_type → prim_type → Option (v ⊕ v)
+  | val_, .WordT .W8, .IntT => some (.inr (.Litv (.IntLit (Int.ofNat (w2n_8 (the_Litv_Word8 val_))))))
+  | val_, .WordT .W64, .IntT => some (.inr (.Litv (.IntLit (Int.ofNat (w2n_64 (the_Litv_Word64 val_))))))
+  | val_, .IntT, .WordT .W8 => some (.inr (.Litv (.Word8 (i2w_8 (the_Litv_IntLit val_)))))
+  | val_, .IntT, .WordT .W64 => some (.inr (.Litv (.Word64 (i2w_64 (the_Litv_IntLit val_)))))
+  | val_, .CharT, .IntT => some (.inr (.Litv (.IntLit (Int.ofNat (ORD (the_Litv_Char val_))))))
+  | val_, .IntT, .CharT =>
+    let i := the_Litv_IntLit val_
+    if i < 0 || i > 255 then some (.inl chr_exn_v)
+    else some (.inr (.Litv (.Char (CHR (Int.toNat (Int.natAbs i))))))
+  | val_, .CharT, .WordT .W8 => some (.inr (.Litv (.Word8 (char_to_word8 (the_Litv_Char val_)))))
+  | val_, .WordT .W8, .CharT => some (.inr (.Litv (.Char (word8_to_char (the_Litv_Word8 val_)))))
+  | val_, .Float64T, .WordT .W64 => some (.inr (.Litv (.Word64 (the_Litv_Float64 val_))))
+  | val_, .WordT .W64, .Float64T => some (.inr (.Litv (.Float64 (the_Litv_Word64 val_))))
+  | _, _, _ => none
 
 /- HOL4:
 Definition do_app_def:

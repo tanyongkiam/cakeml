@@ -3,6 +3,7 @@
   Definitions of the floating point operations used in CakeML.
 -/
 import LeanTypeSound.HOL4Prelude
+import LeanTypeSound.Ast
 
 open HOL4
 
@@ -61,12 +62,8 @@ Definition fp_cmp_def:
   | Geq => fp64_greaterEqual
 End
 -/
--- Note: fp_cmp_fn takes an opb (from Ast) so we forward-declare
--- The actual definition will use opb from Ast.lean
--- For now we define it taking a Nat encoding
-def fp_cmp_fn (cmp : Nat) : word64 → word64 → Bool :=
-  match cmp with
-  | 0 => fp64_lessThan      -- Lt
-  | 1 => fp64_greaterThan   -- Gt
-  | 2 => fp64_lessEqual     -- Leq
-  | _ => fp64_greaterEqual  -- Geq
+def fp_cmp_fun : opb → word64 → word64 → Bool
+  | .Lt  => fp64_lessThan
+  | .Gt  => fp64_greaterThan
+  | .Leq => fp64_lessEqual
+  | .Geq => fp64_greaterEqual

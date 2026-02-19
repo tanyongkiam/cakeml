@@ -6,7 +6,6 @@ import LeanTypeSound.HOL4Prelude
 import LeanTypeSound.Mlstring
 import LeanTypeSound.Namespace
 import LeanTypeSound.Location
-import LeanTypeSound.FpSem
 
 open HOL4
 

@@ -57,6 +57,8 @@ lake build
 | `namespace` (type) | `«namespace»` | Lean keyword; escaped with guillemets |
 | `v` (value) | `v` | Kept as-is (works as inductive name) |
 | `sem_env.v` (field) | `sem_env_v` / `v_` | `.v` clashes with value type `v` |
+| `fp_cmp` (function) | `fp_cmp_fun` | Clashes with `fp_cmp` datatype |
+| `thunk_op` (function) | `thunk_op_fun` | Clashes with `thunk_op` datatype |
 
 ## Compromises and Deviations
 
@@ -156,16 +158,16 @@ explicit `∀` binders for every variable. This is particularly visible in:
 - `type_e`/`type_es`/`type_funs` (TypeSystem.lean)
 - `type_d`/`type_ds` (TypeSystem.lean)
 
-### 8. Several `do_app`-related functions are `sorry` stubs
+### 8. Remaining `sorry` stubs in SemanticPrimitives
 
-The following functions from `semanticPrimitivesScript.sml` involve
-bit-level/arithmetic operations that are tedious to translate and are left
+The following functions from `semanticPrimitivesScript.sml` are left
 as `sorry`:
 - `concrete_v`, `concrete_v_list`, `compiler_agrees`
 - `do_eval`, `reset_env_generation`
 - `copy_array`
-- `check_type`, `do_test`, `do_arith`, `do_conversion`
 - `do_app` (the main ~200-line case analysis)
+
+`check_type`, `do_test`, `do_arith`, and `do_conversion` are fully translated.
 
 ### 9. `type_op` is a `sorry` stub
 
