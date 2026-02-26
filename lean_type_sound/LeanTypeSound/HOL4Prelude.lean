@@ -248,8 +248,11 @@ def fromAList {α : Type} (l : List (Nat × α)) : Sptree α := sorry
 /- HOL4: domain -/
 def domain {α : Type} (t : Sptree α) : Set Nat := sorry
 
-/- HOL4: toList -/
-def toList {α : Type} (t : Sptree α) : List (Nat × α) := sorry
+/- HOL4: toList (returns values only) -/
+def toList {α : Type} (t : Sptree α) : List α := sorry
+
+/- HOL4: toAList (returns key-value pairs) -/
+def toAList {α : Type} (t : Sptree α) : List (Nat × α) := sorry
 
 end Sptree
 
@@ -288,6 +291,18 @@ def IMAGE {α β : Type} (f : α → β) (s : Set α) : Set β :=
 /- HOL4: BIGUNION -/
 def BIGUNION {α : Type} (ss : Set (Set α)) : Set α :=
   Set.sUnion ss
+
+/- HOL4: FINITE -/
+def FINITE {α : Type} (_s : Set α) : Prop := sorry
+
+/- HOL4: CARD -/
+def CARD {α : Type} (_s : Set α) : Nat := sorry
+
+/- HOL4: BIJ f s t means f is a bijection from s to t -/
+def BIJ {α β : Type} (f : α → β) (s : Set α) (t : Set β) : Prop := sorry
+
+/- HOL4: TOKENS - tokenize a list by a separator predicate -/
+def TOKENS {α : Type} [BEq α] (P : α → Bool) : List α → List (List α) := sorry
 
 -- ============================================================
 -- Word types (opaque stubs)

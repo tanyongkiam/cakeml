@@ -159,84 +159,109 @@ def range {α : Type} (s : Sptree α) : Set α :=
 Theorem CARD_IMAGE_ID_BIJ:
    ∀s. FINITE s ⇒ (∀x. x ∈ s ⇒ f x ∈ s) ∧ CARD (IMAGE f s) = CARD s ⇒ BIJ f s s
 -/
-theorem CARD_IMAGE_ID_BIJ : True := by sorry
+theorem CARD_IMAGE_ID_BIJ {α : Type} {f : α → α} {s : Set α} :
+    FINITE s →
+    (∀ x, x ∈ s → f x ∈ s) ∧ CARD (IMAGE f s) = CARD s →
+    BIJ f s s := by sorry
 
 /- HOL4:
 Theorem tlookup_bij_suff:
    set (toList names) = domain names ⇒ BIJ (tlookup names) UNIV UNIV
 -/
-theorem tlookup_bij_suff : True := by sorry
+theorem tlookup_bij_suff {names : Sptree Nat} :
+    (fun x => x ∈ Sptree.toList names) = Sptree.domain names →
+    BIJ (tlookup names) Set.univ Set.univ := by sorry
 
 /- HOL4:
 Theorem tlookup_bij_iff:
    BIJ (tlookup names) UNIV UNIV ⇔ set (toList names) = domain names
 -/
-theorem tlookup_bij_iff : True := by sorry
+theorem tlookup_bij_iff {names : Sptree Nat} :
+    BIJ (tlookup names) Set.univ Set.univ ↔
+    (fun x => x ∈ Sptree.toList names) = Sptree.domain names := by sorry
 
 /- HOL4:
 Theorem find_index_LESS_LENGTH:
    ∀ls n m i. (find_index n ls m = SOME i) ⇒ (m <= i) ∧ (i < m + LENGTH ls)
 -/
-theorem find_index_LESS_LENGTH : True := by sorry
+theorem find_index_LESS_LENGTH {α : Type} [BEq α]
+    (ls : List α) (n : α) (m i : Nat) :
+    find_index n ls m = some i → m ≤ i ∧ i < m + ls.length := by sorry
 
 /- HOL4:
 Theorem ALOOKUP_find_index_SOME:
    (ALOOKUP env k = SOME v) ⇒
     ∃i. (find_index k (MAP FST env) 0 = SOME i) ∧ i < LENGTH env ∧ (v = SND (EL i env))
 -/
-theorem ALOOKUP_find_index_SOME : True := by sorry
+theorem ALOOKUP_find_index_SOME {α β : Type} [BEq α] [Inhabited α] [Inhabited β]
+    {env : List (α × β)} {k : α} {val_ : β} :
+    ALOOKUP env k = some val_ →
+    ∃ i, find_index k (env.map Prod.fst) 0 = some i ∧
+      i < env.length ∧ val_ = (EL i env).2 := by sorry
 
 /- HOL4:
 Theorem IS_PREFIX_THM:
   !l2 l1. IS_PREFIX l1 l2 <=> (LENGTH l2 <= LENGTH l1) /\ !n. n < LENGTH l2 ==> (EL n l2 = EL n l1)
 -/
-theorem IS_PREFIX_THM : True := by sorry
+theorem IS_PREFIX_THM {α : Type} [BEq α] [Inhabited α]
+    (l2 l1 : List α) :
+    IS_PREFIX l1 l2 = true ↔
+    l2.length ≤ l1.length ∧ ∀ n, n < l2.length → EL n l2 = EL n l1 := by sorry
 
 /- HOL4:
 Theorem FST_pair:
   (λ(n,v). n) = FST
 -/
-theorem FST_pair : True := by sorry
+theorem FST_pair {α β : Type} :
+    (fun (p : α × β) => p.1) = Prod.fst := by sorry
 
 /- HOL4:
 Theorem LESS_1[simp]:
   x < 1 ⇔ (x = 0:num)
 -/
-theorem LESS_1 : True := by sorry
+theorem LESS_1 {x : Nat} :
+    x < 1 ↔ x = 0 := by sorry
 
 /- HOL4:
 Theorem map_some_eq:
   !l1 l2. (MAP SOME l1 = MAP SOME l2) ⇔ (l1 = l2)
 -/
-theorem map_some_eq : True := by sorry
+theorem map_some_eq {α : Type} (l1 l2 : List α) :
+    l1.map some = l2.map some ↔ l1 = l2 := by sorry
 
 /- HOL4:
 Theorem map_some_eq_append:
   !l1 l2 l3. (MAP SOME l1 ++ MAP SOME l2 = MAP SOME l3) ⇔ (l1 ++ l2 = l3)
 -/
-theorem map_some_eq_append : True := by sorry
+theorem map_some_eq_append {α : Type} (l1 l2 l3 : List α) :
+    l1.map some ++ l2.map some = l3.map some ↔ l1 ++ l2 = l3 := by sorry
 
 /- HOL4:
 Theorem MAP_EQ_MAP_IMP:
    !xs ys f. (!x y. MEM x xs /\ MEM y ys /\ (f x = f y) ==> (x = y)) ==>
      (MAP f xs = MAP f ys) ==> (xs = ys)
 -/
-theorem MAP_EQ_MAP_IMP : True := by sorry
+theorem MAP_EQ_MAP_IMP {α β : Type} (xs ys : List α) (f : α → β) :
+    (∀ x y, x ∈ xs ∧ y ∈ ys ∧ f x = f y → x = y) →
+    xs.map f = ys.map f → xs = ys := by sorry
 
 /- HOL4:
 Theorem FDOM_FLOOKUP:
    x ∈ FDOM f ⇔ ∃v. FLOOKUP f x = SOME v
 -/
-theorem FDOM_FLOOKUP : True := by sorry
+theorem FDOM_FLOOKUP {α β : Type} {x : α} {f : Finmap α β} :
+    x ∈ Finmap.FDOM f ↔ ∃ val_, Finmap.FLOOKUP f x = some val_ := by sorry
 
 /- HOL4:
 Theorem DROP_EMPTY:
    !ls n. (DROP n ls = []) ==> (n >= LENGTH ls)
 -/
-theorem DROP_EMPTY : True := by sorry
+theorem DROP_EMPTY {α : Type} (ls : List α) (n : Nat) :
+    DROP n ls = [] → n ≥ ls.length := by sorry
 
 /- HOL4:
 Theorem plus_0_I[simp]:
    $+ 0n = I
 -/
-theorem plus_0_I : True := by sorry
+theorem plus_0_I :
+    (fun (n : Nat) => 0 + n) = id := by sorry

@@ -249,41 +249,71 @@ def empty_ffi (_ : mlstring) : Unit := ()
 -- ============================================================
 
 /- HOL4:
-Theorem explode_aux_thm: ...
+Theorem explode_aux_thm:
+   ∀max n ls. (n + max = LENGTH ls) ⇒ (explode_aux (strlit ls) n max = DROP n ls)
+   Note: HOL4 string = char list; Lean mlstring wraps String
 -/
-theorem explode_aux_thm : True := by sorry
+theorem explode_aux_thm (max n : Nat) (ls : String) :
+    n + max = ls.data.length →
+    explode_aux (.strlit ls) n max = HOL4.DROP n ls.data := by sorry
 
 /- HOL4:
 Theorem explode_thm[simp]:
    explode (strlit ls) = ls
 -/
-theorem explode_thm : True := by sorry
+theorem explode_thm (ls : String) :
+    explode (.strlit ls) = ls.data := by sorry
 
 /- HOL4:
 Theorem explode_implode[simp]:
    ∀x. explode (implode x) = x
 -/
-theorem explode_implode : True := by sorry
+theorem explode_implode (x : String) :
+    explode (implode x) = x.data := by sorry
 
 /- HOL4:
 Theorem implode_explode[simp]:
    ∀x. implode (explode x) = x
 -/
-theorem implode_explode : True := by sorry
+theorem implode_explode (x : mlstring) :
+    implode (String.ofList (explode x)) = x := by sorry
 
 /- HOL4:
 Theorem explode_11[simp]:
    ∀s1 s2. (explode s1 = explode s2) ⇔ (s1 = s2)
 -/
-theorem explode_11 : True := by sorry
+theorem explode_11 (s1 s2 : mlstring) :
+    explode s1 = explode s2 ↔ s1 = s2 := by sorry
 
 /- HOL4:
-Theorem TOKENS_eq_tokens_aux: ...
+Theorem TOKENS_eq_tokens_aux:
+   !P ls ss n len. (n + len = LENGTH (explode ls)) ==>
+      (MAP explode (tokens_aux P ls ss n len) = case ss of
+        | (h::t) => if (len <> 0) /\ (~ (P (EL n (explode ls)))) then
+          (REVERSE (h::t) ++ HD (TOKENS P (DROP n (explode ls))))
+            :: TL (TOKENS P (DROP n (explode ls)))
+           else if (len <> 0) then
+              REVERSE (h::t) :: (TOKENS P (DROP n (explode ls)))
+           else [REVERSE(h::t)]
+        | [] => (TOKENS P (DROP n (explode ls))))
 -/
-theorem TOKENS_eq_tokens_aux : True := by sorry
+theorem TOKENS_eq_tokens_aux (P : Char → Bool) (ls : mlstring) (ss : List Char)
+    (n len : Nat) :
+    n + len = (explode ls).length →
+    (tokens_aux P ls ss n len).map explode =
+    match ss with
+    | h :: t =>
+      if len ≠ 0 ∧ ¬ P (HOL4.EL n (explode ls)) then
+        ((h :: t).reverse ++ (HOL4.TOKENS P (HOL4.DROP n (explode ls))).head!) ::
+          (HOL4.TOKENS P (HOL4.DROP n (explode ls))).tail
+      else if len ≠ 0 then
+        (h :: t).reverse :: HOL4.TOKENS P (HOL4.DROP n (explode ls))
+      else [(h :: t).reverse]
+    | [] => HOL4.TOKENS P (HOL4.DROP n (explode ls)) := by sorry
 
 /- HOL4:
 Theorem TOKENS_eq_tokens:
    !P ls.(MAP explode (tokens P ls) = TOKENS P (explode ls))
 -/
-theorem TOKENS_eq_tokens : True := by sorry
+theorem TOKENS_eq_tokens (P : Char → Bool) (ls : mlstring) :
+    (tokens P ls).map explode = HOL4.TOKENS P (explode ls) := by sorry
