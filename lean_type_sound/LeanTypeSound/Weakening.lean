@@ -376,7 +376,7 @@ Theorem type_s_weakening:
   type_s ctMap' tenvS st
 -/
 theorem type_s_weakening :
-    ∀ (cm : ctMap) (tenvS : tenv_store) (st : List (store_v v)) (cm' : ctMap),
+    ∀ (cm : ctMap) (tenvS : tenv_store) (st : store v) (cm' : ctMap),
       type_s cm st tenvS ∧ weakCT cm' cm →
       type_s cm' st tenvS := by sorry
 

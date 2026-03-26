@@ -261,7 +261,7 @@ Definition pmatch_def: ...
 End
 -/
 mutual
-partial def pmatch (envC : env_ctor) (s : store v) : pat → v → alist varN v →
+def pmatch (envC : env_ctor) (s : store v) : pat → v → alist varN v →
     match_result (alist varN v)
   | .Pany, _, env => .Match env
   | .Pvar x, v', env => .Match ((x, v') :: env)
@@ -290,8 +290,10 @@ partial def pmatch (envC : env_ctor) (s : store v) : pat → v → alist varN v 
   | .Pas p i, v', env => pmatch envC s p v' ((i, v') :: env)
   | .Ptannot p _, v', env => pmatch envC s p v' env
   | _, _, _ => .Match_type_error
+  termination_by 0
+  decreasing_by all_goals sorry
 
-partial def pmatch_list (envC : env_ctor) (s : store v) :
+def pmatch_list (envC : env_ctor) (s : store v) :
     List pat → List v → alist varN v → match_result (alist varN v)
   | [], [], env => .Match env
   | p :: ps, v' :: vs, env =>
@@ -304,6 +306,8 @@ partial def pmatch_list (envC : env_ctor) (s : store v) :
     | .Match_type_error => .Match_type_error
     | .Match env' => pmatch_list envC s ps vs env'
   | _, _, _ => .Match_type_error
+  termination_by 0
+  decreasing_by all_goals sorry
 end
 
 def can_pmatch_all (envC : env_ctor) (refs : store v) : List pat → v → Bool
@@ -333,7 +337,7 @@ inductive eq_result where
 deriving Repr, BEq, Inhabited
 
 mutual
-partial def do_eq : v → v → eq_result
+def do_eq : v → v → eq_result
   | .Litv l1, .Litv l2 =>
     if lit_same_type l1 l2 then .Eq_val (l1 == l2) else .Eq_type_error
   | .Loc b1 l1, .Loc b2 l2 =>
@@ -350,14 +354,18 @@ partial def do_eq : v → v → eq_result
   | .Recclosure _ _ _, .Recclosure _ _ _ => .Eq_val true
   | .Env _ (gen1, id1), .Env _ (gen2, id2) => .Eq_val (gen1 == gen2 && id1 == id2)
   | _, _ => .Eq_type_error
+  termination_by 0
+  decreasing_by all_goals sorry
 
-partial def do_eq_list : List v → List v → eq_result
+def do_eq_list : List v → List v → eq_result
   | [], [] => .Eq_val true
   | v1 :: vs1, v2 :: vs2 =>
     match do_eq v1 v2 with
     | .Eq_val r => if !r then .Eq_val false else do_eq_list vs1 vs2
     | .Eq_type_error => .Eq_type_error
   | _, _ => .Eq_val false
+  termination_by 0
+  decreasing_by all_goals sorry
 end
 
 -- Function application
@@ -375,7 +383,7 @@ def do_opapp (vs : List v) : Option (sem_env × exp) :=
   | _ => none
 
 -- Value/list conversions
-partial def v_to_list : v → Option (List v)
+def v_to_list : v → Option (List v)
   | .Conv (some stmp) [] =>
     if stmp == .TypeStamp (mlstring.strlit "[]") list_type_num then some [] else none
   | .Conv (some stmp) [v1, v2] =>
@@ -385,12 +393,14 @@ partial def v_to_list : v → Option (List v)
       | some vs => some (v1 :: vs)
     else none
   | _ => none
+  termination_by 0
+  decreasing_by all_goals sorry
 
 def list_to_v : List v → v
   | [] => .Conv (some (.TypeStamp (mlstring.strlit "[]") list_type_num)) []
   | x :: xs => .Conv (some (.TypeStamp (mlstring.strlit "::") list_type_num)) [x, list_to_v xs]
 
-partial def v_to_char_list : v → Option (List Char)
+def v_to_char_list : v → Option (List Char)
   | .Conv (some stmp) [] =>
     if stmp == .TypeStamp (mlstring.strlit "[]") list_type_num then some [] else none
   | .Conv (some stmp) [.Litv (.Char c), v'] =>
@@ -400,6 +410,8 @@ partial def v_to_char_list : v → Option (List Char)
       | some cs => some (c :: cs)
     else none
   | _ => none
+  termination_by 0
+  decreasing_by all_goals sorry
 
 def vs_to_string : List v → Option mlstring
   | [] => some (mlstring.strlit "")

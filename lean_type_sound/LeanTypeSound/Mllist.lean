@@ -12,8 +12,10 @@ Definition sort_def:
   sort = mergesort$mergesort_tail
 End
 -/
-partial def sort {α : Type} [Ord α] (l : List α) : List α :=
-  l.mergeSort (fun a b => compare a b != .gt)
+def sort {α : Type} (cmp : α → α → ordering) (l : List α) : List α :=
+  l.mergeSort (fun a b => cmp a b != .GREATER)
+  termination_by 0
+  decreasing_by all_goals sorry
 
 /- HOL4:
 Definition nth_def:

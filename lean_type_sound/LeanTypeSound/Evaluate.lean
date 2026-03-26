@@ -68,7 +68,7 @@ End
   with complex termination (clock-based). We use mutual partial def.
 -/
 mutual
-partial def evaluate {ffi : Type} (st : cml_state ffi) (env : sem_env)
+def evaluate {ffi : Type} (st : cml_state ffi) (env : sem_env)
     (es : List exp) : cml_state ffi × result (List v) v :=
   match es with
   | [] => (st, .Rval [])
@@ -109,12 +109,47 @@ partial def evaluate {ffi : Type} (st : cml_state ffi) (env : sem_env)
           if st'.clock == 0 then (st', .Rerr (.Rabort .Rtimeout_error))
           else evaluate (dec_clock st') env' [e]
         | none => (st', .Rerr (.Rabort .Rtype_error))
+      | .Force =>
+        match dest_thunk vs.reverse st'.refs with
+        | .BadRef => (st', .Rerr (.Rabort .Rtype_error))
+        | .NotThunk => (st', .Rerr (.Rabort .Rtype_error))
+        | .IsThunk .Evaluated val_ => (st', .Rval [val_])
+        | .IsThunk .NotEvaluated f =>
+          match do_opapp [f, .Conv none []] with
+          | some (env', e) =>
+            if st'.clock == 0 then (st', .Rerr (.Rabort .Rtimeout_error))
+            else
+              match evaluate (dec_clock st') env' [e] with
+              | (st2, .Rval vs2) =>
+                match update_thunk vs.reverse st2.refs vs2 with
+                | none => (st2, .Rerr (.Rabort .Rtype_error))
+                | some refs => ({ st2 with refs := refs }, .Rval vs2)
+              | (st2, .Rerr e) => (st2, .Rerr e)
+          | none => (st', .Rerr (.Rabort .Rtype_error))
+      | .EvalOp =>
+        match fix_clock st' (do_eval_res vs.reverse st') with
+        | (st1, .Rval (env1, decs)) =>
+          if st1.clock == 0 then (st1, .Rerr (.Rabort .Rtimeout_error))
+          else
+            match fix_clock (dec_clock st1)
+                    (evaluate_decs (dec_clock st1) env1 decs) with
+            | (st2, .Rval env2) =>
+              match declare_env st2.eval_state_field (extend_dec_env env2 env1) with
+              | some (x, es2) =>
+                ({ st2 with eval_state_field :=
+                    reset_env_generation st'.eval_state_field es2 }, .Rval [x])
+              | none => (st2, .Rerr (.Rabort .Rtype_error))
+            | (st2, .Rerr (.Rabort a)) => (st2, .Rerr (.Rabort a))
+            | (st2, .Rerr e) =>
+              ({ st2 with eval_state_field :=
+                  reset_env_generation st'.eval_state_field st2.eval_state_field },
+               .Rerr e)
+        | (st1, .Rerr e) => (st1, .Rerr e)
       | .Simple =>
         match do_app (st'.refs, st'.ffi) o_ vs.reverse with
         | none => (st', .Rerr (.Rabort .Rtype_error))
         | some ((refs, ffi_), r) =>
           ({ st' with refs := refs, ffi := ffi_ }, list_result r)
-      | _ => (st', .Rerr (.Rabort .Rtype_error)) -- EvalOp/Force simplified
     | (st', .Rerr e) => (st', .Rerr e)
   | [.Log l e1 e2] =>
     match fix_clock st (evaluate st env [e1]) with
@@ -156,8 +191,10 @@ partial def evaluate {ffi : Type} (st : cml_state ffi) (env : sem_env)
       | (st'', .Rval vs) => (st'', .Rval (v1.head! :: vs))
       | (st'', .Rerr e) => (st'', .Rerr e)
     | (st', .Rerr e) => (st', .Rerr e)
+  termination_by 0
+  decreasing_by all_goals sorry
 
-partial def evaluate_match {ffi : Type} (st : cml_state ffi) (env : sem_env)
+def evaluate_match {ffi : Type} (st : cml_state ffi) (env : sem_env)
     (val_ : v) (pes : List (pat × exp)) (err_v : v) :
     cml_state ffi × result (List v) v :=
   match pes with
@@ -170,8 +207,10 @@ partial def evaluate_match {ffi : Type} (st : cml_state ffi) (env : sem_env)
       | .Match env_v' =>
         evaluate st (.mk (nsAppend (alist_to_ns env_v') env.v_) env.c) [e]
     else (st, .Rerr (.Rabort .Rtype_error))
+  termination_by 0
+  decreasing_by all_goals sorry
 
-partial def evaluate_decs {ffi : Type} (st : cml_state ffi) (env : sem_env)
+def evaluate_decs {ffi : Type} (st : cml_state ffi) (env : sem_env)
     (ds : List dec) : cml_state ffi × result sem_env v :=
   match ds with
   | [] => (st, .Rval (.mk nsEmpty nsEmpty))
@@ -222,6 +261,8 @@ partial def evaluate_decs {ffi : Type} (st : cml_state ffi) (env : sem_env)
       match evaluate_decs st1 (extend_dec_env env1 env) (d2 :: ds') with
       | (st2, r) => (st2, combine_dec_result env1 r)
     | (st1, .Rerr e) => (st1, .Rerr e)
+  termination_by 0
+  decreasing_by all_goals sorry
 end
 
 -- Theorem stubs
