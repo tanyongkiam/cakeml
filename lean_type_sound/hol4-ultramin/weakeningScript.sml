@@ -498,10 +498,10 @@ QED
 
 Theorem type_s_weakening:
  !ctMap tenvS st ctMap'.
-  type_s ctMap tenvS st ∧
+  type_s ctMap st tenvS ∧
   weakCT ctMap' ctMap
   ⇒
-  type_s ctMap' tenvS st
+  type_s ctMap' st tenvS
 Proof
  rw [type_s_def] >>
  metis_tac [type_sv_weakening, weakS_refl]
