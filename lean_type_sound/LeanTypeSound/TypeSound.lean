@@ -43,14 +43,28 @@ Theorem fst_triple[local]:
   (\ (x,y,z). x) = FST
 -/
 theorem fst_triple {α β γ : Type} :
-    (fun ((x, _, _) : α × β × γ) => x) = (fun (p : α × β × γ) => p.1) := by sorry
+    (fun ((x, _, _) : α × β × γ) => x) = (fun (p : α × β × γ) => p.1) := by
+  funext p
+  obtain ⟨x, y, z⟩ := p
+  rfl
 
 /- HOL4:
 Theorem sing_list[local]:
   !l. LENGTH l = 1 ⇔ ?x. l = [x]
 -/
 theorem sing_list {α : Type} :
-    ∀ (l : List α), l.length = 1 ↔ ∃ (x : α), l = [x] := by sorry
+    ∀ (l : List α), l.length = 1 ↔ ∃ (x : α), l = [x] := by
+  intro l
+  constructor
+  · intro h
+    cases l with
+    | nil => simp at h
+    | cons x xs =>
+      cases xs with
+      | nil => exact ⟨x, rfl⟩
+      | cons y ys => simp at h
+  · rintro ⟨x, rfl⟩
+    simp
 
 /- HOL4:
 Theorem EVERY_LIST_REL[local]:
@@ -65,7 +79,9 @@ Theorem v_unchanged[simp]:
   !tenv x. tenv with v := tenv.v = tenv
 -/
 theorem v_unchanged :
-    ∀ (tenv : type_env), { tenv with v := tenv.v } = tenv := by sorry
+    ∀ (tenv : type_env), { tenv with v := tenv.v } = tenv := by
+  intro tenv
+  rfl
 
 /- HOL4:
 Theorem check_dup_ctors_thm:
@@ -203,7 +219,11 @@ Theorem same_type_refl[local]:
   !t. same_type t t
 -/
 theorem same_type_refl :
-    ∀ (t : stamp), same_type t t := by sorry
+    ∀ (t : stamp), same_type t t := by
+  intro t
+  cases t with
+  | TypeStamp s n => simp [same_type]
+  | ExnStamp n => simp [same_type]
 
 /- HOL4:
 Theorem eq_same_type[local]:
@@ -359,7 +379,11 @@ Theorem remove_lambda_prod[local]:
 -/
 theorem remove_lambda_prod {α β γ : Type} :
     ∀ (P : α → β → γ),
-      (fun ((x, y) : α × β) => P x y) = (fun (p : α × β) => P p.1 p.2) := by sorry
+      (fun ((x, y) : α × β) => P x y) = (fun (p : α × β) => P p.1 p.2) := by
+  intro P
+  funext p
+  obtain ⟨x, y⟩ := p
+  rfl
 
 /- HOL4:
 Theorem opapp_type_sound:

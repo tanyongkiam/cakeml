@@ -111,7 +111,9 @@ Theorem unchanged_tenv[simp]:
 -/
 theorem unchanged_tenv :
     ∀ (tenv : type_env),
-      { v := tenv.v, c := tenv.c, t := tenv.t : type_env} = tenv := by sorry
+      { v := tenv.v, c := tenv.c, t := tenv.t : type_env} = tenv := by
+  intro tenv
+  rfl
 
 /- HOL4:
 Theorem extend_dec_tenv_assoc[simp]:
@@ -123,35 +125,63 @@ Theorem extend_dec_tenv_assoc[simp]:
 theorem extend_dec_tenv_assoc_thm :
     ∀ (tenv1 tenv2 tenv3 : type_env),
       extend_dec_tenv tenv1 (extend_dec_tenv tenv2 tenv3) =
-      extend_dec_tenv (extend_dec_tenv tenv1 tenv2) tenv3 := by sorry
+      extend_dec_tenv (extend_dec_tenv tenv1 tenv2) tenv3 := by
+  intro tenv1 tenv2 tenv3
+  simp [extend_dec_tenv]
+  cases h1v : tenv1.v with | Bind v1 m1 =>
+  cases h2v : tenv2.v with | Bind v2 m2 =>
+  cases h3v : tenv3.v with | Bind v3 m3 =>
+  cases h1c : tenv1.c with | Bind c1 mc1 =>
+  cases h2c : tenv2.c with | Bind c2 mc2 =>
+  cases h3c : tenv3.c with | Bind c3 mc3 =>
+  cases h1t : tenv1.t with | Bind t1 mt1 =>
+  cases h2t : tenv2.t with | Bind t2 mt2 =>
+  cases h3t : tenv3.t with | Bind t3 mt3 =>
+  simp [nsAppend, List.append_assoc]
 
 /- HOL4:
 Theorem tenv_val_ok_nsEmpty[simp]:
    tenv_val_ok nsEmpty
 -/
 theorem tenv_val_ok_nsEmpty :
-    tenv_val_ok nsEmpty := by sorry
+    tenv_val_ok nsEmpty := by
+  intro id val h
+  cases id with
+  | Short x => simp [nsEmpty, nsLookup, ALOOKUP] at h
+  | Long mn i => simp [nsEmpty, nsLookup, ALOOKUP] at h
 
 /- HOL4:
 Theorem tenv_ctor_ok_nsEmpty[simp]:
    tenv_ctor_ok nsEmpty
 -/
 theorem tenv_ctor_ok_nsEmpty :
-    tenv_ctor_ok nsEmpty := by sorry
+    tenv_ctor_ok nsEmpty := by
+  intro id val h
+  cases id with
+  | Short x => simp [nsEmpty, nsLookup, ALOOKUP] at h
+  | Long mn i => simp [nsEmpty, nsLookup, ALOOKUP] at h
 
 /- HOL4:
 Theorem tenv_abbrev_ok_nsEmpty[simp]:
    tenv_abbrev_ok nsEmpty
 -/
 theorem tenv_abbrev_ok_nsEmpty :
-    tenv_abbrev_ok nsEmpty := by sorry
+    tenv_abbrev_ok nsEmpty := by
+  intro id val h
+  cases id with
+  | Short x => simp [nsEmpty, nsLookup, ALOOKUP] at h
+  | Long mn i => simp [nsEmpty, nsLookup, ALOOKUP] at h
 
 /- HOL4:
 Theorem tenv_ok_empty[simp]:
    tenv_ok <| v := nsEmpty; c := nsEmpty; t := nsEmpty |>
 -/
 theorem tenv_ok_empty :
-    tenv_ok { v := nsEmpty, c := nsEmpty, t := nsEmpty } := by sorry
+    tenv_ok { v := nsEmpty, c := nsEmpty, t := nsEmpty } := by
+  refine ⟨?_, ?_, ?_⟩
+  · exact tenv_val_ok_nsEmpty
+  · exact tenv_ctor_ok_nsEmpty
+  · exact tenv_abbrev_ok_nsEmpty
 
 /- HOL4:
 Theorem check_freevars_add:
@@ -612,7 +642,9 @@ Theorem bind_tvar0[simp]:
  !x. bind_tvar 0 x = x
 -/
 theorem bind_tvar0 :
-    ∀ (x : tenv_val_exp), bind_tvar 0 x = x := by sorry
+    ∀ (x : tenv_val_exp), bind_tvar 0 x = x := by
+  intro x
+  simp [bind_tvar]
 
 /- HOL4:
 Theorem tveLookup_subst_none:
@@ -686,7 +718,13 @@ Theorem bind_var_list_append:
 -/
 theorem bind_var_list_append :
     ∀ (n : Nat) (te1 te2 : List (mlstring × sem_t)) (te3 : tenv_val_exp),
-      bind_var_list n (te1 ++ te2) te3 = bind_var_list n te1 (bind_var_list n te2 te3) := by sorry
+      bind_var_list n (te1 ++ te2) te3 = bind_var_list n te1 (bind_var_list n te2 te3) := by
+  intro n te1 te2 te3
+  induction te1 with
+  | nil => simp [bind_var_list]
+  | cons h t ih =>
+    obtain ⟨a, b⟩ := h
+    simp [bind_var_list, ih]
 
 /- HOL4:
 Theorem num_tvs_bind_var_list[simp]:
@@ -694,7 +732,13 @@ Theorem num_tvs_bind_var_list[simp]:
 -/
 theorem num_tvs_bind_var_list :
     ∀ (tvs : Nat) (env : List (mlstring × sem_t)) (tenvE : tenv_val_exp),
-      num_tvs (bind_var_list tvs env tenvE) = num_tvs tenvE := by sorry
+      num_tvs (bind_var_list tvs env tenvE) = num_tvs tenvE := by
+  intro tvs env tenvE
+  induction env with
+  | nil => simp [bind_var_list]
+  | cons h t ih =>
+    obtain ⟨a, b⟩ := h
+    simp [bind_var_list, num_tvs, ih]
 
 /- HOL4:
 Theorem tenv_val_exp_ok_bvl:
@@ -729,7 +773,12 @@ Theorem num_tvs_db_merge[simp]:
 -/
 theorem num_tvs_db_merge :
     ∀ (e1 e2 : tenv_val_exp),
-      num_tvs (db_merge e1 e2) = num_tvs e1 + num_tvs e2 := by sorry
+      num_tvs (db_merge e1 e2) = num_tvs e1 + num_tvs e2 := by
+  intro e1 e2
+  induction e1 with
+  | Empty => simp [db_merge, num_tvs]
+  | Bind_tvar tvs e ih => simp [db_merge, num_tvs, ih]; omega
+  | Bind_name n tvs t e ih => simp [db_merge, num_tvs, ih]
 
 /- HOL4:
 Theorem num_tvs_deBruijn_subst_tenvE[simp]:
@@ -737,7 +786,12 @@ Theorem num_tvs_deBruijn_subst_tenvE[simp]:
 -/
 theorem num_tvs_deBruijn_subst_tenvE :
     ∀ (targs : List sem_t) (tenvE : tenv_val_exp),
-      num_tvs (deBruijn_subst_tenvE targs tenvE) = num_tvs tenvE := by sorry
+      num_tvs (deBruijn_subst_tenvE targs tenvE) = num_tvs tenvE := by
+  intro targs tenvE
+  induction tenvE with
+  | Empty => simp [deBruijn_subst_tenvE, num_tvs]
+  | Bind_tvar tvs e ih => simp [deBruijn_subst_tenvE, num_tvs, ih]
+  | Bind_name n tvs t e ih => simp [deBruijn_subst_tenvE, num_tvs, ih]
 
 /- HOL4:
 Theorem tveLookup_inc_some:

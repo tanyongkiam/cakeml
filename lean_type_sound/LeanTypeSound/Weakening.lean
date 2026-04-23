@@ -242,7 +242,9 @@ Theorem gt_0[local]:
   !x:num.x ≥ 0
 -/
 theorem gt_0 :
-    ∀ (x : Nat), x ≥ 0 := by sorry
+    ∀ (x : Nat), x ≥ 0 := by
+  intro x
+  exact Nat.zero_le x
 
 /- HOL4:
 Theorem weak_ctMap_lookup[local]:

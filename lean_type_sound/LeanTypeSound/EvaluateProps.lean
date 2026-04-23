@@ -171,7 +171,16 @@ theorem is_clock_io_mono_err {ffi α β : Type}
    (case x of (a, b) => P a b) = (!a b. x = (a, b) ==> P a b)
 -/
 theorem pair_CASE_eq_forall {α β : Type} {P : α → β → Prop} {x : α × β} :
-    (match x with | (a, b) => P a b) = (∀ a b, x = (a, b) → P a b) := by sorry
+    (match x with | (a, b) => P a b) = (∀ a b, x = (a, b) → P a b) := by
+  cases x with
+  | mk a b =>
+    apply propext
+    constructor
+    · intro h a' b' heq
+      cases heq
+      exact h
+    · intro h
+      exact h a b rfl
 
 /- HOL4: Theorem is_clock_io_mono_bind
    is_clock_io_mono f s /\ (!s' r. f s = (s', r)

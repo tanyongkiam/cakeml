@@ -186,7 +186,21 @@ Theorem find_index_LESS_LENGTH:
 -/
 theorem find_index_LESS_LENGTH {α : Type} [BEq α]
     (ls : List α) (n : α) (m i : Nat) :
-    find_index n ls m = some i → m ≤ i ∧ i < m + ls.length := by sorry
+    find_index n ls m = some i → m ≤ i ∧ i < m + ls.length := by
+  induction ls generalizing m with
+  | nil => intro h; simp [find_index] at h
+  | cons x xs ih =>
+    intro h
+    simp only [find_index] at h
+    by_cases hxy : x == n
+    · rw [if_pos hxy] at h
+      have hmi : m = i := Option.some.inj h
+      subst hmi
+      simp [List.length_cons]
+    · rw [if_neg hxy] at h
+      have := ih (m + 1) h
+      simp [List.length_cons]
+      omega
 
 /- HOL4:
 Theorem ALOOKUP_find_index_SOME:
@@ -213,21 +227,35 @@ Theorem FST_pair:
   (λ(n,v). n) = FST
 -/
 theorem FST_pair {α β : Type} :
-    (fun (p : α × β) => p.1) = Prod.fst := by sorry
+    (fun (p : α × β) => p.1) = Prod.fst := by
+  funext p; rfl
 
 /- HOL4:
 Theorem LESS_1[simp]:
   x < 1 ⇔ (x = 0:num)
 -/
 theorem LESS_1 {x : Nat} :
-    x < 1 ↔ x = 0 := by sorry
+    x < 1 ↔ x = 0 := by
+  omega
 
 /- HOL4:
 Theorem map_some_eq:
   !l1 l2. (MAP SOME l1 = MAP SOME l2) ⇔ (l1 = l2)
 -/
 theorem map_some_eq {α : Type} (l1 l2 : List α) :
-    l1.map some = l2.map some ↔ l1 = l2 := by sorry
+    l1.map some = l2.map some ↔ l1 = l2 := by
+  constructor
+  · intro h
+    induction l1 generalizing l2 with
+    | nil => cases l2 <;> simp_all
+    | cons x xs ih =>
+      cases l2 with
+      | nil => simp at h
+      | cons y ys =>
+        simp at h
+        obtain ⟨hxy, hxs⟩ := h
+        rw [hxy, ih ys hxs]
+  · intro h; rw [h]
 
 /- HOL4:
 Theorem map_some_eq_append:
@@ -257,11 +285,15 @@ Theorem DROP_EMPTY:
    !ls n. (DROP n ls = []) ==> (n >= LENGTH ls)
 -/
 theorem DROP_EMPTY {α : Type} (ls : List α) (n : Nat) :
-    DROP n ls = [] → n ≥ ls.length := by sorry
+    DROP n ls = [] → n ≥ ls.length := by
+  intro h
+  simp [DROP] at h
+  omega
 
 /- HOL4:
 Theorem plus_0_I[simp]:
    $+ 0n = I
 -/
 theorem plus_0_I :
-    (fun (n : Nat) => 0 + n) = id := by sorry
+    (fun (n : Nat) => 0 + n) = id := by
+  funext n; simp

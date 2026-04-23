@@ -177,25 +177,32 @@ def shift_lookup_64 : shift → word64 → Nat → word64
    (env:'v sem_env) with v := env.v = env
 -/
 theorem with_same_v (env : sem_env) :
-    sem_env.mk env.v_ env.c = env := by sorry
+    sem_env.mk env.v_ env.c = env := by
+  cases env with | mk v c => rfl
 
 /- HOL4: Theorem unchanged_env[simp]:
    !(env : 'a sem_env). <| v := env.v; c := env.c |> = env
 -/
 theorem unchanged_env (env : sem_env) :
-    sem_env.mk env.v_ env.c = env := by sorry
+    sem_env.mk env.v_ env.c = env := by
+  cases env with | mk v c => rfl
 
 /- HOL4: Theorem with_same_clock:
    (st:'ffi state) with clock := st.clock = st
 -/
 theorem with_same_clock {ffi : Type} (st : cml_state ffi) :
-    { st with clock := st.clock } = st := by sorry
+    { st with clock := st.clock } = st := by
+  rfl
 
 /- HOL4: Theorem Boolv_11[simp]:
    Boolv b1 = Boolv b2 <=> (b1 = b2)
 -/
 theorem Boolv_11 (b1 b2 : Bool) :
-    Boolv b1 = Boolv b2 ↔ b1 = b2 := by sorry
+    Boolv b1 = Boolv b2 ↔ b1 = b2 := by
+  constructor
+  · intro h
+    cases b1 <;> cases b2 <;> simp_all [Boolv]
+  · intro h; rw [h]
 
 /- HOL4: Theorem extend_dec_env_assoc[simp]:
    !env1 env2 env3.
@@ -204,7 +211,17 @@ theorem Boolv_11 (b1 b2 : Bool) :
 -/
 theorem extend_dec_env_assoc (env1 env2 env3 : sem_env) :
     extend_dec_env env1 (extend_dec_env env2 env3) =
-    extend_dec_env (extend_dec_env env1 env2) env3 := by sorry
+    extend_dec_env (extend_dec_env env1 env2) env3 := by
+  cases env1 with | mk v1x c1x =>
+  cases env2 with | mk v2x c2x =>
+  cases env3 with | mk v3x c3x =>
+  cases v1x with | Bind _ _ =>
+  cases v2x with | Bind _ _ =>
+  cases v3x with | Bind _ _ =>
+  cases c1x with | Bind _ _ =>
+  cases c2x with | Bind _ _ =>
+  cases c3x with | Bind _ _ =>
+  simp [extend_dec_env, sem_env.v_, sem_env.c, nsAppend, List.append_assoc]
 
 /- HOL4: Theorem pat_bindings_accum:
    (!p acc. pat_bindings p acc = pat_bindings p [] ++ acc) /\
@@ -221,10 +238,11 @@ theorem pat_bindings_accum :
    In Lean, this is the definitional unfolding of do_app.
 -/
 theorem do_app_cases {ffi : Type} :
-    ∀ (s : List (store_v v)) (t : ffi_state ffi) (op_ : op) (vs : List v)
+    ∀ (s : List (store_v v) ) (t : ffi_state ffi) (op_ : op) (vs : List v)
       (st' : List (store_v v) × ffi_state ffi) (r : result v v),
     do_app (s, t) op_ vs = some (st', r) ↔
-    do_app (s, t) op_ vs = some (st', r) := by sorry
+    do_app (s, t) op_ vs = some (st', r) := by
+  intros; exact Iff.rfl
 
 /- HOL4: Theorem build_rec_env_merge:
    !funs funs' env env'.
