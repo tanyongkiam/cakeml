@@ -7,3 +7,5 @@ package lean_type_sound where
 @[default_target]
 lean_lib LeanTypeSound where
   roots := #[`LeanTypeSound]
+
+require "leanprover-community" / mathlib @ git "v4.29.1"
