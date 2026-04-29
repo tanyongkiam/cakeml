@@ -706,21 +706,157 @@ def declare_env (es : Option eval_state) (env : sem_env) :
             some (.EvalOracle
               { s' with envs := LUPDATE (gen_envs ++ [env]) s'.generation s'.envs }))
 
-def concrete_v : v → Bool := sorry
-def concrete_v_list : List v → Bool := sorry
-def compiler_agrees : compiler_fun → compiler_args → v × v × v → Bool := sorry
-def do_eval : List v → Option eval_state →
-    Option (sem_env × List dec × Option eval_state) := sorry
-def reset_env_generation : Option eval_state → Option eval_state →
-    Option eval_state := sorry
+/- HOL4:
+Definition concrete_v_def:
+  concrete_v v ⇔ case v of
+                 | Loc _ _ => T | Litv _ => T
+                 | Conv v_ vs => concrete_v_list vs
+                 | Vectorv vs => concrete_v_list vs
+                 | _ => F ∧
+  concrete_v_list [] ⇔ T ∧
+  concrete_v_list (v::vs) ⇔ concrete_v v ∧ concrete_v_list vs
+End
+-/
+mutual
+def concrete_v : v → Bool
+  | .Loc _ _ => true
+  | .Litv _ => true
+  | .Conv _ vs => concrete_v_list vs
+  | .Vectorv vs => concrete_v_list vs
+  | _ => false
+  termination_by 0
+  decreasing_by all_goals sorry
+
+def concrete_v_list : List v → Bool
+  | [] => true
+  | val_ :: vs => concrete_v val_ && concrete_v_list vs
+  termination_by 0
+  decreasing_by all_goals sorry
+end
+
+/- HOL4:
+Definition compiler_agrees_def:
+  compiler_agrees f args (st_v, bs_v, ws_v) ⇔
+    case (f args, args, v_to_word8_list bs_v, v_to_word64_list ws_v) of
+    | (SOME (st, c_bs, c_ws), (_, prev_st_v, _), SOME bs, SOME ws) =>
+        st = st_v ∧ c_bs = bs ∧ c_ws = ws ∧ concrete_v st_v ∧ concrete_v prev_st_v
+    | _ => F
+End
+-/
+def compiler_agrees (f : compiler_fun) (args : compiler_args)
+    (triple : v × v × v) : Bool :=
+  let (st_v, bs_v, ws_v) := triple
+  let prev_st_v := args.2.1
+  match f args, v_to_word8_list bs_v, v_to_word64_list ws_v with
+  | some (st, c_bs, c_ws), some bs, some ws =>
+      st == st_v && c_bs == bs && c_ws == ws &&
+      concrete_v st_v && concrete_v prev_st_v
+  | _, _, _ => false
+
+/- HOL4:
+Definition do_eval_def:
+  do_eval vs es =
+    case (es, vs) of
+    | (SOME (EvalDecs s), [Env env id; st_v; decs_v; st_v2; bs_v; ws_v]) =>
+      (case s.decode_decs decs_v of
+        NONE => NONE
+       | SOME decs =>
+         if st_v = s.compiler_state ∧ concrete_v decs_v ∧
+            compiler_agrees s.compiler (id, st_v, decs) (st_v2, bs_v, ws_v)
+         then SOME (env, decs,
+                    SOME (EvalDecs (add_decs_generation
+                            (s with compiler_state := st_v2))))
+         else NONE)
+    | (SOME (EvalOracle s'), vs) =>
+      (case s'.custom_do_eval vs s'.oracle of
+        NONE => NONE
+       | SOME (env_id, oracle, decs) =>
+           case lookup_env s' env_id of
+             NONE => NONE
+           | SOME env =>
+             SOME (env, decs,
+                   SOME (EvalOracle (add_env_generation
+                           (s' with oracle := oracle)))))
+    | _ => NONE
+End
+-/
+def do_eval (vs : List v) (es : Option eval_state) :
+    Option (sem_env × List dec × Option eval_state) :=
+  match es, vs with
+  | some (.EvalDecs s), [.Env env id_, st_v, decs_v, st_v2, bs_v, ws_v] =>
+    match s.decode_decs decs_v with
+    | none => none
+    | some decs =>
+      if st_v == s.compiler_state ∧ concrete_v decs_v ∧
+         compiler_agrees s.compiler (id_, st_v, decs) (st_v2, bs_v, ws_v) then
+        some (env, decs,
+              some (.EvalDecs (add_decs_generation
+                      { s with compiler_state := st_v2 })))
+      else none
+  | some (.EvalOracle s'), vs =>
+    match s'.custom_do_eval vs s'.oracle_field with
+    | none => none
+    | some (env_id, oracle, decs) =>
+      match lookup_env s' env_id with
+      | none => none
+      | some env =>
+        some (env, decs,
+              some (.EvalOracle (add_env_generation
+                      { s' with oracle_field := oracle })))
+  | _, _ => none
+
+/- HOL4:
+Definition reset_env_generation_def:
+  reset_env_generation prior_es es =
+    case (prior_es, es) of
+    | (SOME (EvalDecs prior_s'), SOME (EvalDecs s')) =>
+      (case (prior_s'.env_id_counter, s'.env_id_counter) of
+        ((cur_gen, next_id, _), (_, _, next_gen)) =>
+          SOME (EvalDecs (s' with env_id_counter := (cur_gen, next_id, next_gen))))
+    | (SOME (EvalOracle prior_s), SOME (EvalOracle s)) =>
+      SOME (EvalOracle (s with generation := prior_s.generation))
+    | _ => es
+End
+-/
+def reset_env_generation (prior_es es : Option eval_state) : Option eval_state :=
+  match prior_es, es with
+  | some (.EvalDecs prior_s'), some (.EvalDecs s') =>
+    let (cur_gen, next_id, _) := prior_s'.env_id_counter
+    let (_, _, next_gen) := s'.env_id_counter
+    some (.EvalDecs { s' with env_id_counter := (cur_gen, next_id, next_gen) })
+  | some (.EvalOracle prior_s), some (.EvalOracle s) =>
+    some (.EvalOracle { s with generation := prior_s.generation })
+  | _, _ => es
 
 /- HOL4:
 Definition copy_array_def:
-  ...
+  copy_array (src, srcoff) len d =
+    if srcoff < 0 ∨ len < 0 ∨ LENGTH src < Num (ABS (srcoff + len))
+    then NONE
+    else
+      let copied = TAKE (Num (ABS len)) (DROP (Num (ABS srcoff)) src)
+      in case d of
+         | NONE => SOME copied
+         | SOME (dst, dstoff) =>
+           if dstoff < 0 ∨ LENGTH dst < Num (ABS (dstoff + len)) then NONE
+           else SOME (TAKE (Num (ABS dstoff)) dst ⧺ copied ⧺
+                       DROP (Num (ABS (dstoff + len))) dst)
 End
 -/
 def copy_array {α : Type} (src_off : List α × Int) (len : Int)
-    (d : Option (List α × Int)) : Option (List α) := sorry
+    (d : Option (List α × Int)) : Option (List α) :=
+  let (src, srcoff) := src_off
+  if srcoff < 0 ∨ len < 0 ∨ (src.length : Int) < (srcoff + len).natAbs then
+    none
+  else
+    let copied := TAKE len.natAbs (DROP srcoff.natAbs src)
+    match d with
+    | none => some copied
+    | some (dst, dstoff) =>
+      if dstoff < 0 ∨ (dst.length : Int) < (dstoff + len).natAbs then none
+      else
+        some (TAKE dstoff.natAbs dst ++ copied ++
+              DROP (dstoff + len).natAbs dst)
 
 /- HOL4:
 Definition ws_to_chars_def:
@@ -877,10 +1013,266 @@ def do_conversion : v → prim_type → prim_type → Option (v ⊕ v)
 
 /- HOL4:
 Definition do_app_def:
-  do_app (s: v store_v list, t: 'ffi ffi_state) op vs = ...
+  do_app (s, t) op vs = ...   (* ~200-line case analysis *)
 End
-
-  This is a very large (~200 line) case analysis. We stub it out.
 -/
 def do_app {ffi : Type} (st : store v × ffi_state ffi) (o_ : op) (vs : List v) :
-    Option ((store v × ffi_state ffi) × result v v) := sorry
+    Option ((store v × ffi_state ffi) × result v v) :=
+  let s := st.1
+  let t := st.2
+  match o_, vs with
+  | .ListAppend, [x1, x2] =>
+    match v_to_list x1, v_to_list x2 with
+    | some xs, some ys => some ((s, t), .Rval (list_to_v (xs ++ ys)))
+    | _, _ => none
+  | .Shift .W8 sh n, [.Litv (.Word8 w)] =>
+    some ((s, t), .Rval (.Litv (.Word8 (shift8_lookup sh w n))))
+  | .Shift .W64 sh n, [.Litv (.Word64 w)] =>
+    some ((s, t), .Rval (.Litv (.Word64 (shift64_lookup sh w n))))
+  | .Equality, [v1, v2] =>
+    match do_eq v1 v2 with
+    | .Eq_type_error => none
+    | .Eq_val b => some ((s, t), .Rval (Boolv b))
+  | .Opassign, [.Loc _ lnum, val_] =>
+    match store_assign lnum (.Refv val_) s with
+    | some s' => some ((s', t), .Rval (.Conv none []))
+    | none => none
+  | .Opref, [val_] =>
+    let (s', n) := store_alloc (.Refv val_) s
+    some ((s', t), .Rval (.Loc true n))
+  | .Opderef, [.Loc _ n] =>
+    match store_lookup n s with
+    | some (.Refv val_) => some ((s, t), .Rval val_)
+    | _ => none
+  | .Aw8alloc, [.Litv (.IntLit n), .Litv (.Word8 w)] =>
+    if n < 0 then
+      some ((s, t), .Rerr (.Rraise sub_exn_v))
+    else
+      let (s', lnum) := store_alloc (.W8array (REPLICATE n.natAbs w)) s
+      some ((s', t), .Rval (.Loc true lnum))
+  | .Aw8sub, [.Loc _ lnum, .Litv (.IntLit i)] =>
+    match store_lookup lnum s with
+    | some (.W8array ws) =>
+      if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else
+        let n := i.natAbs
+        if n ≥ ws.length then some ((s, t), .Rerr (.Rraise sub_exn_v))
+        else some ((s, t), .Rval (.Litv (.Word8 (EL n ws))))
+    | _ => none
+  | .Aw8sub_unsafe, [.Loc _ lnum, .Litv (.IntLit i)] =>
+    match store_lookup lnum s with
+    | some (.W8array ws) =>
+      if i < 0 then none
+      else
+        let n := i.natAbs
+        if n ≥ ws.length then none
+        else some ((s, t), .Rval (.Litv (.Word8 (EL n ws))))
+    | _ => none
+  | .Aw8length, [.Loc _ n] =>
+    match store_lookup n s with
+    | some (.W8array ws) =>
+      some ((s, t), .Rval (.Litv (.IntLit (Int.ofNat ws.length))))
+    | _ => none
+  | .Aw8update, [.Loc _ lnum, .Litv (.IntLit i), .Litv (.Word8 w)] =>
+    match store_lookup lnum s with
+    | some (.W8array ws) =>
+      if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else
+        let n := i.natAbs
+        if n ≥ ws.length then some ((s, t), .Rerr (.Rraise sub_exn_v))
+        else
+          match store_assign lnum (.W8array (LUPDATE w n ws)) s with
+          | none => none
+          | some s' => some ((s', t), .Rval (.Conv none []))
+    | _ => none
+  | .Aw8update_unsafe, [.Loc _ lnum, .Litv (.IntLit i), .Litv (.Word8 w)] =>
+    match store_lookup lnum s with
+    | some (.W8array ws) =>
+      if i < 0 then none
+      else
+        let n := i.natAbs
+        if n ≥ ws.length then none
+        else
+          match store_assign lnum (.W8array (LUPDATE w n ws)) s with
+          | none => none
+          | some s' => some ((s', t), .Rval (.Conv none []))
+    | _ => none
+  | .CopyStrStr, [.Litv (.StrLit strng), .Litv (.IntLit off), .Litv (.IntLit len)] =>
+    some ((s, t),
+      match copy_array (explode strng, off) len none with
+      | none => .Rerr (.Rraise sub_exn_v)
+      | some cs => .Rval (.Litv (.StrLit (implode (String.mk cs)))))
+  | .CopyStrAw8,
+      [.Litv (.StrLit strng), .Litv (.IntLit off), .Litv (.IntLit len),
+       .Loc _ dst, .Litv (.IntLit dstoff)] =>
+    match store_lookup dst s with
+    | some (.W8array ws) =>
+      match copy_array (explode strng, off) len (some (ws_to_chars ws, dstoff)) with
+      | none => some ((s, t), .Rerr (.Rraise sub_exn_v))
+      | some cs =>
+        match store_assign dst (.W8array (chars_to_ws cs)) s with
+        | some s' => some ((s', t), .Rval (.Conv none []))
+        | _ => none
+    | _ => none
+  | .CopyAw8Str, [.Loc _ src, .Litv (.IntLit off), .Litv (.IntLit len)] =>
+    match store_lookup src s with
+    | some (.W8array ws) =>
+      some ((s, t),
+        match copy_array (ws, off) len none with
+        | none => .Rerr (.Rraise sub_exn_v)
+        | some ws' => .Rval (.Litv (.StrLit (implode (String.mk (ws_to_chars ws'))))))
+    | _ => none
+  | .CopyAw8Aw8,
+      [.Loc _ src, .Litv (.IntLit off), .Litv (.IntLit len),
+       .Loc _ dst, .Litv (.IntLit dstoff)] =>
+    match store_lookup src s, store_lookup dst s with
+    | some (.W8array ws), some (.W8array ds) =>
+      match copy_array (ws, off) len (some (ds, dstoff)) with
+      | none => some ((s, t), .Rerr (.Rraise sub_exn_v))
+      | some ws' =>
+        match store_assign dst (.W8array ws') s with
+        | some s' => some ((s', t), .Rval (.Conv none []))
+        | _ => none
+    | _, _ => none
+  | .XorAw8Str_unsafe, [.Loc _ dst, .Litv (.StrLit str_arg)] =>
+    match store_lookup dst s with
+    | some (.W8array bs) =>
+      match xor_bytes ((explode str_arg).map (fun c => n2w_8 (ORD c))) bs with
+      | none => none
+      | some new_bs =>
+        match store_assign dst (.W8array new_bs) s with
+        | none => none
+        | some s' => some ((s', t), .Rval (.Conv none []))
+    | _ => none
+  | .Implode, [val_] =>
+    match v_to_char_list val_ with
+    | some ls => some ((s, t), .Rval (.Litv (.StrLit (implode (String.mk ls)))))
+    | none => none
+  | .Explode, [.Litv (.StrLit strng)] =>
+    some ((s, t), .Rval (list_to_v ((explode strng).map (fun c => .Litv (.Char c)))))
+  | .Strsub, [.Litv (.StrLit strng), .Litv (.IntLit i)] =>
+    if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+    else
+      let n := i.natAbs
+      if n ≥ strlen strng then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else some ((s, t), .Rval (.Litv (.Char (EL n (explode strng)))))
+  | .Strlen, [.Litv (.StrLit strng)] =>
+    some ((s, t), .Rval (.Litv (.IntLit (Int.ofNat (strlen strng)))))
+  | .Strcat, [val_] =>
+    match v_to_list val_ with
+    | some vs =>
+      match vs_to_string vs with
+      | some strng => some ((s, t), .Rval (.Litv (.StrLit strng)))
+      | _ => none
+    | _ => none
+  | .VfromList, [val_] =>
+    match v_to_list val_ with
+    | some vs => some ((s, t), .Rval (.Vectorv vs))
+    | none => none
+  | .Vsub_unsafe, [.Vectorv vs, .Litv (.IntLit i)] =>
+    if 0 ≤ i ∧ i.natAbs < vs.length then
+      some ((s, t), .Rval (EL i.natAbs vs))
+    else none
+  | .Vsub, [.Vectorv vs, .Litv (.IntLit i)] =>
+    if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+    else
+      let n := i.natAbs
+      if n ≥ vs.length then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else some ((s, t), .Rval (EL n vs))
+  | .Vlength, [.Vectorv vs] =>
+    some ((s, t), .Rval (.Litv (.IntLit (Int.ofNat vs.length))))
+  | .Aalloc, [.Litv (.IntLit n), val_] =>
+    if n < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+    else
+      let (s', lnum) := store_alloc (.Varray (REPLICATE n.natAbs val_)) s
+      some ((s', t), .Rval (.Loc true lnum))
+  | .AallocEmpty, [.Conv none []] =>
+    let (s', lnum) := store_alloc (.Varray []) s
+    some ((s', t), .Rval (.Loc true lnum))
+  | .AallocFixed, vs =>
+    let (s', lnum) := store_alloc (.Varray vs) s
+    some ((s', t), .Rval (.Loc true lnum))
+  | .Asub, [.Loc _ lnum, .Litv (.IntLit i)] =>
+    match store_lookup lnum s with
+    | some (.Varray vs) =>
+      if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else
+        let n := i.natAbs
+        if n ≥ vs.length then some ((s, t), .Rerr (.Rraise sub_exn_v))
+        else some ((s, t), .Rval (EL n vs))
+    | _ => none
+  | .Asub_unsafe, [.Loc _ lnum, .Litv (.IntLit i)] =>
+    match store_lookup lnum s with
+    | some (.Varray vs) =>
+      if i < 0 then none
+      else
+        let n := i.natAbs
+        if n ≥ vs.length then none
+        else some ((s, t), .Rval (EL n vs))
+    | _ => none
+  | .Alength, [.Loc _ n] =>
+    match store_lookup n s with
+    | some (.Varray ws) =>
+      some ((s, t), .Rval (.Litv (.IntLit (Int.ofNat ws.length))))
+    | _ => none
+  | .Aupdate, [.Loc _ lnum, .Litv (.IntLit i), val_] =>
+    match store_lookup lnum s with
+    | some (.Varray vs) =>
+      if i < 0 then some ((s, t), .Rerr (.Rraise sub_exn_v))
+      else
+        let n := i.natAbs
+        if n ≥ vs.length then some ((s, t), .Rerr (.Rraise sub_exn_v))
+        else
+          match store_assign lnum (.Varray (LUPDATE val_ n vs)) s with
+          | none => none
+          | some s' => some ((s', t), .Rval (.Conv none []))
+    | _ => none
+  | .Aupdate_unsafe, [.Loc _ lnum, .Litv (.IntLit i), val_] =>
+    match store_lookup lnum s with
+    | some (.Varray vs) =>
+      if i < 0 then none
+      else
+        let n := i.natAbs
+        if n ≥ vs.length then none
+        else
+          match store_assign lnum (.Varray (LUPDATE val_ n vs)) s with
+          | none => none
+          | some s' => some ((s', t), .Rval (.Conv none []))
+    | _ => none
+  | .ConfigGC, [.Litv (.IntLit _), .Litv (.IntLit _)] =>
+    some ((s, t), .Rval (.Conv none []))
+  | .FFI n, [.Litv (.StrLit conf), .Loc _ lnum] =>
+    match store_lookup lnum s with
+    | some (.W8array ws) =>
+      match call_FFI t (.ExtCall n) ((explode conf).map (fun c => n2w_8 (ORD c))) ws with
+      | .FFI_return t' ws' =>
+        match store_assign lnum (.W8array ws') s with
+        | some s' => some ((s', t'), .Rval (.Conv none []))
+        | none => none
+      | .FFI_final outcome =>
+        some ((s, t), .Rerr (.Rabort (.Rffi_error outcome)))
+    | _ => none
+  | .Env_id, [.Env _ (gen, id_)] =>
+    some ((s, t), .Rval (.Conv none [nat_to_v gen, nat_to_v id_]))
+  | .Env_id, [.Conv none [gen, id_]] =>
+    some ((s, t), .Rval (.Conv none [gen, id_]))
+  | .ThunkOp th_op, vs => thunk_op_fun (s, t) th_op vs
+  | .Arith a ty, vs =>
+    if EVERY (check_type ty) vs then
+      match do_arith a ty vs with
+      | some (.inr res) => some ((s, t), .Rval res)
+      | some (.inl exn) => some ((s, t), .Rerr (.Rraise exn))
+      | none => none
+    else none
+  | .FromTo ty1 ty2, [val_] =>
+    if check_type ty1 val_ then
+      match do_conversion val_ ty1 ty2 with
+      | some (.inr res) => some ((s, t), .Rval res)
+      | some (.inl exn) => some ((s, t), .Rerr (.Rraise exn))
+      | none => none
+    else none
+  | .Test test_ test_ty, [v1, v2] =>
+    match do_test test_ test_ty v1 v2 with
+    | .Eq_type_error => none
+    | .Eq_val b => some ((s, t), .Rval (Boolv b))
+  | _, _ => none
