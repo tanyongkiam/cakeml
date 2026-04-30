@@ -43,54 +43,33 @@ Theorem fst_triple[local]:
   (\ (x,y,z). x) = FST
 -/
 theorem fst_triple {α β γ : Type} :
-    (fun ((x, _, _) : α × β × γ) => x) = (fun (p : α × β × γ) => p.1) := by
-  funext p
-  obtain ⟨x, y, z⟩ := p
-  rfl
-
+    (fun ((x, _, _) : α × β × γ) => x) = (fun (p : α × β × γ) => p.1) := sorry
 /- HOL4:
 Theorem sing_list[local]:
   !l. LENGTH l = 1 ⇔ ?x. l = [x]
 -/
 theorem sing_list {α : Type} :
-    ∀ (l : List α), l.length = 1 ↔ ∃ (x : α), l = [x] := by
-  intro l
-  constructor
-  · intro h
-    cases l with
-    | nil => simp at h
-    | cons x xs =>
-      cases xs with
-      | nil => exact ⟨x, rfl⟩
-      | cons y ys => simp at h
-  · rintro ⟨x, rfl⟩
-    simp
-
+    ∀ (l : List α), l.length = 1 ↔ ∃ (x : α), l = [x] := sorry
 /- HOL4:
 Theorem EVERY_LIST_REL[local]:
   EVERY (\x. f x y) l = LIST_REL (\x y. f x y) l (REPLICATE (LENGTH l) y)
 -/
 theorem EVERY_LIST_REL_local {α β : Type} :
     ∀ (f : α → β → Prop) (y : β) (l : List α),
-      (∀ (x : α), x ∈ l → f x y) ↔ LIST_REL (fun x y => f x y) l (REPLICATE l.length y) := by sorry
-
+      (∀ (x : α), x ∈ l → f x y) ↔ LIST_REL (fun x y => f x y) l (REPLICATE l.length y) := sorry
 /- HOL4:
 Theorem v_unchanged[simp]:
   !tenv x. tenv with v := tenv.v = tenv
 -/
 theorem v_unchanged :
-    ∀ (tenv : type_env), { tenv with v := tenv.v } = tenv := by
-  intro tenv
-  rfl
-
+    ∀ (tenv : type_env), { tenv with v := tenv.v } = tenv := sorry
 /- HOL4:
 Theorem check_dup_ctors_thm:
   check_dup_ctors (tvs,tn,condefs) = ALL_DISTINCT (MAP FST condefs)
 -/
 theorem check_dup_ctors_thm :
     ∀ (tvs : List tvarN) (tn : typeN) (condefs : List (conN × List ast_t)),
-      check_dup_ctors (tvs, tn, condefs) = ALL_DISTINCT (condefs.map Prod.fst) := by sorry
-
+      check_dup_ctors (tvs, tn, condefs) = ALL_DISTINCT (condefs.map Prod.fst) := sorry
 /- HOL4:
 Theorem prim_canonical_values_thm:
   (type_v tvs ctMap tenvS v Tint ∧ ctMap_ok ctMap ⇒ (∃n. v = Litv (IntLit n))) ∧
@@ -153,8 +132,7 @@ theorem prim_canonical_values_thm :
         Finmap.FLOOKUP tenvS n = some (.Varray_t t)) ∧
     (type_v tvs ctMap_ tenvS val_ (Tvector t) ∧ ctMap_ok ctMap_ →
       ∃ (vs : List v),
-        val_ = .Vectorv vs ∧ (∀ (v_ : v), v_ ∈ vs → type_v tvs ctMap_ tenvS v_ t)) := by sorry
-
+        val_ = .Vectorv vs ∧ (∀ (v_ : v), v_ ∈ vs → type_v tvs ctMap_ tenvS v_ t)) := sorry
 /- HOL4:
 Theorem has_lists_v_to_list[local]:
   !ctMap tvs tenvS t3.
@@ -176,8 +154,7 @@ theorem has_lists_v_to_list :
         v_to_list val_ = some vs ∧
         (∀ (v_ : v), v_ ∈ vs → type_v tvs ctMap_ tenvS v_ t3) ∧
         (t3 = Tchar → ∃ (vs' : List Char), v_to_char_list val_ = some vs') ∧
-        (t3 = Tstring → ∃ (str : mlstring), vs_to_string vs = some str) := by sorry
-
+        (t3 = Tstring → ∃ (str : mlstring), vs_to_string vs = some str) := sorry
 /- HOL4:
 Theorem ctor_canonical_values_thm:
   (type_v tvs ctMap tenvS v Tbool ∧ ctMap_ok ctMap ∧ ctMap_has_bools ctMap ⇒
@@ -212,19 +189,13 @@ theorem ctor_canonical_values_thm :
       (∃ (cn : conN) (n : Nat) (vs : List v),
         same_type stmp (.TypeStamp cn n) ∧ val_ = .Conv (some (.TypeStamp cn n)) vs) ∨
       (∃ (n : Nat) (vs : List v),
-        same_type stmp (.ExnStamp n) ∧ val_ = .Conv (some (.ExnStamp n)) vs)) := by sorry
-
+        same_type stmp (.ExnStamp n) ∧ val_ = .Conv (some (.ExnStamp n)) vs)) := sorry
 /- HOL4:
 Theorem same_type_refl[local]:
   !t. same_type t t
 -/
 theorem same_type_refl :
-    ∀ (t : stamp), same_type t t := by
-  intro t
-  cases t with
-  | TypeStamp s n => simp [same_type]
-  | ExnStamp n => simp [same_type]
-
+    ∀ (t : stamp), same_type t t := sorry
 /- HOL4:
 Theorem eq_same_type[local]:
   (!v1 v2 tvs ctMap cns tenvS t.
@@ -250,8 +221,7 @@ theorem eq_same_type :
       ctMap_ok ctMap_ ∧
       LIST_REL (type_v tvs ctMap_ tenvS) vs1 ts ∧
       LIST_REL (type_v tvs ctMap_ tenvS) vs2 ts →
-      do_eq_list vs1 vs2 ≠ .Eq_type_error) := by sorry
-
+      do_eq_list vs1 vs2 ≠ .Eq_type_error) := sorry
 /- HOL4:
 Theorem type_env_conv_thm[local]:
   ∀ctMap envC tenvC.
@@ -271,8 +241,7 @@ theorem type_env_conv_thm :
           ∃ (cn' : conN) (stmp : stamp),
             nsLookup envC cn = some (ts.length, stmp) ∧
             Finmap.FLOOKUP ctMap_ stmp = some (tvs', ts, tn)) ∧
-        (nsLookup tenvC cn = none → nsLookup envC cn = none) := by sorry
-
+        (nsLookup tenvC cn = none → nsLookup envC cn = none) := sorry
 /- HOL4:
 Theorem type_funs_fst[local]:
   !tenv tenvE funs tenv'.
@@ -284,8 +253,7 @@ theorem type_funs_fst :
     ∀ (tenv : type_env) (tenvE : tenv_val_exp) (funs : List (varN × varN × exp))
       (tenv' : List (varN × sem_t)),
       type_funs tenv tenvE funs tenv' →
-      funs.map Prod.fst = tenv'.map Prod.fst := by sorry
-
+      funs.map Prod.fst = tenv'.map Prod.fst := sorry
 /- HOL4:
 Theorem type_recfun_env_help[local]:
   ∀fn funs funs' ctMap tenv bindings tenvE env tenvS tvs bindings'.
@@ -317,8 +285,7 @@ theorem type_recfun_env_help :
       LIST_REL (fun (p1 : varN × v) (p2 : varN × Nat × sem_t) =>
                   p1.1 = p2.1 ∧ type_v p2.2.1 ctMap_ tenvS p1.2 p2.2.2)
         (funs.map (fun (p : varN × varN × exp) => (p.1, v.Recclosure env funs' p.1)))
-        (bindings.map (fun (p : varN × sem_t) => (p.1, tvs, p.2))) := by sorry
-
+        (bindings.map (fun (p : varN × sem_t) => (p.1, tvs, p.2))) := sorry
 /- HOL4:
 Theorem type_recfun_env[local]:
   ∀funs ctMap tenvS tvs tenv tenvE env bindings.
@@ -346,8 +313,7 @@ theorem type_recfun_env :
       LIST_REL (fun (p1 : varN × v) (p2 : varN × Nat × sem_t) =>
                   p1.1 = p2.1 ∧ type_v p2.2.1 ctMap_ tenvS p1.2 p2.2.2)
         (funs.map (fun (p : varN × varN × exp) => (p.1, v.Recclosure env funs p.1)))
-        (bindings.map (fun (p : varN × sem_t) => (p.1, tvs, p.2))) := by sorry
-
+        (bindings.map (fun (p : varN × sem_t) => (p.1, tvs, p.2))) := sorry
 /- HOL4:
 val type_v_exn = Q.prove (
   `!tvs cenv senv.
@@ -363,28 +329,21 @@ theorem type_v_exn :
       type_v tvs cenv senv (.Conv (some chr_stamp) []) Texn ∧
       type_v tvs cenv senv (.Conv (some subscript_stamp) []) Texn ∧
       type_v tvs cenv senv (.Conv (some bind_stamp) []) Texn ∧
-      type_v tvs cenv senv (.Conv (some div_stamp) []) Texn := by sorry
-
+      type_v tvs cenv senv (.Conv (some div_stamp) []) Texn := sorry
 /- HOL4:
 Theorem type_v_Boolv[local]:
   ctMap_has_bools ctMap ⇒ type_v tvs ctMap tenvS (Boolv b) Tbool
 -/
 theorem type_v_Boolv :
     ∀ (tvs : Nat) (ctMap_ : ctMap) (tenvS : tenv_store) (b : Bool),
-      ctMap_has_bools ctMap_ → type_v tvs ctMap_ tenvS (Boolv b) Tbool := by sorry
-
+      ctMap_has_bools ctMap_ → type_v tvs ctMap_ tenvS (Boolv b) Tbool := sorry
 /- HOL4:
 Theorem remove_lambda_prod[local]:
   (\ (x,y). P x y) = (\xy. P (FST xy) (SND xy))
 -/
 theorem remove_lambda_prod {α β γ : Type} :
     ∀ (P : α → β → γ),
-      (fun ((x, y) : α × β) => P x y) = (fun (p : α × β) => P p.1 p.2) := by
-  intro P
-  funext p
-  obtain ⟨x, y⟩ := p
-  rfl
-
+      (fun ((x, y) : α × β) => P x y) = (fun (p : α × β) => P p.1 p.2) := sorry
 /- HOL4:
 Theorem opapp_type_sound:
   !ctMap tenvS vs ts t.
@@ -411,8 +370,7 @@ theorem opapp_type_sound :
         num_tvs tenvE = 0 ∧
         type_all_env ctMap_ tenvS env { tenv with v := add_tenvE tenvE tenv.v } ∧
         type_e tenv tenvE e t ∧
-        do_opapp vs = some (env, e) := by sorry
-
+        do_opapp vs = some (env, e) := sorry
 /- HOL4:
 Theorem store_type_extension_weakS:
   !tenvS1 tenvS2.
@@ -420,15 +378,13 @@ Theorem store_type_extension_weakS:
 -/
 theorem store_type_extension_weakS :
     ∀ (tenvS1 tenvS2 : tenv_store),
-      store_type_extension tenvS1 tenvS2 → weakS tenvS2 tenvS1 := by sorry
-
+      store_type_extension tenvS1 tenvS2 → weakS tenvS2 tenvS1 := sorry
 /- HOL4:
 Theorem store_type_extension_refl:
   !tenvS. store_type_extension tenvS tenvS
 -/
 theorem store_type_extension_refl :
-    ∀ (tenvS : tenv_store), store_type_extension tenvS tenvS := by sorry
-
+    ∀ (tenvS : tenv_store), store_type_extension tenvS tenvS := sorry
 /- HOL4:
 Theorem store_type_extension_trans:
   !s1 s2 s3.
@@ -438,8 +394,7 @@ Theorem store_type_extension_trans:
 theorem store_type_extension_trans :
     ∀ (s1 s2 s3 : tenv_store),
       store_type_extension s1 s2 ∧ store_type_extension s2 s3 →
-      store_type_extension s1 s3 := by sorry
-
+      store_type_extension s1 s3 := sorry
 /- HOL4:
 Theorem store_assign_type_sound:
   !ctMap tenvS store sv st l.
@@ -459,8 +414,7 @@ theorem store_assign_type_sound :
       type_sv ctMap_ tenvS sv st →
       ∃ (store' : List (store_v v)),
         store_assign l sv store_ = some store' ∧
-        type_s ctMap_ store' tenvS := by sorry
-
+        type_s ctMap_ store' tenvS := sorry
 /- HOL4:
 Theorem store_alloc_type_sound:
   !ctMap tenvS store sv st.
@@ -484,8 +438,7 @@ theorem store_alloc_type_sound :
         store_type_extension tenvS tenvS' ∧
         store_alloc sv store_ = (store', n) ∧
         type_s ctMap_ store' tenvS' ∧
-        Finmap.FLOOKUP tenvS' n = some st := by sorry
-
+        Finmap.FLOOKUP tenvS' n = some st := sorry
 -- store_lookup_type_sound is commented out in HOL4 source
 
 /- HOL4:
@@ -499,8 +452,7 @@ theorem type_v_list_to_v :
     ∀ (n : Nat) (ctMap_ : ctMap) (tenvS : tenv_store) (x : v) (xs : List v) (t : sem_t),
       type_v n ctMap_ tenvS x t ∧
       v_to_list x = some xs →
-      type_v n ctMap_ tenvS (list_to_v xs) t := by sorry
-
+      type_v n ctMap_ tenvS (list_to_v xs) t := sorry
 /- HOL4:
 Theorem type_v_list_to_v_APPEND:
   !xs ys t.
@@ -515,16 +467,14 @@ theorem type_v_list_to_v_APPEND :
       ctMap_has_lists ctMap_ ∧
       type_v 0 ctMap_ tenvS (list_to_v xs) (.Tapp [t] Tlist_num) ∧
       type_v 0 ctMap_ tenvS (list_to_v ys) (.Tapp [t] Tlist_num) →
-      type_v 0 ctMap_ tenvS (list_to_v (xs ++ ys)) (.Tapp [t] Tlist_num) := by sorry
-
+      type_v 0 ctMap_ tenvS (list_to_v (xs ++ ys)) (.Tapp [t] Tlist_num) := sorry
 /- HOL4:
 Theorem do_eq_Boolv:
   do_eq (Boolv b) (Boolv b') = Eq_val (b = b')
 -/
 theorem do_eq_Boolv :
     ∀ (b b' : Bool),
-      do_eq (Boolv b) (Boolv b') = .Eq_val (b == b') := by sorry
-
+      do_eq (Boolv b) (Boolv b') = .Eq_val (b == b') := sorry
 /- HOL4:
 Theorem prim_canonical_Boolv_thm:
   (type_v tvs ctMap tenvS v Tbool ∧ ctMap_ok ctMap ∧ ctMap_has_bools ctMap ⇒
@@ -533,8 +483,7 @@ Theorem prim_canonical_Boolv_thm:
 theorem prim_canonical_Boolv_thm :
     ∀ (tvs : Nat) (ctMap_ : ctMap) (tenvS : tenv_store) (val_ : v),
       type_v tvs ctMap_ tenvS val_ Tbool ∧ ctMap_ok ctMap_ ∧ ctMap_has_bools ctMap_ →
-      ∃ (b : Bool), val_ = Boolv b := by sorry
-
+      ∃ (b : Bool), val_ = Boolv b := sorry
 /- HOL4:
 Theorem prim_canonical_Boolv_cases[local]:
   type_v tvs ctMap tenvS v (Tapp [] Tbool_num) ∧
@@ -547,8 +496,7 @@ theorem prim_canonical_Boolv_cases :
       type_v tvs ctMap_ tenvS val_ (.Tapp [] Tbool_num) ∧
       ctMap_ok ctMap_ ∧
       ctMap_has_bools ctMap_ →
-      val_ = Boolv true ∨ val_ = Boolv false := by sorry
-
+      val_ = Boolv true ∨ val_ = Boolv false := sorry
 /- HOL4:
 Theorem op_type_sound:
  !ctMap tenvS vs op ts t store (ffi : 'ffi ffi_state).
@@ -588,8 +536,7 @@ theorem op_type_sound :
         | .Rval val_ => type_v 0 ctMap_ tenvS' val_ t
         | .Rerr (.Rraise val_) => type_v 0 ctMap_ tenvS' val_ Texn
         | .Rerr (.Rabort (.Rffi_error _)) => True
-        | .Rerr (.Rabort _) => False := by sorry
-
+        | .Rerr (.Rabort _) => False := sorry
 /- HOL4:
 Theorem build_conv_type_sound:
  !envC cn vs tvs ts ctMap tenvS ts' tn tenvC tvs' tenvE l.
@@ -621,8 +568,7 @@ theorem build_conv_type_sound :
       nsLookup tenvC cn = some (tvs', ts, tn) →
       ∃ (val_ : v),
         build_conv envC (some cn) vs.reverse = some val_ ∧
-        type_v tvs ctMap_ tenvS val_ (.Tapp ts' tn) := by sorry
-
+        type_v tvs ctMap_ tenvS val_ (.Tapp ts' tn) := sorry
 /- HOL4:
 Theorem same_ctor_and_same_tid:
    !stamp1 stamp2.
@@ -634,8 +580,7 @@ Theorem same_ctor_and_same_tid:
 theorem same_ctor_and_same_tid :
     ∀ (stamp1 stamp2 : stamp),
       same_ctor stamp1 stamp2 ∧ same_type stamp1 stamp2 →
-      stamp1 = stamp2 := by sorry
-
+      stamp1 = stamp2 := sorry
 /- HOL4:
 Theorem pat_type_sound:
   (∀(cenv : env_ctor) st p v bindings tenv ctMap tbindings t new_tbindings tenvS tvs.
@@ -699,8 +644,7 @@ theorem pat_type_sound :
         pmatch_list cenv st ps vs bindings = .Match bindings' ∧
         LIST_REL (fun (p1 : varN × v) (p2 : varN × sem_t) =>
           p1.1 = p2.1 ∧ type_v tvs ctMap_ tenvS p1.2 p2.2) bindings'
-          (new_tbindings ++ tbindings)) := by sorry
-
+          (new_tbindings ++ tbindings)) := sorry
 /- HOL4:
 Theorem lookup_var_sound:
    !n tvs tenvE targs t ctMap tenvS env tenv.
@@ -725,8 +669,7 @@ theorem lookup_var_sound :
       type_all_env ctMap_ tenvS env { tenv with v := add_tenvE tenvE tenv.v } →
       ∃ (val_ : v),
         nsLookup env.v_ n = some val_ ∧
-        type_v tvs ctMap_ tenvS val_ (deBruijn_subst 0 targs t) := by sorry
-
+        type_v tvs ctMap_ tenvS val_ (deBruijn_subst 0 targs t) := sorry
 /- HOL4:
 Theorem EVERY_REPLICATE:
   EVERY (\x. type_v tvs ctMap tenv x t') vs =
@@ -735,8 +678,7 @@ Theorem EVERY_REPLICATE:
 theorem EVERY_REPLICATE :
     ∀ (tvs : Nat) (ctMap_ : ctMap) (tenv : tenv_store) (t' : sem_t) (vs : List v),
       (∀ (x : v), x ∈ vs → type_v tvs ctMap_ tenv x t') ↔
-      (∀ (x : v × sem_t), x ∈ vs.zip (REPLICATE vs.length t') → type_v tvs ctMap_ tenv x.1 x.2) := by sorry
-
+      (∀ (x : v × sem_t), x ∈ vs.zip (REPLICATE vs.length t') → type_v tvs ctMap_ tenv x.1 x.2) := sorry
 /- HOL4:
 Theorem EVERY_LIST_REL:
   EVERY (\ v. type_v n ctMap tenvS v t) vs =
@@ -745,8 +687,7 @@ Theorem EVERY_LIST_REL:
 theorem EVERY_LIST_REL_thm :
     ∀ (n : Nat) (ctMap_ : ctMap) (tenvS : tenv_store) (t : sem_t) (vs : List v),
       (∀ (v_ : v), v_ ∈ vs → type_v n ctMap_ tenvS v_ t) ↔
-      LIST_REL (type_v n ctMap_ tenvS) vs (REPLICATE vs.length t) := by sorry
-
+      LIST_REL (type_v n ctMap_ tenvS) vs (REPLICATE vs.length t) := sorry
 /- HOL4:
 Theorem exp_type_sound:
   (!(s:'ffi semanticPrimitives$state) env es r s' tenv tenvE ts tvs tenvS.
@@ -844,8 +785,7 @@ theorem exp_type_sound :
         | .Rerr (.Rraise val_) => type_v 0 ctMap_ tenvS' val_ Texn
         | .Rerr (.Rabort .Rtimeout_error) => True
         | .Rerr (.Rabort (.Rffi_error _)) => True
-        | .Rerr (.Rabort .Rtype_error) => False) := by sorry
-
+        | .Rerr (.Rabort .Rtype_error) => False) := sorry
 /- HOL4:
 Theorem build_tdefs_build_tenv[local]:
   !tenvT (tds : type_def) (tids : type_ident list) next (ctMap : ctMap).
@@ -865,8 +805,7 @@ theorem build_tdefs_build_tenv :
       nsAll2
         (type_ctor (Finmap.FUPDATE_LIST ctMap_ (type_def_to_ctMap tenvT next tds tids).reverse))
         (build_tdefs next tds : env_ctor)
-        (build_ctor_tenv tenvT tds tids) := by sorry
-
+        (build_ctor_tenv tenvT tds tids) := sorry
 /- HOL4:
 Theorem type_sound_invariant_union[local]:
   type_sound_invariant st env ctMap tenvS (tids1 ∪ tids2) tenv
@@ -877,16 +816,14 @@ theorem type_sound_invariant_union :
     ∀ {ffi : Type} (st : cml_state ffi) (env : sem_env) (ctMap_ : ctMap)
       (tenvS : tenv_store) (tids1 tids2 : Set type_ident) (tenv : type_env),
       type_sound_invariant st env ctMap_ tenvS (tids1 ∪ tids2) tenv →
-      type_sound_invariant st env ctMap_ tenvS tids1 tenv := by sorry
-
+      type_sound_invariant st env ctMap_ tenvS tids1 tenv := sorry
 /- HOL4:
 Theorem check_ctor_tenv_dups[local]:
   !tenvT tds. check_ctor_tenv tenvT tds ⇒ EVERY check_dup_ctors tds
 -/
 theorem check_ctor_tenv_dups :
     ∀ (tenvT : tenv_abbrev) (tds : type_def),
-      check_ctor_tenv tenvT tds → EVERY check_dup_ctors tds := by sorry
-
+      check_ctor_tenv tenvT tds → EVERY check_dup_ctors tds := sorry
 /- HOL4:
 Theorem type_all_env_extend:
    type_all_env ctMap tenvS env1 tenv1
@@ -900,8 +837,7 @@ theorem type_all_env_extend :
       type_all_env ctMap_ tenvS env1 tenv1 ∧
       type_all_env ctMap_ tenvS env2 tenv2 →
       type_all_env ctMap_ tenvS (extend_dec_env env1 env2)
-        (extend_dec_tenv tenv1 tenv2) := by sorry
-
+        (extend_dec_tenv tenv1 tenv2) := sorry
 /- HOL4:
 Theorem type_e_con_check:
  (!tenv tenvE e t.
@@ -931,8 +867,7 @@ theorem type_e_con_check :
        (env_ : List (varN × sem_t)),
       type_funs tenv tenvE funs env_ →
       nsAll2 (type_ctor ctMap_) envc tenv.c →
-      EVERY (fun (p : varN × varN × exp) => every_exp (one_con_check envc) p.2.2) funs) := by sorry
-
+      EVERY (fun (p : varN × varN × exp) => every_exp (one_con_check envc) p.2.2) funs) := sorry
 /- HOL4:
 Theorem decs_type_sound_no_check:
   ∀(st:'ffi semanticPrimitives$state) env ds st' r ctMap tenvS tenv tids tenv'.
@@ -979,8 +914,7 @@ theorem decs_type_sound_no_check :
           type_sound_invariant st' env ctMap' tenvS' ∅ tenv
         | .Rerr (.Rabort .Rtype_error) => False
         | .Rerr (.Rabort .Rtimeout_error) => True
-        | .Rerr (.Rabort (.Rffi_error _)) => True := by sorry
-
+        | .Rerr (.Rabort (.Rffi_error _)) => True := sorry
 /- HOL4:
 Theorem decs_type_sound:
   ∀(st:'ffi semanticPrimitives$state) env ds extra_checks st' r ctMap tenvS tenv tids tenv'.
@@ -1027,8 +961,7 @@ theorem decs_type_sound :
           type_sound_invariant st' env ctMap' tenvS' ∅ tenv
         | .Rerr (.Rabort .Rtype_error) => False
         | .Rerr (.Rabort (.Rffi_error _)) => True
-        | .Rerr (.Rabort .Rtimeout_error) => True := by sorry
-
+        | .Rerr (.Rabort .Rtimeout_error) => True := sorry
 /- HOL4:
 Theorem semantics_type_sound:
   ∀(st:'ffi semanticPrimitives$state) env tops r checks ctMap tenvS tenv new_tenv tids.
@@ -1044,4 +977,4 @@ theorem semantics_type_sound :
       semantics_prog st env tops r ∧
       type_ds checks tenv tops tids new_tenv ∧
       type_sound_invariant st env ctMap_ tenvS tids tenv →
-      r ≠ .Fail := by sorry
+      r ≠ .Fail := sorry

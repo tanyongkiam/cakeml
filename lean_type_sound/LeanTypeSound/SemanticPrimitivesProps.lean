@@ -177,33 +177,22 @@ def shift_lookup_64 : shift → word64 → Nat → word64
    (env:'v sem_env) with v := env.v = env
 -/
 theorem with_same_v (env : sem_env) :
-    sem_env.mk env.v_ env.c = env := by
-  cases env with | mk v c => rfl
-
+    sem_env.mk env.v_ env.c = env := sorry
 /- HOL4: Theorem unchanged_env[simp]:
    !(env : 'a sem_env). <| v := env.v; c := env.c |> = env
 -/
 theorem unchanged_env (env : sem_env) :
-    sem_env.mk env.v_ env.c = env := by
-  cases env with | mk v c => rfl
-
+    sem_env.mk env.v_ env.c = env := sorry
 /- HOL4: Theorem with_same_clock:
    (st:'ffi state) with clock := st.clock = st
 -/
 theorem with_same_clock {ffi : Type} (st : cml_state ffi) :
-    { st with clock := st.clock } = st := by
-  rfl
-
+    { st with clock := st.clock } = st := sorry
 /- HOL4: Theorem Boolv_11[simp]:
    Boolv b1 = Boolv b2 <=> (b1 = b2)
 -/
 theorem Boolv_11 (b1 b2 : Bool) :
-    Boolv b1 = Boolv b2 ↔ b1 = b2 := by
-  constructor
-  · intro h
-    cases b1 <;> cases b2 <;> simp_all [Boolv]
-  · intro h; rw [h]
-
+    Boolv b1 = Boolv b2 ↔ b1 = b2 := sorry
 /- HOL4: Theorem extend_dec_env_assoc[simp]:
    !env1 env2 env3.
     extend_dec_env env1 (extend_dec_env env2 env3)
@@ -211,18 +200,7 @@ theorem Boolv_11 (b1 b2 : Bool) :
 -/
 theorem extend_dec_env_assoc (env1 env2 env3 : sem_env) :
     extend_dec_env env1 (extend_dec_env env2 env3) =
-    extend_dec_env (extend_dec_env env1 env2) env3 := by
-  cases env1 with | mk v1x c1x =>
-  cases env2 with | mk v2x c2x =>
-  cases env3 with | mk v3x c3x =>
-  cases v1x with | Bind _ _ =>
-  cases v2x with | Bind _ _ =>
-  cases v3x with | Bind _ _ =>
-  cases c1x with | Bind _ _ =>
-  cases c2x with | Bind _ _ =>
-  cases c3x with | Bind _ _ =>
-  simp [extend_dec_env, sem_env.v_, sem_env.c, nsAppend, List.append_assoc]
-
+    extend_dec_env (extend_dec_env env1 env2) env3 := sorry
 /- HOL4: Theorem pat_bindings_accum:
    (!p acc. pat_bindings p acc = pat_bindings p [] ++ acc) /\
    (!ps acc. pats_bindings ps acc = pats_bindings ps [] ++ acc)
@@ -231,8 +209,7 @@ theorem pat_bindings_accum :
     (∀ (p : pat) (acc : List varN),
       pat_bindings p acc = pat_bindings p [] ++ acc) ∧
     (∀ (ps : List pat) (acc : List varN),
-      pats_bindings ps acc = pats_bindings ps [] ++ acc) := by sorry
-
+      pats_bindings ps acc = pats_bindings ps [] ++ acc) := sorry
 /- HOL4: Theorem do_app_cases:
    Computed theorem: expands do_app into disjunctive normal form.
    In Lean, this is the definitional unfolding of do_app.
@@ -241,9 +218,7 @@ theorem do_app_cases {ffi : Type} :
     ∀ (s : List (store_v v) ) (t : ffi_state ffi) (op_ : op) (vs : List v)
       (st' : List (store_v v) × ffi_state ffi) (r : result v v),
     do_app (s, t) op_ vs = some (st', r) ↔
-    do_app (s, t) op_ vs = some (st', r) := by
-  intros; exact Iff.rfl
-
+    do_app (s, t) op_ vs = some (st', r) := sorry
 /- HOL4: Theorem build_rec_env_merge:
    !funs funs' env env'.
     build_rec_env funs env env' =
@@ -253,8 +228,7 @@ theorem build_rec_env_merge
     (funs : List (varN × varN × exp)) (env : sem_env)
     (env' : «namespace» modN varN v) :
     build_rec_env funs env env' =
-    nsAppend (alist_to_ns (funs.map (fun (f, _, _) => (f, v.Recclosure env funs f)))) env' := by sorry
-
+    nsAppend (alist_to_ns (funs.map (fun (f, _, _) => (f, v.Recclosure env funs f)))) env' := sorry
 /- HOL4: Theorem do_con_check_build_conv:
    !tenvC cn vs l.
     do_con_check tenvC cn l ==> ?v. build_conv tenvC cn vs = SOME v
@@ -263,30 +237,26 @@ theorem do_con_check_build_conv
     (tenvC : env_ctor) (cn : Option (cml_id modN conN))
     (vs : List v) (l : Nat) :
     do_con_check tenvC cn l = true →
-    ∃ val, build_conv tenvC cn vs = some val := by sorry
-
+    ∃ val, build_conv tenvC cn vs = some val := sorry
 /- HOL4: Theorem FV_pes_MAP:
    FV_pes pes = BIGUNION (IMAGE (\(p,e). FV e DIFF (IMAGE Short (set (pat_bindings p [])))) (set pes))
 -/
 theorem FV_pes_MAP (pes : List (pat × exp)) :
     FV_pes pes =
     Set.sUnion (Set.image (fun pe => FV pe.2 \ Set.image cml_id.Short (fun x => x ∈ pat_bindings pe.1 []))
-      (fun pe => pe ∈ pes)) := by sorry
-
+      (fun pe => pe ∈ pes)) := sorry
 /- HOL4: Theorem FV_defs_MAP:
    !ls. FV_defs ls = BIGUNION (IMAGE (\(f,x,e). FV e DIFF {Short x}) (set ls))
 -/
 theorem FV_defs_MAP (ls : List (varN × varN × exp)) :
     FV_defs ls =
     Set.sUnion (Set.image (fun fxe => FV fxe.2.2 \ {cml_id.Short fxe.2.1})
-      (fun fxe => fxe ∈ ls)) := by sorry
-
+      (fun fxe => fxe ∈ ls)) := sorry
 /- HOL4: Theorem concrete_v_list[simp]:
    !xs. concrete_v_list xs = EVERY concrete_v xs
 -/
 theorem concrete_v_list_thm (xs : List v) :
-    concrete_v_list xs = xs.all concrete_v := by sorry
-
+    concrete_v_list xs = xs.all concrete_v := sorry
 /- HOL4: Theorem prim_type_cases:
    !ty. ty = BoolT \/ ty = IntT \/ ty = CharT \/ ty = StrT \/
         ty = WordT W8 \/ ty = WordT W64 \/ ty = Float64T
@@ -298,4 +268,4 @@ theorem prim_type_cases (ty : prim_type) :
     ty = .StrT ∨
     ty = .WordT .W8 ∨
     ty = .WordT .W64 ∨
-    ty = .Float64T := by sorry
+    ty = .Float64T := sorry

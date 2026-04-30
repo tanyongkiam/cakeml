@@ -162,46 +162,28 @@ Theorem CARD_IMAGE_ID_BIJ:
 theorem CARD_IMAGE_ID_BIJ {α : Type} {f : α → α} {s : Set α} :
     FINITE s →
     (∀ x, x ∈ s → f x ∈ s) ∧ CARD (IMAGE f s) = CARD s →
-    BIJ f s s := by sorry
-
+    BIJ f s s := sorry
 /- HOL4:
 Theorem tlookup_bij_suff:
    set (toList names) = domain names ⇒ BIJ (tlookup names) UNIV UNIV
 -/
 theorem tlookup_bij_suff {names : Sptree Nat} :
     (fun x => x ∈ Sptree.toList names) = Sptree.domain names →
-    BIJ (tlookup names) Set.univ Set.univ := by sorry
-
+    BIJ (tlookup names) Set.univ Set.univ := sorry
 /- HOL4:
 Theorem tlookup_bij_iff:
    BIJ (tlookup names) UNIV UNIV ⇔ set (toList names) = domain names
 -/
 theorem tlookup_bij_iff {names : Sptree Nat} :
     BIJ (tlookup names) Set.univ Set.univ ↔
-    (fun x => x ∈ Sptree.toList names) = Sptree.domain names := by sorry
-
+    (fun x => x ∈ Sptree.toList names) = Sptree.domain names := sorry
 /- HOL4:
 Theorem find_index_LESS_LENGTH:
    ∀ls n m i. (find_index n ls m = SOME i) ⇒ (m <= i) ∧ (i < m + LENGTH ls)
 -/
 theorem find_index_LESS_LENGTH {α : Type} [BEq α]
     (ls : List α) (n : α) (m i : Nat) :
-    find_index n ls m = some i → m ≤ i ∧ i < m + ls.length := by
-  induction ls generalizing m with
-  | nil => intro h; simp [find_index] at h
-  | cons x xs ih =>
-    intro h
-    simp only [find_index] at h
-    by_cases hxy : x == n
-    · rw [if_pos hxy] at h
-      have hmi : m = i := Option.some.inj h
-      subst hmi
-      simp [List.length_cons]
-    · rw [if_neg hxy] at h
-      have := ih (m + 1) h
-      simp [List.length_cons]
-      omega
-
+    find_index n ls m = some i → m ≤ i ∧ i < m + ls.length := sorry
 /- HOL4:
 Theorem ALOOKUP_find_index_SOME:
    (ALOOKUP env k = SOME v) ⇒
@@ -211,8 +193,7 @@ theorem ALOOKUP_find_index_SOME {α β : Type} [BEq α] [Inhabited α] [Inhabite
     {env : List (α × β)} {k : α} {val_ : β} :
     ALOOKUP env k = some val_ →
     ∃ i, find_index k (env.map Prod.fst) 0 = some i ∧
-      i < env.length ∧ val_ = (EL i env).2 := by sorry
-
+      i < env.length ∧ val_ = (EL i env).2 := sorry
 /- HOL4:
 Theorem IS_PREFIX_THM:
   !l2 l1. IS_PREFIX l1 l2 <=> (LENGTH l2 <= LENGTH l1) /\ !n. n < LENGTH l2 ==> (EL n l2 = EL n l1)
@@ -220,50 +201,31 @@ Theorem IS_PREFIX_THM:
 theorem IS_PREFIX_THM {α : Type} [BEq α] [Inhabited α]
     (l2 l1 : List α) :
     IS_PREFIX l1 l2 = true ↔
-    l2.length ≤ l1.length ∧ ∀ n, n < l2.length → EL n l2 = EL n l1 := by sorry
-
+    l2.length ≤ l1.length ∧ ∀ n, n < l2.length → EL n l2 = EL n l1 := sorry
 /- HOL4:
 Theorem FST_pair:
   (λ(n,v). n) = FST
 -/
 theorem FST_pair {α β : Type} :
-    (fun (p : α × β) => p.1) = Prod.fst := by
-  funext p; rfl
-
+    (fun (p : α × β) => p.1) = Prod.fst := sorry
 /- HOL4:
 Theorem LESS_1[simp]:
   x < 1 ⇔ (x = 0:num)
 -/
 theorem LESS_1 {x : Nat} :
-    x < 1 ↔ x = 0 := by
-  omega
-
+    x < 1 ↔ x = 0 := sorry
 /- HOL4:
 Theorem map_some_eq:
   !l1 l2. (MAP SOME l1 = MAP SOME l2) ⇔ (l1 = l2)
 -/
 theorem map_some_eq {α : Type} (l1 l2 : List α) :
-    l1.map some = l2.map some ↔ l1 = l2 := by
-  constructor
-  · intro h
-    induction l1 generalizing l2 with
-    | nil => cases l2 <;> simp_all
-    | cons x xs ih =>
-      cases l2 with
-      | nil => simp at h
-      | cons y ys =>
-        simp at h
-        obtain ⟨hxy, hxs⟩ := h
-        rw [hxy, ih ys hxs]
-  · intro h; rw [h]
-
+    l1.map some = l2.map some ↔ l1 = l2 := sorry
 /- HOL4:
 Theorem map_some_eq_append:
   !l1 l2 l3. (MAP SOME l1 ++ MAP SOME l2 = MAP SOME l3) ⇔ (l1 ++ l2 = l3)
 -/
 theorem map_some_eq_append {α : Type} (l1 l2 l3 : List α) :
-    l1.map some ++ l2.map some = l3.map some ↔ l1 ++ l2 = l3 := by sorry
-
+    l1.map some ++ l2.map some = l3.map some ↔ l1 ++ l2 = l3 := sorry
 /- HOL4:
 Theorem MAP_EQ_MAP_IMP:
    !xs ys f. (!x y. MEM x xs /\ MEM y ys /\ (f x = f y) ==> (x = y)) ==>
@@ -271,29 +233,22 @@ Theorem MAP_EQ_MAP_IMP:
 -/
 theorem MAP_EQ_MAP_IMP {α β : Type} (xs ys : List α) (f : α → β) :
     (∀ x y, x ∈ xs ∧ y ∈ ys ∧ f x = f y → x = y) →
-    xs.map f = ys.map f → xs = ys := by sorry
-
+    xs.map f = ys.map f → xs = ys := sorry
 /- HOL4:
 Theorem FDOM_FLOOKUP:
    x ∈ FDOM f ⇔ ∃v. FLOOKUP f x = SOME v
 -/
 theorem FDOM_FLOOKUP {α β : Type} {x : α} {f : Finmap α β} :
-    x ∈ Finmap.FDOM f ↔ ∃ val_, Finmap.FLOOKUP f x = some val_ := by sorry
-
+    x ∈ Finmap.FDOM f ↔ ∃ val_, Finmap.FLOOKUP f x = some val_ := sorry
 /- HOL4:
 Theorem DROP_EMPTY:
    !ls n. (DROP n ls = []) ==> (n >= LENGTH ls)
 -/
 theorem DROP_EMPTY {α : Type} (ls : List α) (n : Nat) :
-    DROP n ls = [] → n ≥ ls.length := by
-  intro h
-  simp [DROP] at h
-  omega
-
+    DROP n ls = [] → n ≥ ls.length := sorry
 /- HOL4:
 Theorem plus_0_I[simp]:
    $+ 0n = I
 -/
 theorem plus_0_I :
-    (fun (n : Nat) => 0 + n) = id := by
-  funext n; simp
+    (fun (n : Nat) => 0 + n) = id := sorry

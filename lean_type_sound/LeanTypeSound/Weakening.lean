@@ -65,15 +65,13 @@ Theorem weak_tenv_refl:
    !tenv. tenv_val_ok tenv.v ⇒ weak_tenv tenv tenv
 -/
 theorem weak_tenv_refl :
-    ∀ (tenv : type_env), tenv_val_ok tenv.v → weak_tenv tenv tenv := by sorry
-
+    ∀ (tenv : type_env), tenv_val_ok tenv.v → weak_tenv tenv tenv := sorry
 /- HOL4:
 Theorem weakS_refl:
    !tenvS. weakS tenvS tenvS
 -/
 theorem weakS_refl :
-    ∀ (tenvS : tenv_store), weakS tenvS tenvS := by sorry
-
+    ∀ (tenvS : tenv_store), weakS tenvS tenvS := sorry
 /- HOL4:
 Theorem weak_tenvE_freevars[local]:
   !tenv tenv' tvs t.
@@ -84,8 +82,7 @@ Theorem weak_tenvE_freevars[local]:
 theorem weak_tenvE_freevars :
     ∀ (tenvE tenvE' : tenv_val_exp) (tvs : List tvarN) (t : sem_t),
       weak_tenvE tenvE' tenvE ∧ check_freevars (num_tvs tenvE) tvs t →
-      check_freevars (num_tvs tenvE') tvs t := by sorry
-
+      check_freevars (num_tvs tenvE') tvs t := sorry
 /- HOL4:
 Theorem weak_tenvE_bind[local]:
   !tenv tenv' n tvs t.
@@ -95,8 +92,7 @@ Theorem weak_tenvE_bind[local]:
 theorem weak_tenvE_bind :
     ∀ (tenvE tenvE' : tenv_val_exp) (n : mlstring) (tvs : Nat) (t : sem_t),
       weak_tenvE tenvE' tenvE →
-      weak_tenvE (.Bind_name n tvs t tenvE') (.Bind_name n tvs t tenvE) := by sorry
-
+      weak_tenvE (.Bind_name n tvs t tenvE') (.Bind_name n tvs t tenvE) := sorry
 /- HOL4:
 Theorem weak_tenvE_opt_bind[local]:
   !tenv tenv' n tvs t.
@@ -106,8 +102,7 @@ Theorem weak_tenvE_opt_bind[local]:
 theorem weak_tenvE_opt_bind :
     ∀ (tenvE tenvE' : tenv_val_exp) (n : Option mlstring) (tvs : Nat) (t : sem_t),
       weak_tenvE tenvE' tenvE →
-      weak_tenvE (opt_bind_name n tvs t tenvE') (opt_bind_name n tvs t tenvE) := by sorry
-
+      weak_tenvE (opt_bind_name n tvs t tenvE') (opt_bind_name n tvs t tenvE) := sorry
 /- HOL4:
 Theorem weak_tenvE_bind_tvar[local]:
   !tenv tenv' tvs.
@@ -117,8 +112,7 @@ Theorem weak_tenvE_bind_tvar[local]:
 theorem weak_tenvE_bind_tvar :
     ∀ (tenvE tenvE' : tenv_val_exp) (tvs : Nat),
       weak_tenvE tenvE' tenvE →
-      weak_tenvE (bind_tvar tvs tenvE') (bind_tvar tvs tenvE) := by sorry
-
+      weak_tenvE (bind_tvar tvs tenvE') (bind_tvar tvs tenvE) := sorry
 /- HOL4:
 Theorem weak_tenvE_bind_tvar2[local]:
   !tenv tenv' n tvs t.
@@ -130,8 +124,7 @@ Theorem weak_tenvE_bind_tvar2[local]:
 theorem weak_tenvE_bind_tvar2 :
     ∀ (tenvE tenvE' : tenv_val_exp) (tvs : Nat),
       tenv_val_exp_ok tenvE ∧ num_tvs tenvE = 0 ∧ weak_tenvE tenvE' tenvE →
-      weak_tenvE (bind_tvar tvs tenvE') (bind_tvar 0 tenvE) := by sorry
-
+      weak_tenvE (bind_tvar tvs tenvE') (bind_tvar 0 tenvE) := sorry
 /- HOL4:
 Theorem weak_tenvE_bind_var_list[local]:
   !bindings tenvE tenvE' n tvs t .
@@ -141,8 +134,7 @@ Theorem weak_tenvE_bind_var_list[local]:
 theorem weak_tenvE_bind_var_list :
     ∀ (bindings : List (mlstring × sem_t)) (tenvE tenvE' : tenv_val_exp) (tvs : Nat),
       weak_tenvE tenvE' tenvE →
-      weak_tenvE (bind_var_list tvs bindings tenvE') (bind_var_list tvs bindings tenvE) := by sorry
-
+      weak_tenvE (bind_var_list tvs bindings tenvE') (bind_var_list tvs bindings tenvE) := sorry
 /- HOL4:
 Theorem eLookupC_weak[local]:
   ∀cn tenv tenv' tvs ts tn.
@@ -155,8 +147,7 @@ theorem eLookupC_weak :
     ∀ (cn : cml_id modN conN) (tenv tenv' : type_env)
       (tvs : List tvarN) (ts : List sem_t) (tn : type_ident),
       weak_tenv tenv' tenv ∧ nsLookup tenv.c cn = some (tvs, ts, tn) →
-      nsLookup tenv'.c cn = some (tvs, ts, tn) := by sorry
-
+      nsLookup tenv'.c cn = some (tvs, ts, tn) := sorry
 /- HOL4:
 Theorem eLookupV_weak[local]:
   ∀n tenv tenv' tvs t.
@@ -169,8 +160,7 @@ theorem eLookupV_weak :
     ∀ (n : cml_id modN varN) (tenv tenv' : type_env) (tvs : Nat) (t : sem_t),
       weak_tenv tenv' tenv ∧ nsLookup tenv.v n = some (tvs, t) →
       ∃ (tvs' : Nat) (t' : sem_t),
-        nsLookup tenv'.v n = some (tvs', t') ∧ tscheme_inst (tvs, t) (tvs', t') := by sorry
-
+        nsLookup tenv'.v n = some (tvs', t') ∧ tscheme_inst (tvs, t) (tvs', t') := sorry
 /- HOL4:
 Theorem type_p_weakening:
  (!tvs tenv p t bindings. type_p tvs tenv p t bindings ⇒
@@ -187,8 +177,7 @@ theorem type_p_weakening :
       (bindings : List (varN × sem_t)),
       type_ps tvs tenv ps ts bindings →
       ∀ (tenv' : type_env) (tvs' : Nat),
-        tvs' ≥ tvs ∧ weak tenv' tenv → type_ps tvs' tenv' ps ts bindings) := by sorry
-
+        tvs' ≥ tvs ∧ weak tenv' tenv → type_ps tvs' tenv' ps ts bindings) := sorry
 /- HOL4:
 Theorem type_e_weakening_lem[local]:
   (!tenv tenvE e t. type_e tenv tenvE e t ⇒
@@ -211,8 +200,7 @@ theorem type_e_weakening_lem :
       (funs : List (varN × varN × exp)) (bindings : List (varN × sem_t)),
       type_funs tenv tenvE funs bindings →
       ∀ (tenv' : type_env) (tenvE' : tenv_val_exp),
-        weak tenv' tenv ∧ weak_tenvE tenvE' tenvE → type_funs tenv' tenvE' funs bindings) := by sorry
-
+        weak tenv' tenv ∧ weak_tenvE tenvE' tenvE → type_funs tenv' tenvE' funs bindings) := sorry
 /- HOL4:
 Theorem type_e_weakening:
  (!tenv tenvE e t tenv' tenvE'.
@@ -235,17 +223,13 @@ theorem type_e_weakening :
       (funs : List (varN × varN × exp)) (bindings : List (varN × sem_t))
       (tenv' : type_env) (tenvE' : tenv_val_exp),
       type_funs tenv tenvE funs bindings ∧ weak tenv' tenv ∧ weak_tenvE tenvE' tenvE →
-      type_funs tenv' tenvE' funs bindings) := by sorry
-
+      type_funs tenv' tenvE' funs bindings) := sorry
 /- HOL4:
 Theorem gt_0[local]:
   !x:num.x ≥ 0
 -/
 theorem gt_0 :
-    ∀ (x : Nat), x ≥ 0 := by
-  intro x
-  exact Nat.zero_le x
-
+    ∀ (x : Nat), x ≥ 0 := sorry
 /- HOL4:
 Theorem weak_ctMap_lookup[local]:
   ∀ctMap ctMap' tvs ts stamp.
@@ -257,22 +241,19 @@ Theorem weak_ctMap_lookup[local]:
 theorem weak_ctMap_lookup :
     ∀ (cm cm' : ctMap) (tvs : List tvarN) (ts : List sem_t × type_ident) (stmp : stamp),
       weakCT cm' cm ∧ Finmap.FLOOKUP cm stmp = some (tvs, ts) →
-      Finmap.FLOOKUP cm' stmp = some (tvs, ts) := by sorry
-
+      Finmap.FLOOKUP cm' stmp = some (tvs, ts) := sorry
 /- HOL4:
 Theorem weakCT_refl:
  !ctMap. weakCT ctMap ctMap
 -/
 theorem weakCT_refl :
-    ∀ (cm : ctMap), weakCT cm cm := by sorry
-
+    ∀ (cm : ctMap), weakCT cm cm := sorry
 /- HOL4:
 Theorem weakCT_trans:
  weakCT C1 C2 ∧ weakCT C2 C3 ⇒ weakCT C1 C3
 -/
 theorem weakCT_trans :
-    ∀ (C1 C2 C3 : ctMap), weakCT C1 C2 ∧ weakCT C2 C3 → weakCT C1 C3 := by sorry
-
+    ∀ (C1 C2 C3 : ctMap), weakCT C1 C2 ∧ weakCT C2 C3 → weakCT C1 C3 := sorry
 /- HOL4:
 Theorem disjoint_env_weakCT:
  !ctMap ctMap'.
@@ -282,8 +263,7 @@ Theorem disjoint_env_weakCT:
 theorem disjoint_env_weakCT :
     ∀ (cm cm' : ctMap),
       Set.Disjoint (Finmap.FDOM cm') (Finmap.FDOM cm) →
-      weakCT (Finmap.FUNION cm' cm) cm := by sorry
-
+      weakCT (Finmap.FUNION cm' cm) cm := sorry
 /- HOL4:
 Theorem type_tenv_ctor_weakening:
  !ctMap tenvC envC ctMap'.
@@ -295,8 +275,7 @@ Theorem type_tenv_ctor_weakening:
 theorem type_tenv_ctor_weakening :
     ∀ (cm : ctMap) (tenvC : tenv_ctor) (envC : env_ctor) (cm' : ctMap),
       weakCT cm' cm ∧ nsAll2 (type_ctor cm) envC tenvC →
-      nsAll2 (type_ctor cm') envC tenvC := by sorry
-
+      nsAll2 (type_ctor cm') envC tenvC := sorry
 /- HOL4:
 Theorem type_tenv_val_weakening_lemma[local]:
   !ctMap tenvS tenvV envV ctMap' tenvS'.
@@ -323,8 +302,7 @@ theorem type_tenv_val_weakening_lemma :
           (p.1 = 0 ∨ p.1 = tvs') ∧ weakCT cm'' cm ∧ weakS tenvS'' tenvS →
           type_v tvs' cm'' tenvS'' val_ p.2) envV tenvV →
       nsAll2 (fun (_ : cml_id modN varN) (val_ : v) (p : Nat × sem_t) =>
-        type_v p.1 cm' tenvS' val_ p.2) envV tenvV := by sorry
-
+        type_v p.1 cm' tenvS' val_ p.2) envV tenvV := sorry
 /- HOL4:
 Theorem type_v_weakening:
  (!tvs ctMap tenvS v t. type_v tvs ctMap tenvS v t ⇒
@@ -337,8 +315,7 @@ theorem type_v_weakening :
       type_v tvs cm tenvS val_ t →
       ∀ (tvs' : Nat) (cm' : ctMap) (tenvS' : tenv_store),
         (tvs = 0 ∨ tvs = tvs') ∧ weakCT cm' cm ∧ weakS tenvS' tenvS →
-        type_v tvs' cm' tenvS' val_ t := by sorry
-
+        type_v tvs' cm' tenvS' val_ t := sorry
 /- HOL4:
 Theorem type_all_env_weakening:
  !ctMap tenvS tenv env ctMap' tenvS'.
@@ -352,8 +329,7 @@ theorem type_all_env_weakening :
     ∀ (cm : ctMap) (tenvS : tenv_store) (tenv : type_env) (env : sem_env)
       (cm' : ctMap) (tenvS' : tenv_store),
       weakCT cm' cm ∧ weakS tenvS' tenvS ∧ type_all_env cm tenvS env tenv →
-      type_all_env cm' tenvS' env tenv := by sorry
-
+      type_all_env cm' tenvS' env tenv := sorry
 /- HOL4:
 Theorem type_sv_weakening:
  !ctMap tenvS st sv ctMap' tenvS'.
@@ -367,8 +343,7 @@ theorem type_sv_weakening :
     ∀ (cm : ctMap) (tenvS : tenv_store) (st : store_t) (sv : store_v v)
       (cm' : ctMap) (tenvS' : tenv_store),
       type_sv cm tenvS sv st ∧ weakCT cm' cm ∧ weakS tenvS' tenvS →
-      type_sv cm' tenvS' sv st := by sorry
-
+      type_sv cm' tenvS' sv st := sorry
 /- HOL4:
 Theorem type_s_weakening:
  !ctMap tenvS st ctMap'.
@@ -380,8 +355,7 @@ Theorem type_s_weakening:
 theorem type_s_weakening :
     ∀ (cm : ctMap) (tenvS : tenv_store) (st : store v) (cm' : ctMap),
       type_s cm st tenvS ∧ weakCT cm' cm →
-      type_s cm' st tenvS := by sorry
-
+      type_s cm' st tenvS := sorry
 /- HOL4:
 Theorem weak_tenv_extend_dec_tenv:
    !tenv1 tenv2 tenv3.
@@ -392,4 +366,4 @@ Theorem weak_tenv_extend_dec_tenv:
 theorem weak_tenv_extend_dec_tenv :
     ∀ (tenv1 tenv2 tenv3 : type_env),
       tenv_val_ok tenv1.v ∧ weak_tenv tenv2 tenv3 →
-      weak_tenv (extend_dec_tenv tenv1 tenv2) (extend_dec_tenv tenv1 tenv3) := by sorry
+      weak_tenv (extend_dec_tenv tenv1 tenv2) (extend_dec_tenv tenv1 tenv3) := sorry

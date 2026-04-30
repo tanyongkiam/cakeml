@@ -104,22 +104,19 @@ def adj_clock {ffi : Type} (inc dec_ : Nat) (s : cml_state ffi) : cml_state ffi 
 theorem io_events_mono_trans {ffi : Type}
     {ffi1 ffi2 ffi3 : ffi_state ffi} :
     io_events_mono ffi1 ffi2 ∧ io_events_mono ffi2 ffi3 →
-    io_events_mono ffi1 ffi3 := by sorry
-
+    io_events_mono ffi1 ffi3 := sorry
 /- HOL4: Theorem call_FFI_rel_io_events_mono
    ∀s1 s2. RTC call_FFI_rel s1 s2 ⇒ io_events_mono s1 s2
 -/
 theorem call_FFI_rel_io_events_mono {ffi : Type}
     {s1 s2 : ffi_state ffi} :
-    RTC call_FFI_rel s1 s2 → io_events_mono s1 s2 := by sorry
-
+    RTC call_FFI_rel s1 s2 → io_events_mono s1 s2 := sorry
 /- HOL4: Theorem io_events_mono_refl[simp]
    io_events_mono ffi ffi
 -/
 theorem io_events_mono_refl {ffi : Type}
     (s : ffi_state ffi) :
-    io_events_mono s s := by sorry
-
+    io_events_mono s s := sorry
 /- HOL4: Theorem do_app_call_FFI_rel
    do_app (r,ffi) op vs = SOME ((r',ffi'),res) ⇒
    call_FFI_rel^* ffi ffi'
@@ -128,8 +125,7 @@ theorem do_app_call_FFI_rel {ffi : Type}
     {r : store v} {s : ffi_state ffi} {op : op} {vs : List v}
     {r' : store v} {s' : ffi_state ffi} {res : result v v} :
     do_app (r, s) op vs = some ((r', s'), res) →
-    RTC call_FFI_rel s s' := by sorry
-
+    RTC call_FFI_rel s s' := sorry
 /- HOL4: Theorem do_app_io_events_mono
    do_app (r,ffi) op vs = SOME ((r',ffi'),res) ⇒ io_events_mono ffi ffi'
 -/
@@ -137,8 +133,7 @@ theorem do_app_io_events_mono {ffi : Type}
     {r : store v} {s : ffi_state ffi} {op : op} {vs : List v}
     {r' : store v} {s' : ffi_state ffi} {res : result v v} :
     do_app (r, s) op vs = some ((r', s'), res) →
-    io_events_mono s s' := by sorry
-
+    io_events_mono s s' := sorry
 /- HOL4: Theorem is_clock_io_mono_cong
    s = t ==>
    (!s. s.eval_state = t.eval_state /\ s.refs = t.refs /\ s.ffi = t.ffi ==>
@@ -151,37 +146,24 @@ theorem is_clock_io_mono_cong {ffi α β : Type}
     s = t →
     (∀ s', s'.eval_state_field = t.eval_state_field ∧ s'.refs = t.refs ∧ s'.ffi = t.ffi →
       f s' = g s') →
-    (is_clock_io_mono f s ↔ is_clock_io_mono g t) := by sorry
-
+    (is_clock_io_mono f s ↔ is_clock_io_mono g t) := sorry
 /- HOL4: Theorem is_clock_io_mono_return
    is_clock_io_mono (\s. (s, Rval r)) s
 -/
 theorem is_clock_io_mono_return {ffi α β : Type}
     (r : α) (s : cml_state ffi) :
-    is_clock_io_mono (fun s => (s, @result.Rval α β r)) s := by sorry
-
+    is_clock_io_mono (fun s => (s, @result.Rval α β r)) s := sorry
 /- HOL4: Theorem is_clock_io_mono_err
    is_clock_io_mono (\s. (s, Rerr r)) s
 -/
 theorem is_clock_io_mono_err {ffi α β : Type}
     (r : error_result β) (s : cml_state ffi) :
-    is_clock_io_mono (fun s => (s, @result.Rerr α β r)) s := by sorry
-
+    is_clock_io_mono (fun s => (s, @result.Rerr α β r)) s := sorry
 /- HOL4: Theorem pair_CASE_eq_forall
    (case x of (a, b) => P a b) = (!a b. x = (a, b) ==> P a b)
 -/
 theorem pair_CASE_eq_forall {α β : Type} {P : α → β → Prop} {x : α × β} :
-    (match x with | (a, b) => P a b) = (∀ a b, x = (a, b) → P a b) := by
-  cases x with
-  | mk a b =>
-    apply propext
-    constructor
-    · intro h a' b' heq
-      cases heq
-      exact h
-    · intro h
-      exact h a b rfl
-
+    (match x with | (a, b) => P a b) = (∀ a b, x = (a, b) → P a b) := sorry
 /- HOL4: Theorem is_clock_io_mono_bind
    is_clock_io_mono f s /\ (!s' r. f s = (s', r)
         ==> is_clock_io_mono (g r) s')
@@ -197,8 +179,7 @@ theorem is_clock_io_mono_bind {ffi α β γ δ : Type}
     (∀ s' r, f s = (s', r) → is_clock_io_mono (g r) s') ∧
     (∀ s', g (.Rerr (.Rabort .Rtimeout_error)) s' =
       (s', .Rerr (.Rabort .Rtimeout_error))) →
-    is_clock_io_mono (fun s => match f s with | (s', r) => g r s') s := by sorry
-
+    is_clock_io_mono (fun s => match f s with | (s', r) => g r s') s := sorry
 /- HOL4: Theorem is_clock_io_mono_check
    (~ (s.clock = 0) ==>
         is_clock_io_mono (\s. f (adj_clock 1 0 s)) (dec_clock s))
@@ -213,14 +194,12 @@ theorem is_clock_io_mono_check {ffi α β : Type}
     is_clock_io_mono
       (fun s => if s.clock = 0
         then (s, .Rerr (.Rabort .Rtimeout_error))
-        else f s) s := by sorry
-
+        else f s) s := sorry
 /- HOL4: Theorem dec_inc_clock
    dec_clock (adj_clock 1 0 s) = s
 -/
 theorem dec_inc_clock {ffi : Type} (s : cml_state ffi) :
-    dec_clock (adj_clock 1 0 s) = s := by sorry
-
+    dec_clock (adj_clock 1 0 s) = s := sorry
 /- HOL4: Theorem do_app_refs_length
    do_app refs_ffi op vs = SOME res ==>
    LENGTH (FST refs_ffi) <= LENGTH (FST (FST res))
@@ -229,8 +208,7 @@ theorem do_app_refs_length {ffi : Type}
     {refs_ffi : store v × ffi_state ffi} {op : op} {vs : List v}
     {res : (store v × ffi_state ffi) × result v v} :
     do_app refs_ffi op vs = some res →
-    refs_ffi.1.length ≤ res.1.1.length := by sorry
-
+    refs_ffi.1.length ≤ res.1.1.length := sorry
 /- HOL4: Theorem is_clock_io_mono_do_app_simple
    ! xs (st:'ffi state).
     is_clock_io_mono (\st'.
@@ -245,8 +223,7 @@ theorem is_clock_io_mono_do_app_simple {ffi : Type}
       match do_app (st'.refs, st'.ffi) op xs with
       | none => (st', .Rerr (.Rabort .Rtype_error))
       | some ((refs, ffi_), r) =>
-        ({ st' with refs := refs, ffi := ffi_ }, list_result r)) st := by sorry
-
+        ({ st' with refs := refs, ffi := ffi_ }, list_result r)) st := sorry
 /- HOL4: Theorem is_clock_io_mono_evaluate
    (!(s : 'ffi state) env es. is_clock_io_mono (\s. evaluate s env es) s) /\
    (!(s : 'ffi state) env v pes err_v.
@@ -260,15 +237,13 @@ theorem is_clock_io_mono_evaluate {ffi : Type} :
     (∀ (s : cml_state ffi) (env : sem_env) (val_ : v) (pes : List (pat × exp)) (err_v : v),
       is_clock_io_mono (fun s => evaluate_match s env val_ pes err_v) s) ∧
     (∀ (s : cml_state ffi) (env : sem_env) (ds : List dec),
-      is_clock_io_mono (fun s => evaluate_decs s env ds) s) := by sorry
-
+      is_clock_io_mono (fun s => evaluate_decs s env ds) s) := sorry
 /- HOL4: Theorem is_clock_io_mono_evaluate_decs
    !s e p. is_clock_io_mono (\s. evaluate_decs s e p) s
 -/
 theorem is_clock_io_mono_evaluate_decs {ffi : Type}
     (s : cml_state ffi) (e : sem_env) (p : List dec) :
-    is_clock_io_mono (fun s => evaluate_decs s e p) s := by sorry
-
+    is_clock_io_mono (fun s => evaluate_decs s e p) s := sorry
 /- HOL4: Theorem is_clock_io_mono_extra
    (!s. is_clock_io_mono f s)
     ==> f s = (s', r) /\ ~ (r = Rerr (Rabort Rtimeout_error))
@@ -281,15 +256,13 @@ theorem is_clock_io_mono_extra {ffi α β : Type}
     (∀ s, is_clock_io_mono f s) →
     f s = (s', r) ∧ ¬ (r = .Rerr (.Rabort .Rtimeout_error)) →
     f ({ s with clock := s.clock + extra }) =
-      ({ s' with clock := s'.clock + extra }, r) := by sorry
-
+      ({ s' with clock := s'.clock + extra }, r) := sorry
 /- HOL4: Theorem list_result_eq_Rval[simp]
    list_result r = Rval r' ⇔ ∃v. r' = [v] ∧ r = Rval v
 -/
 theorem list_result_eq_Rval {α β : Type}
     {r : result α β} {r' : List α} :
-    list_result r = .Rval r' ↔ ∃ v, r' = [v] ∧ r = .Rval v := by sorry
-
+    list_result r = .Rval r' ↔ ∃ v, r' = [v] ∧ r = .Rval v := sorry
 /- HOL4: Theorem evaluate_length
    (∀(s:'ffi state) e p s' r. evaluate s e p = (s',Rval r) ⇒ LENGTH r = LENGTH p) ∧
    (∀(s:'ffi state) e v p er s' r. evaluate_match s e v p er = (s',Rval r) ⇒ LENGTH r = 1) ∧
@@ -302,8 +275,7 @@ theorem evaluate_length {ffi : Type} :
       (s' : cml_state ffi) (r : List v),
       evaluate_match s env val_ pes err_v = (s', .Rval r) → r.length = 1) ∧
     (∀ (s : cml_state ffi) (env : sem_env) (ds : List dec) (s' : cml_state ffi) (r : sem_env),
-      evaluate_decs s env ds = (s', .Rval r) → True) := by sorry
-
+      evaluate_decs s env ds = (s', .Rval r) → True) := sorry
 /- HOL4: Theorem is_clock_io_mono_set_clock
    is_clock_io_mono f s
     ==> f s = (s', r) /\ ~ (r = Rerr (Rabort Rtimeout_error))
@@ -314,8 +286,7 @@ theorem is_clock_io_mono_set_clock {ffi α β : Type}
     {s s' : cml_state ffi} {r : result α β} {ck1 : Nat} :
     is_clock_io_mono f s →
     f s = (s', r) ∧ ¬ (r = .Rerr (.Rabort .Rtimeout_error)) →
-    ∃ ck0, f ({ s with clock := ck0 }) = ({ s' with clock := ck1 }, r) := by sorry
-
+    ∃ ck0, f ({ s with clock := ck0 }) = ({ s' with clock := ck1 }, r) := sorry
 /- HOL4: Theorem is_clock_io_mono_minimal
    is_clock_io_mono f s
     ==> f s = (s', r) /\ s'.clock = 0 /\ r <> Rerr (Rabort Rtimeout_error)
@@ -329,8 +300,7 @@ theorem is_clock_io_mono_minimal {ffi α β : Type}
     is_clock_io_mono f s →
     f s = (s', r) ∧ s'.clock = 0 ∧ r ≠ .Rerr (.Rabort .Rtimeout_error) ∧ s.clock > k →
     ∃ s'', f ({ s with clock := k }) = (s'', .Rerr (.Rabort .Rtimeout_error)) ∧
-      io_events_mono s''.ffi s'.ffi := by sorry
-
+      io_events_mono s''.ffi s'.ffi := sorry
 /- HOL4: Theorem can_pmatch_all_EVERY
    can_pmatch_all envC refs ps v <=>
    EVERY (\p. pmatch envC refs p v [] <> Match_type_error) ps
@@ -338,4 +308,4 @@ theorem is_clock_io_mono_minimal {ffi α β : Type}
 theorem can_pmatch_all_EVERY
     (envC : env_ctor) (refs : store v) (ps : List pat) (val_ : v) :
     can_pmatch_all envC refs ps val_ = true ↔
-    ∀ p, p ∈ ps → pmatch envC refs p val_ [] ≠ .Match_type_error := by sorry
+    ∀ p, p ∈ ps → pmatch envC refs p val_ [] ≠ .Match_type_error := sorry

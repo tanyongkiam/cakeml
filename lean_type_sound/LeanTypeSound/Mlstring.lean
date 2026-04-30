@@ -255,36 +255,31 @@ Theorem explode_aux_thm:
 -/
 theorem explode_aux_thm (max n : Nat) (ls : String) :
     n + max = ls.data.length →
-    explode_aux (.strlit ls) n max = HOL4.DROP n ls.data := by sorry
-
+    explode_aux (.strlit ls) n max = HOL4.DROP n ls.data := sorry
 /- HOL4:
 Theorem explode_thm[simp]:
    explode (strlit ls) = ls
 -/
 theorem explode_thm (ls : String) :
-    explode (.strlit ls) = ls.data := by sorry
-
+    explode (.strlit ls) = ls.data := sorry
 /- HOL4:
 Theorem explode_implode[simp]:
    ∀x. explode (implode x) = x
 -/
 theorem explode_implode (x : String) :
-    explode (implode x) = x.data := by sorry
-
+    explode (implode x) = x.data := sorry
 /- HOL4:
 Theorem implode_explode[simp]:
    ∀x. implode (explode x) = x
 -/
 theorem implode_explode (x : mlstring) :
-    implode (String.ofList (explode x)) = x := by sorry
-
+    implode (String.ofList (explode x)) = x := sorry
 /- HOL4:
 Theorem explode_11[simp]:
    ∀s1 s2. (explode s1 = explode s2) ⇔ (s1 = s2)
 -/
 theorem explode_11 (s1 s2 : mlstring) :
-    explode s1 = explode s2 ↔ s1 = s2 := by sorry
-
+    explode s1 = explode s2 ↔ s1 = s2 := sorry
 /- HOL4:
 Theorem TOKENS_eq_tokens_aux:
    !P ls ss n len. (n + len = LENGTH (explode ls)) ==>
@@ -309,11 +304,10 @@ theorem TOKENS_eq_tokens_aux (P : Char → Bool) (ls : mlstring) (ss : List Char
       else if len ≠ 0 then
         (h :: t).reverse :: HOL4.TOKENS P (HOL4.DROP n (explode ls))
       else [(h :: t).reverse]
-    | [] => HOL4.TOKENS P (HOL4.DROP n (explode ls)) := by sorry
-
+    | [] => HOL4.TOKENS P (HOL4.DROP n (explode ls)) := sorry
 /- HOL4:
 Theorem TOKENS_eq_tokens:
    !P ls.(MAP explode (tokens P ls) = TOKENS P (explode ls))
 -/
 theorem TOKENS_eq_tokens (P : Char → Bool) (ls : mlstring) :
-    (tokens P ls).map explode = HOL4.TOKENS P (explode ls) := by sorry
+    (tokens P ls).map explode = HOL4.TOKENS P (explode ls) := sorry

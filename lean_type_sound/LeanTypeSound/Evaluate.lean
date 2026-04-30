@@ -282,8 +282,7 @@ theorem evaluate_clock {ffi : Type} :
       evaluate_match s1 env val_ p v' = (s2, r) → s2.clock ≤ s1.clock) ∧
     (∀ (s1 : cml_state ffi) (env : sem_env) (ds : List dec) (s2 : cml_state ffi)
       (r : result sem_env v),
-      evaluate_decs s1 env ds = (s2, r) → s2.clock ≤ s1.clock) := by sorry
-
+      evaluate_decs s1 env ds = (s2, r) → s2.clock ≤ s1.clock) := sorry
 /- HOL4:
 Theorem fix_clock_evaluate:
    fix_clock s1 (evaluate s1 env e) = evaluate s1 env e ∧
@@ -292,12 +291,11 @@ Theorem fix_clock_evaluate:
 theorem fix_clock_evaluate {ffi : Type}
     (s1 : cml_state ffi) (env : sem_env) (e : List exp) (ds : List dec) :
     fix_clock s1 (evaluate s1 env e) = evaluate s1 env e ∧
-    fix_clock s1 (evaluate_decs s1 env ds) = evaluate_decs s1 env ds := by sorry
-
+    fix_clock s1 (evaluate_decs s1 env ds) = evaluate_decs s1 env ds := sorry
 /- HOL4:
 Theorem fix_clock_do_eval_res:
    fix_clock s (do_eval_res vs s) = do_eval_res vs s
 -/
 theorem fix_clock_do_eval_res {ffi : Type}
     (s : cml_state ffi) (vs : List v) :
-    fix_clock s (do_eval_res vs s) = do_eval_res vs s := by sorry
+    fix_clock s (do_eval_res vs s) = do_eval_res vs s := sorry
